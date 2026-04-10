@@ -26,10 +26,13 @@ class MelvilPreferences(AddonPreferences):
     )
 
     def draw(self, context):
-        from .core.library import _default_db_path
+        from .core.library import _default_db_path, _default_library_root
 
         layout = self.layout
         layout.prop(self, "library_root")
+        if not self.library_root.strip():
+            layout.label(text=f"Default: {_default_library_root()}", icon="INFO")
+
         layout.prop(self, "db_path")
 
         # Show the resolved DB location so the user knows where the index lives.

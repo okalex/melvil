@@ -54,7 +54,7 @@ def _write_blend_file(filepath: str, datablocks: set) -> None:
     bpy.data.libraries.write(
         filepath,
         datablocks,
-        relative_remap=True,
+        path_remap="RELATIVE_ALL",
         compress=False,
         fake_user=True,
     )
@@ -95,7 +95,7 @@ class AssetWriter:
         blend_filename = self._build_filename(name, asset_id)
         blend_path = self.library_root / blend_filename
 
-        self._write_with_textures(datablock, blend_path)
+        self._write_with_textures(datablock, name, blend_path)
 
         insert_asset(
             self.conn,
@@ -117,16 +117,24 @@ class AssetWriter:
         short_id = asset_id.replace("-", "")[:8]
         return f"{slug}_{short_id}.blend"
 
-    def _write_with_textures(self, datablock, blend_path: Path) -> None:
-        """Copy textures, temporarily repoint paths, write blend, then restore."""
+    def _write_with_textures(self, datablock, name: str, blend_path: Path) -> None:
+        """Copy textures, temporarily repoint paths, write blend, then restore.
+
+        The datablock is temporarily renamed to *name* before writing so that
+        the name stored in the DB matches the name inside the .blend file,
+        which is what ``AssetReader`` uses to locate the datablock on load.
+        """
         textures_dir = self.library_root / "textures"
         images = collect_external_images(datablock)
         remapping = copy_textures(images, textures_dir)
 
         # Record original paths so we can unconditionally restore them.
         original_paths: dict = {img: img.filepath for img in images if img.filepath in remapping}
+        original_name: str = datablock.name
 
         try:
+            # Rename to the user-chosen name so the .blend file and DB agree.
+            datablock.name = name
             # Repoint to relative paths (//textures/<file>) before writing.
             for img in original_paths:
                 img.filepath = remapping[img.filepath]
@@ -134,5 +142,6 @@ class AssetWriter:
             self.library_root.mkdir(parents=True, exist_ok=True)
             _write_blend_file(str(blend_path), {datablock})
         finally:
+            datablock.name = original_name
             for img, original in original_paths.items():
                 img.filepath = original

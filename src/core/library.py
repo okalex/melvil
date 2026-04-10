@@ -21,21 +21,29 @@ def get_prefs():
     return bpy.context.preferences.addons[MelvilPreferences.bl_idname].preferences
 
 
+def _default_library_root() -> Path:
+    """
+    Return the default library root when no explicit path is configured.
+
+    Resolves to something like:
+        ~/Library/Application Support/Blender/5.0/datafiles/melvil
+    """
+    return Path(bpy.utils.user_resource("DATAFILES", path="melvil", create=True))
+
+
 def resolve_library_root() -> Path:
     """
     Return the absolute path to the library root directory.
 
-    Raises LibraryNotConfiguredError if the library_root preference is not set.
+    When the library_root preference is empty the default location inside
+    Blender's user data files directory is used (see ``_default_library_root``).
     The library root is where managed .blend files and the textures/ subfolder
     are stored.
     """
     prefs = get_prefs()
     root = prefs.library_root.strip()
     if not root:
-        raise LibraryNotConfiguredError(
-            "Melvil: Library Root is not configured. "
-            "Open Preferences \u2192 Add-ons \u2192 Melvil to set it."
-        )
+        return _default_library_root()
     return Path(bpy.path.abspath(root))
 
 
