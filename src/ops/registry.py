@@ -1,13 +1,19 @@
 """
 Central registry for all Melvil operators.
-Import operator modules here and add their classes to _classes.
 """
 
 import bpy
 
 from ..utils import register_class as _safe_register
+from .delete import MELVIL_OT_delete_asset
+from .load import MELVIL_OT_load_asset
+from .save import MELVIL_OT_save_asset
 
-_classes = ()
+_classes = (
+    MELVIL_OT_save_asset,
+    MELVIL_OT_load_asset,
+    MELVIL_OT_delete_asset,
+)
 
 
 def register():

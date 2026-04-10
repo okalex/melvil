@@ -29,7 +29,8 @@ def _make_bpy_mock() -> types.ModuleType:
         bl_options = set()
 
     class Operator(_Base):
-        pass
+        def report(self, type, message):
+            pass
 
     class Panel(_Base):
         bl_space_type = ""
