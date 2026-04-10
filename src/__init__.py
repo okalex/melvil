@@ -11,6 +11,7 @@ bl_info = {
 from . import preferences
 from .ops import registry as ops_registry
 from .ui import registry as ui_registry
+from .core.library import ensure_db
 
 # Ordered list of modules that expose register()/unregister().
 _modules = [
@@ -23,6 +24,7 @@ _modules = [
 def register():
     for mod in _modules:
         mod.register()
+    ensure_db()
 
 
 def unregister():

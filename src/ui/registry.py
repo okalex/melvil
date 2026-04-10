@@ -5,12 +5,14 @@ Import panel modules here and add their classes to _classes.
 
 import bpy
 
+from ..utils import register_class as _safe_register
+
 _classes = ()
 
 
 def register():
     for cls in _classes:
-        bpy.utils.register_class(cls)
+        _safe_register(cls)
 
 
 def unregister():

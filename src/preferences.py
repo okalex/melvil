@@ -2,6 +2,8 @@ import bpy
 from bpy.props import StringProperty
 from bpy.types import AddonPreferences
 
+from .utils import register_class as _safe_register
+
 
 class MelvilPreferences(AddonPreferences):
     bl_idname = __package__
@@ -24,9 +26,15 @@ class MelvilPreferences(AddonPreferences):
     )
 
     def draw(self, context):
+        from .core.library import _default_db_path
+
         layout = self.layout
         layout.prop(self, "library_root")
         layout.prop(self, "db_path")
+
+        # Show the resolved DB location so the user knows where the index lives.
+        if not self.db_path.strip():
+            layout.label(text=f"Default DB: {_default_db_path()}", icon="INFO")
 
 
 _classes = (MelvilPreferences,)
@@ -34,7 +42,7 @@ _classes = (MelvilPreferences,)
 
 def register():
     for cls in _classes:
-        bpy.utils.register_class(cls)
+        _safe_register(cls)
 
 
 def unregister():
