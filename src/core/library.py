@@ -1,6 +1,6 @@
 """
-Library helpers: resolve the effective DB path from preferences and
-ensure the database is initialised (migrations applied).
+Library helpers: resolve paths from preferences and ensure the database
+is initialised.
 """
 
 from __future__ import annotations
@@ -12,9 +12,31 @@ import bpy
 from ..db import open_db
 
 
+class LibraryNotConfiguredError(Exception):
+    """Raised when an operation requires a library root that hasn't been set."""
+
+
 def get_prefs():
     from ..preferences import MelvilPreferences
     return bpy.context.preferences.addons[MelvilPreferences.bl_idname].preferences
+
+
+def resolve_library_root() -> Path:
+    """
+    Return the absolute path to the library root directory.
+
+    Raises LibraryNotConfiguredError if the library_root preference is not set.
+    The library root is where managed .blend files and the textures/ subfolder
+    are stored.
+    """
+    prefs = get_prefs()
+    root = prefs.library_root.strip()
+    if not root:
+        raise LibraryNotConfiguredError(
+            "Melvil: Library Root is not configured. "
+            "Open Preferences \u2192 Add-ons \u2192 Melvil to set it."
+        )
+    return Path(bpy.path.abspath(root))
 
 
 def _default_db_path() -> Path:

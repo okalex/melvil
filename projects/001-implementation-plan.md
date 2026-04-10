@@ -1,4 +1,5 @@
 ## Implementation Plan
+
 **Milestone 1 is deliberately narrow.** Materials and meshes cover 80% of real-world usage, and you get a genuinely useful, shippable tool at the end of it. Node groups and actions being deferred to M3 keeps the first sprint focused.
 
 **The DB layer comes before the UI.** Getting the schema and migration strategy right early prevents painful refactors later. The schema versioning task in M1 Phase 2 is especially worth doing carefully — it's easy to skip and very costly to retrofit.
