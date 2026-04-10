@@ -1,13 +1,3 @@
-bl_info = {
-    "name": "Melvil",
-    "author": "",
-    "version": (0, 1, 0),
-    "blender": (4, 2, 0),
-    "location": "View3D > Sidebar > Melvil",
-    "description": "Personal asset library manager",
-    "category": "Generic",
-}
-
 from . import preferences
 from .ops import registry as ops_registry
 from .ui import registry as ui_registry
