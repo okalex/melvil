@@ -1,0 +1,20 @@
+[project]
+name = "melvil"
+version = "0.1.0"
+description = "A Blender add-on"
+requires-python = ">=3.11"
+dependencies = []
+
+[dependency-groups]
+dev = ["fake-bpy-module-latest", "pytest"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/melvil"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
