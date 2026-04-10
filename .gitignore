@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+
+# uv / virtualenv
+.venv/
+
+# Build
+dist/
+*.egg-info/

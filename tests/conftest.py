@@ -30,19 +30,37 @@ def _make_bpy_mock() -> types.ModuleType:
     class PropertyGroup(_Base):
         pass
 
+    class AddonPreferences(_Base):
+        bl_idname = ""
+
+        def draw(self, context):
+            pass
+
     bpy_types.Operator = Operator
     bpy_types.Panel = Panel
     bpy_types.PropertyGroup = PropertyGroup
+    bpy_types.AddonPreferences = AddonPreferences
     bpy.types = bpy_types
+    sys.modules["bpy.types"] = bpy_types
 
     # bpy.utils
     bpy_utils = types.ModuleType("bpy.utils")
     bpy_utils.register_class = MagicMock()
     bpy_utils.unregister_class = MagicMock()
     bpy.utils = bpy_utils
+    sys.modules["bpy.utils"] = bpy_utils
 
-    # bpy.props
-    bpy.props = MagicMock()
+    # bpy.props — register as a real submodule so `from bpy.props import X` works
+    bpy_props = types.ModuleType("bpy.props")
+    bpy_props.StringProperty = MagicMock(return_value=None)
+    bpy_props.IntProperty = MagicMock(return_value=None)
+    bpy_props.FloatProperty = MagicMock(return_value=None)
+    bpy_props.BoolProperty = MagicMock(return_value=None)
+    bpy_props.EnumProperty = MagicMock(return_value=None)
+    bpy_props.CollectionProperty = MagicMock(return_value=None)
+    bpy_props.PointerProperty = MagicMock(return_value=None)
+    bpy.props = bpy_props
+    sys.modules["bpy.props"] = bpy_props
 
     # bpy.ops / bpy.context / bpy.data — light mocks
     bpy.ops = MagicMock()
