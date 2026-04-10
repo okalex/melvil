@@ -46,10 +46,30 @@ def _make_bpy_mock() -> types.ModuleType:
         def draw(self, context):
             pass
 
+    class Menu(_Base):
+        def draw(self, context):
+            pass
+
+    class VIEW3D_MT_object_context_menu:
+        _handlers: list = []
+
+        @classmethod
+        def append(cls, fn):
+            cls._handlers.append(fn)
+
+        @classmethod
+        def remove(cls, fn):
+            try:
+                cls._handlers.remove(fn)
+            except ValueError:
+                pass
+
     bpy_types.Operator = Operator
     bpy_types.Panel = Panel
     bpy_types.PropertyGroup = PropertyGroup
     bpy_types.AddonPreferences = AddonPreferences
+    bpy_types.Menu = Menu
+    bpy_types.VIEW3D_MT_object_context_menu = VIEW3D_MT_object_context_menu
     bpy.types = bpy_types
     sys.modules["bpy.types"] = bpy_types
 

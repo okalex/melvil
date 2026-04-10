@@ -30,7 +30,7 @@
 
 #### Phase 4 - Operators
 - Write`ASSET_OT_save`: context-aware operator that detects whether selection is a material or mesh and dispatches to the right writer path
-- Write`ASSET_OT_load`: takes a UUID, calls`AssetReader`, appends to the current scene
+- Write`ASSET_OT_load`: takes a UUID, calls`AssetReader`, appends to the current scene 
 - Write`ASSET_OT_delete`: removes the DB record and the managed`.blend`file
 
 #### Phase 5 - Basic UI
