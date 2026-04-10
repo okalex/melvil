@@ -77,6 +77,7 @@ class MELVIL_OT_load_asset(bpy.types.Operator):
         # Link object-type datablocks into the active collection.
         if hasattr(datablock, "users_collection"):
             context.collection.objects.link(datablock)
+            datablock.location = context.scene.cursor.location
             if context.mode == "OBJECT":
                 bpy.ops.object.select_all(action="DESELECT")
                 datablock.select_set(True)

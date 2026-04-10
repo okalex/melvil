@@ -162,6 +162,27 @@ class TestExecute:
         ctx.collection.objects.link.assert_called_once_with(mock_obj)
         assert result == {"FINISHED"}
 
+    def test_load_mesh_places_at_cursor(self, conn):
+        assets_db.insert_asset(conn, **SAMPLE_MESH)
+        mock_obj = MagicMock()
+        mock_obj.name = "Suzanne"
+        mock_obj.users_collection = []
+
+        cursor_loc = MagicMock()
+        op = _make_op(asset_id=SAMPLE_MESH["id"])
+        ctx = _make_context()
+        ctx.scene.cursor.location = cursor_loc
+
+        with patch("melvil.ops.load.resolve_library_root", return_value="/lib"), \
+             patch("melvil.ops.load.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ops.load.open_db", _mock_open_db(conn)), \
+             patch("melvil.ops.load.AssetReader") as MockReader, \
+             patch("melvil.ops.load.bpy"):
+            MockReader.return_value.read.return_value = mock_obj
+            op.execute(ctx)
+
+        assert mock_obj.location == cursor_loc
+
     def test_none_datablock_returns_cancelled(self, conn):
         op = _make_op(asset_id="aaaaaaaa-0000-4000-8000-000000000001")
         ctx = _make_context()
