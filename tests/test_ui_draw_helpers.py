@@ -71,6 +71,21 @@ class TestDrawAssetSection:
 
         assert load_op.asset_id == "abc-123"
 
+    def test_show_load_false_omits_load_button(self):
+        from melvil.ui.draw_helpers import draw_asset_section
+
+        layout = MagicMock()
+        box = MagicMock()
+        layout.box.return_value = box
+        row = MagicMock()
+        box.row.return_value = row
+
+        draw_asset_section(layout, "Node Groups", "NODETREE", [_make_asset("1", "My Group", "NODE_GROUP")], show_load=False)
+
+        ops = [c[0][0] for c in row.operator.call_args_list]
+        assert "melvil.load_asset" not in ops
+        assert "melvil.delete_asset" in ops
+
     def test_multiple_assets_each_get_a_row(self):
         from melvil.ui.draw_helpers import draw_asset_section
 

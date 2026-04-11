@@ -65,6 +65,7 @@ _ENTRIES = [
     ("ALL", "All", "ASSET_MANAGER"),
     ("MATERIAL", "Materials", "MATERIAL"),
     ("MESH", "Meshes", "MESH_DATA"),
+    ("NODE_GROUP", "Node Groups", "NODETREE"),
 ]
 
 
@@ -163,7 +164,7 @@ class TestInvoke:
         wm = ctx.window_manager
         wm.melvil_type_items.clear.assert_called_once()
         # One add() call per category entry
-        assert wm.melvil_type_items.add.call_count == 3
+        assert wm.melvil_type_items.add.call_count == len(_ENTRIES)
 
     def test_invoke_resets_type_index_to_zero(self):
         op = _make_op()

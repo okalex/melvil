@@ -41,6 +41,7 @@ _TYPE_ENTRIES = [
     ("ALL", "All", "ASSET_MANAGER"),
     ("MATERIAL", "Materials", "MATERIAL"),
     ("MESH", "Meshes", "MESH_DATA"),
+    ("NODE_GROUP", "Node Groups", "NODETREE"),
 ]
 
 
@@ -180,6 +181,8 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
                 draw_asset_section(right, "Materials", "MATERIAL", load_assets("MATERIAL"))
             if selected in ("ALL", "MESH"):
                 draw_asset_section(right, "Meshes", "MESH_DATA", load_assets("MESH"))
+            if selected in ("ALL", "NODE_GROUP"):
+                draw_asset_section(right, "Node Groups", "NODETREE", load_assets("NODE_GROUP"), show_load=False)
         except Exception:
             right.label(text="Could not open library database", icon="ERROR")
 

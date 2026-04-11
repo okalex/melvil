@@ -12,13 +12,13 @@ from ..db import open_db
 from ..db.assets import list_assets
 
 
-def draw_asset_section(layout, title: str, icon: str, assets) -> None:
+def draw_asset_section(layout, title: str, icon: str, assets, *, show_load: bool = True) -> None:
     """
     Draw a titled box containing one row per asset in *assets*.
 
     Each row has:
     - the asset name (label)
-    - a Load button  (IMPORT icon → ``melvil.load_asset``)
+    - a Load button  (IMPORT icon → ``melvil.load_asset``) — only if *show_load* is True
     - a Delete button (TRASH icon → ``melvil.delete_asset``)
 
     When *assets* is empty a placeholder label is shown instead.
@@ -33,6 +33,9 @@ def draw_asset_section(layout, title: str, icon: str, assets) -> None:
         Blender icon identifier for the heading (e.g. ``"MESH_DATA"``).
     assets:
         Sequence of DB rows with at least ``"id"`` and ``"name"`` keys.
+    show_load:
+        When ``False`` the Load button is omitted (e.g. for asset types that
+        must be loaded from a specific editor context).
     """
     box = layout.box()
     box.label(text=title, icon=icon)
@@ -45,8 +48,9 @@ def draw_asset_section(layout, title: str, icon: str, assets) -> None:
         row = box.row(align=True)
         row.label(text=asset["name"])
 
-        load_op = row.operator("melvil.load_asset", text="", icon="IMPORT")
-        load_op.asset_id = asset["id"]
+        if show_load:
+            load_op = row.operator("melvil.load_asset", text="", icon="IMPORT")
+            load_op.asset_id = asset["id"]
 
         del_op = row.operator("melvil.delete_asset", text="", icon="TRASH")
         del_op.asset_id = asset["id"]
