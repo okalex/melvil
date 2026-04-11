@@ -917,3 +917,114 @@ class TestDrawAssetSectionAssetTags:
 
         sub_row.label.assert_called_once_with(text="No tags")
         assert sub_row.enabled is False
+
+
+# ---------------------------------------------------------------------------
+# load_asset_tag_names()
+# ---------------------------------------------------------------------------
+
+
+class TestLoadAssetTagNames:
+    def test_returns_tag_names_per_asset(self, conn):
+        from melvil.ui.draw_helpers import load_asset_tag_names
+
+        assets_db.insert_asset(conn, **SAMPLE_MATERIAL)
+        from melvil.db import tags as tags_db
+        tags_db.add_asset_tag(conn, SAMPLE_MATERIAL["id"], "metal")
+        tags_db.add_asset_tag(conn, SAMPLE_MATERIAL["id"], "pbr")
+        conn.commit()
+
+        with patch("melvil.ui.draw_helpers.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ui.draw_helpers.open_db", _mock_open_db(conn)):
+            result = load_asset_tag_names([SAMPLE_MATERIAL["id"]])
+
+        assert SAMPLE_MATERIAL["id"] in result
+        assert sorted(result[SAMPLE_MATERIAL["id"]]) == ["metal", "pbr"]
+
+    def test_empty_asset_ids_returns_empty(self):
+        from melvil.ui.draw_helpers import load_asset_tag_names
+
+        result = load_asset_tag_names([])
+        assert result == {}
+
+    def test_raises_on_library_not_configured(self):
+        from melvil.ui.draw_helpers import load_asset_tag_names
+        from melvil.core.library import LibraryNotConfiguredError
+
+        with patch("melvil.ui.draw_helpers.resolve_db_path",
+                   side_effect=LibraryNotConfiguredError("not set")):
+            with pytest.raises(LibraryNotConfiguredError):
+                load_asset_tag_names(["some-id"])
+
+
+# ---------------------------------------------------------------------------
+# filter_assets() — tag name matching
+# ---------------------------------------------------------------------------
+
+
+class TestFilterAssetsTagNames:
+    def _assets(self, *names):
+        return [{"id": str(i), "name": n} for i, n in enumerate(names)]
+
+    def test_matches_asset_by_tag_name(self):
+        from melvil.ui.draw_helpers import filter_assets
+
+        assets = self._assets("Iron", "Glass")
+        tag_names = {"0": ["metal"], "1": ["transparent"]}
+
+        result = filter_assets(assets, "metal", tag_names)
+        assert [a["name"] for a in result] == ["Iron"]
+
+    def test_name_match_still_works_with_tag_names_provided(self):
+        from melvil.ui.draw_helpers import filter_assets
+
+        assets = self._assets("Iron", "Glass")
+        tag_names = {"0": ["metal"]}
+
+        result = filter_assets(assets, "Glass", tag_names)
+        assert [a["name"] for a in result] == ["Glass"]
+
+    def test_tag_search_case_insensitive(self):
+        from melvil.ui.draw_helpers import filter_assets
+
+        assets = self._assets("Rock")
+        tag_names = {"0": ["Outdoor"]}
+
+        result = filter_assets(assets, "outdoor", tag_names)
+        assert len(result) == 1
+
+    def test_tag_search_whitespace_collapsed(self):
+        from melvil.ui.draw_helpers import filter_assets
+
+        assets = self._assets("Rock")
+        tag_names = {"0": ["pbr material"]}
+
+        # Query collapses spaces — "pbrmaterial" should still match "pbr material"
+        result = filter_assets(assets, "pbrmaterial", tag_names)
+        assert len(result) == 1
+
+    def test_asset_not_duplicated_when_name_and_tag_both_match(self):
+        from melvil.ui.draw_helpers import filter_assets
+
+        assets = self._assets("Metal Rock")
+        tag_names = {"0": ["metal"]}
+
+        # "metal" matches both asset name and tag — should appear only once
+        result = filter_assets(assets, "metal", tag_names)
+        assert len(result) == 1
+
+    def test_no_tag_names_provided_behaves_as_before(self):
+        from melvil.ui.draw_helpers import filter_assets
+
+        assets = self._assets("Iron", "Glass")
+        # "metal" doesn't match any asset name → no results without tag_names
+        result = filter_assets(assets, "metal")
+        assert result == []
+
+    def test_empty_query_returns_all_regardless_of_tag_names(self):
+        from melvil.ui.draw_helpers import filter_assets
+
+        assets = self._assets("Iron", "Glass")
+        tag_names = {"0": ["metal"]}
+
+        assert filter_assets(assets, "", tag_names) == assets

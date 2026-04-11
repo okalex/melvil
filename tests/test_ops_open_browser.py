@@ -629,4 +629,104 @@ class TestDrawTagFilterPills:
         left_col.separator.assert_called()
 
 
+# ---------------------------------------------------------------------------
+# draw() — tag-name search integration
+# ---------------------------------------------------------------------------
+
+
+class TestTagNameSearch:
+    """draw() should pass tag names to filter_assets for tag-based search."""
+
+    def _make_ctx(self, query=""):
+        ctx = MagicMock()
+        ctx.window_manager.melvil_active_tag_filters = ""
+        ctx.window_manager.melvil_tag_sort = "NAME"
+        return ctx
+
+    def _make_op_with_layout(self, query=""):
+        op = _make_op()
+        op.search_query = query
+        layout = MagicMock()
+        right_col = MagicMock()
+        left_col = MagicMock()
+        split_mock = MagicMock()
+        split_mock.column.side_effect = [left_col, right_col]
+        layout.split.return_value = split_mock
+        op.layout = layout
+        return op, left_col, right_col
+
+    def test_load_asset_tag_names_called_when_query_non_empty(self):
+        op, _left, _right = self._make_op_with_layout(query="metal")
+        op.type_filter = "MATERIAL"
+        ctx = self._make_ctx()
+        asset = _make_asset("a1", "Iron", "MATERIAL")
+
+        with patch("melvil.ops.open_browser.load_assets", return_value=[asset]), \
+             patch("melvil.ops.open_browser.load_kits", return_value=[]), \
+             patch("melvil.ops.open_browser.load_asset_tag_names",
+                   return_value={}) as mock_names, \
+             patch("melvil.ops.open_browser.load_asset_tag_memberships", return_value={}), \
+             patch("melvil.ops.open_browser.load_tags_for_asset_ids", return_value=[]), \
+             patch("melvil.ops.open_browser.draw_asset_section"), \
+             patch("melvil.ops.open_browser.draw_tag_filter_pills"):
+            op.draw(ctx)
+
+        mock_names.assert_called_once_with(["a1"])
+
+    def test_load_asset_tag_names_not_called_when_query_empty(self):
+        op, _left, _right = self._make_op_with_layout(query="")
+        op.type_filter = "MATERIAL"
+        ctx = self._make_ctx()
+
+        with patch("melvil.ops.open_browser.load_assets", return_value=[]), \
+             patch("melvil.ops.open_browser.load_kits", return_value=[]), \
+             patch("melvil.ops.open_browser.load_asset_tag_names") as mock_names, \
+             patch("melvil.ops.open_browser.draw_asset_section"), \
+             patch("melvil.ops.open_browser.draw_tag_filter_pills"):
+            op.draw(ctx)
+
+        mock_names.assert_not_called()
+
+    def test_asset_included_when_tag_matches_query_but_name_does_not(self):
+        """An asset whose name doesn't match the query but has a matching tag is shown."""
+        op, _left, _right = self._make_op_with_layout(query="metal")
+        op.type_filter = "MATERIAL"
+        ctx = self._make_ctx()
+        # "Glass" does not contain "metal", but the asset is tagged "metal"
+        asset = _make_asset("a1", "Glass", "MATERIAL")
+
+        with patch("melvil.ops.open_browser.load_assets", return_value=[asset]), \
+             patch("melvil.ops.open_browser.load_kits", return_value=[]), \
+             patch("melvil.ops.open_browser.load_asset_tag_names",
+                   return_value={"a1": ["metal"]}), \
+             patch("melvil.ops.open_browser.load_asset_tag_memberships", return_value={}), \
+             patch("melvil.ops.open_browser.load_tags_for_asset_ids", return_value=[]), \
+             patch("melvil.ops.open_browser.draw_asset_section") as mock_draw, \
+             patch("melvil.ops.open_browser.draw_tag_filter_pills"):
+            op.draw(ctx)
+
+        drawn_assets = mock_draw.call_args[0][3]
+        assert len(drawn_assets) == 1
+        assert drawn_assets[0]["id"] == "a1"
+
+    def test_asset_excluded_when_neither_name_nor_tag_matches(self):
+        op, _left, _right = self._make_op_with_layout(query="metal")
+        op.type_filter = "MATERIAL"
+        ctx = self._make_ctx()
+        asset = _make_asset("a1", "Glass", "MATERIAL")
+
+        with patch("melvil.ops.open_browser.load_assets", return_value=[asset]), \
+             patch("melvil.ops.open_browser.load_kits", return_value=[]), \
+             patch("melvil.ops.open_browser.load_asset_tag_names",
+                   return_value={"a1": ["transparent"]}), \
+             patch("melvil.ops.open_browser.load_asset_tag_memberships", return_value={}), \
+             patch("melvil.ops.open_browser.load_tags_for_asset_ids", return_value=[]), \
+             patch("melvil.ops.open_browser.draw_asset_section") as mock_draw, \
+             patch("melvil.ops.open_browser.draw_tag_filter_pills"):
+            op.draw(ctx)
+
+        drawn_assets = mock_draw.call_args[0][3]
+        assert len(drawn_assets) == 0
+
+
 

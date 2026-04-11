@@ -14,6 +14,7 @@ from ..db.kits import list_kits
 from ..db import tags as tags_db
 from ..db.tags import (
     get_asset_tag_memberships as _get_asset_tag_memberships,
+    get_asset_tag_names as _get_asset_tag_names,
     list_tags_for_asset_ids as _list_tags_for_asset_ids,
 )
 
@@ -143,8 +144,11 @@ def load_kits():
         return list_kits(conn)
 
 
-def filter_assets(assets, query: str):
-    """Return assets whose names contain *query* (case-insensitive, whitespace-ignored).
+def filter_assets(assets, query: str, asset_tag_names: dict | None = None):
+    """Return assets whose names or tags contain *query* (case-insensitive, whitespace-ignored).
+
+    When *asset_tag_names* is provided (a ``{asset_id: [tag_name, ...]}`` map),
+    an asset is also included if any of its tag names match the query.
 
     When *query* is empty, blank, or ``None`` all assets are returned unchanged.
     """
@@ -153,7 +157,17 @@ def filter_assets(assets, query: str):
     normalized = query.replace(" ", "").lower()
     if not normalized:
         return assets
-    return [a for a in assets if normalized in a["name"].replace(" ", "").lower()]
+    result = []
+    for a in assets:
+        if normalized in a["name"].replace(" ", "").lower():
+            result.append(a)
+            continue
+        if asset_tag_names:
+            for tag_name in asset_tag_names.get(a["id"], []):
+                if normalized in tag_name.replace(" ", "").lower():
+                    result.append(a)
+                    break
+    return result
 
 
 def load_tags_with_usage():
@@ -176,6 +190,18 @@ def load_asset_tag_memberships(asset_ids: list[str]) -> dict[str, set]:
         return {}
     with open_db(resolve_db_path()) as conn:
         return _get_asset_tag_memberships(conn, asset_ids)
+
+
+def load_asset_tag_names(asset_ids: list[str]) -> dict[str, list[str]]:
+    """Return ``{asset_id: [tag_name, ...]}`` (alphabetical) for *asset_ids*.
+
+    Returns an empty dict immediately when *asset_ids* is empty, without
+    opening the database.  Raises on configuration or DB errors.
+    """
+    if not asset_ids:
+        return {}
+    with open_db(resolve_db_path()) as conn:
+        return _get_asset_tag_names(conn, asset_ids)
 
 
 def load_tags_for_asset_ids(asset_ids: list[str]):

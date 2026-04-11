@@ -145,6 +145,29 @@ def clear_asset_tags(conn: sqlite3.Connection, asset_id: str) -> None:
     conn.execute("DELETE FROM asset_tags WHERE asset_id = ?", (asset_id,))
 
 
+def get_asset_tag_names(
+    conn: sqlite3.Connection,
+    asset_ids: list[str],
+) -> dict[str, list[str]]:
+    """Return ``{asset_id: [tag_name, ...]}`` (alphabetical) for each asset.
+
+    Returns an empty dict when *asset_ids* is empty.
+    """
+    if not asset_ids:
+        return {}
+    placeholders = ",".join("?" * len(asset_ids))
+    rows = conn.execute(
+        f"SELECT at.asset_id, t.name FROM asset_tags at "  # noqa: S608
+        f"JOIN tags t ON t.id = at.tag_id "
+        f"WHERE at.asset_id IN ({placeholders}) ORDER BY at.asset_id, t.name",
+        asset_ids,
+    ).fetchall()
+    result: dict[str, list[str]] = {}
+    for row in rows:
+        result.setdefault(row["asset_id"], []).append(row["name"])
+    return result
+
+
 def get_asset_tags(conn: sqlite3.Connection, asset_id: str) -> list[str]:
     rows = conn.execute(
         """

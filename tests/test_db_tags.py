@@ -403,3 +403,39 @@ def test_clear_asset_tags_does_not_affect_other_assets(conn, asset_id):
     result = tags_db.get_asset_tags(conn, asset2)
     assert "metal" in result
 
+
+# ---------------------------------------------------------------------------
+# get_asset_tag_names
+# ---------------------------------------------------------------------------
+
+
+def test_get_asset_tag_names_returns_mapping(conn, asset_id):
+    tags_db.add_asset_tag(conn, asset_id, "metal")
+    tags_db.add_asset_tag(conn, asset_id, "pbr")
+    result = tags_db.get_asset_tag_names(conn, [asset_id])
+    assert asset_id in result
+    assert sorted(result[asset_id]) == ["metal", "pbr"]
+
+
+def test_get_asset_tag_names_empty_input_returns_empty(conn):
+    result = tags_db.get_asset_tag_names(conn, [])
+    assert result == {}
+
+
+def test_get_asset_tag_names_asset_without_tags_omitted(conn, asset_id):
+    # asset_id has no tags — it should not appear in the result
+    result = tags_db.get_asset_tag_names(conn, [asset_id])
+    assert result == {}
+
+
+def test_get_asset_tag_names_multiple_assets(conn, asset_id):
+    asset2 = "cccccccc-0000-4000-8000-000000000002"
+    assets_db.insert_asset(
+        conn, id=asset2, name="Glass", type="MATERIAL", blend_path="glass.blend"
+    )
+    tags_db.add_asset_tag(conn, asset_id, "metal")
+    tags_db.add_asset_tag(conn, asset2, "transparent")
+    result = tags_db.get_asset_tag_names(conn, [asset_id, asset2])
+    assert "metal" in result[asset_id]
+    assert "transparent" in result[asset2]
+

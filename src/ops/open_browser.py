@@ -35,6 +35,7 @@ from ..ui.draw_helpers import (
     draw_tag_management_section,
     filter_assets,
     load_asset_tag_memberships,
+    load_asset_tag_names,
     load_assets,
     load_kits,
     load_tags_for_asset_ids,
@@ -197,12 +198,22 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
         try:
             kits = load_kits()
 
-            # Load and search-filter assets per type (no tag filter yet).
-            # These are used both to derive the tag pills and (after tag
-            # filtering) to draw the actual asset sections.
-            pre_tag: dict[str, list] = {
-                t: filter_assets(load_assets(t, kit_id=kit_id), query)
+            # Load all kit-filtered assets per type (before search).
+            all_assets: dict[str, list] = {
+                t: load_assets(t, kit_id=kit_id)
                 for t in visible_types
+            }
+
+            # Load tag names for every candidate asset so that search can
+            # match on tags in addition to asset names.  Skipped when the
+            # query is empty to avoid an unnecessary round-trip.
+            all_ids = [a["id"] for assets in all_assets.values() for a in assets]
+            tag_names_map = load_asset_tag_names(all_ids) if query else {}
+
+            # Apply search filter (name + tag names) per type.
+            pre_tag: dict[str, list] = {
+                t: filter_assets(assets, query, tag_names_map)
+                for t, assets in all_assets.items()
             }
 
             # Bulk-load tag memberships for all pre-filtered assets in one
