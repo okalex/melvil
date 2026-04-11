@@ -287,3 +287,46 @@ class TestExecuteBoth:
             result = op.execute(ctx)
 
         assert result == {"CANCELLED"}
+
+
+# ---------------------------------------------------------------------------
+# invoke() — save_type context detection
+# ---------------------------------------------------------------------------
+
+
+class TestInvokeContextDetection:
+    def _invoke(self, area_type="VIEW_3D", obj=None):
+        from melvil.ops.save import MELVIL_OT_save_asset
+
+        op = MELVIL_OT_save_asset()
+        op.save_type = "MESH"   # default before invoke
+        op.mesh_name = ""
+        op.material_name = ""
+        ctx = _make_context(obj=obj, area_type=area_type)
+
+        with patch.object(ctx.window_manager, "invoke_props_dialog", return_value={"RUNNING_MODAL"}):
+            op.invoke(ctx, MagicMock())
+        return op
+
+    def test_node_editor_with_material_selects_material(self):
+        mat = _make_material()
+        obj = _make_mesh_object(material=mat)
+        op = self._invoke(area_type="NODE_EDITOR", obj=obj)
+        assert op.save_type == "MATERIAL"
+
+    def test_properties_editor_with_material_selects_material(self):
+        mat = _make_material()
+        obj = _make_mesh_object(material=mat)
+        op = self._invoke(area_type="PROPERTIES", obj=obj)
+        assert op.save_type == "MATERIAL"
+
+    def test_view3d_mesh_with_material_selects_mesh(self):
+        mat = _make_material()
+        obj = _make_mesh_object(material=mat)
+        op = self._invoke(area_type="VIEW_3D", obj=obj)
+        assert op.save_type == "MESH"
+
+    def test_view3d_mesh_without_material_selects_mesh(self):
+        obj = _make_mesh_object(material=None)
+        op = self._invoke(area_type="VIEW_3D", obj=obj)
+        assert op.save_type == "MESH"

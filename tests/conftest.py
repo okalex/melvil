@@ -50,6 +50,13 @@ def _make_bpy_mock() -> types.ModuleType:
         def draw(self, context):
             pass
 
+    class UIList(_Base):
+        bl_idname = ""
+        layout_type = "DEFAULT"
+
+        def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+            pass
+
     class VIEW3D_MT_object_context_menu:
         _handlers: list = []
 
@@ -78,13 +85,35 @@ def _make_bpy_mock() -> types.ModuleType:
             except ValueError:
                 pass
 
+    class MATERIAL_MT_context_menu:
+        _handlers: list = []
+
+        @classmethod
+        def append(cls, fn):
+            cls._handlers.append(fn)
+
+        @classmethod
+        def remove(cls, fn):
+            try:
+                cls._handlers.remove(fn)
+            except ValueError:
+                pass
+
     bpy_types.Operator = Operator
     bpy_types.Panel = Panel
     bpy_types.PropertyGroup = PropertyGroup
     bpy_types.AddonPreferences = AddonPreferences
     bpy_types.Menu = Menu
+    bpy_types.UIList = UIList
     bpy_types.VIEW3D_MT_object_context_menu = VIEW3D_MT_object_context_menu
     bpy_types.VIEW3D_MT_add = VIEW3D_MT_add
+    bpy_types.MATERIAL_MT_context_menu = MATERIAL_MT_context_menu
+
+    class WindowManager:
+        """Minimal WindowManager stand-in for attribute assignment in register()."""
+
+    bpy_types.WindowManager = WindowManager
+
     bpy.types = bpy_types
     sys.modules["bpy.types"] = bpy_types
 

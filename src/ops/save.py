@@ -79,6 +79,10 @@ class MELVIL_OT_save_asset(bpy.types.Operator):
         # Pick a sensible default save_type based on context.
         if area_type == "NODE_EDITOR" and mat:
             self.save_type = "MATERIAL"
+        elif area_type == "PROPERTIES" and mat:
+            # Invoked from the Properties editor (e.g. material slot context
+            # menu) — the user is clearly working with a material.
+            self.save_type = "MATERIAL"
         elif obj and obj.type == "MESH" and mat:
             self.save_type = "MESH"
         elif mat:

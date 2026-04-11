@@ -14,10 +14,7 @@ from __future__ import annotations
 
 import bpy
 
-from ..core.library import resolve_db_path
-from ..db import open_db
-from ..db.assets import list_assets
-from ..ui.draw_helpers import draw_asset_section
+from ..ui.draw_helpers import draw_asset_section, load_assets
 
 _POPUP_WIDTH = 400
 
@@ -51,9 +48,8 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
         layout.separator()
 
         try:
-            with open_db(resolve_db_path()) as conn:
-                materials = list_assets(conn, type="MATERIAL")
-                meshes = list_assets(conn, type="MESH")
+            materials = load_assets("MATERIAL")
+            meshes = load_assets("MESH")
         except Exception:
             layout.label(text="Could not open library database", icon="ERROR")
             return

@@ -7,6 +7,10 @@ Any panel or popup that needs to render an asset list imports
 
 from __future__ import annotations
 
+from ..core.library import resolve_db_path
+from ..db import open_db
+from ..db.assets import list_assets
+
 
 def draw_asset_section(layout, title: str, icon: str, assets) -> None:
     """
@@ -46,3 +50,18 @@ def draw_asset_section(layout, title: str, icon: str, assets) -> None:
 
         del_op = row.operator("melvil.delete_asset", text="", icon="TRASH")
         del_op.asset_id = asset["id"]
+
+
+def load_assets(asset_type=None):
+    """Query the configured library DB and return assets of *asset_type*.
+
+    Raises on configuration or database errors — callers decide how to surface
+    the failure in the UI.
+
+    Parameters
+    ----------
+    asset_type:
+        ``"MATERIAL"``, ``"MESH"``, or ``None`` to return all assets.
+    """
+    with open_db(resolve_db_path()) as conn:
+        return list_assets(conn, type=asset_type)

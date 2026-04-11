@@ -104,7 +104,7 @@ class TestDraw:
         op = _make_op()
         op.layout = MagicMock()
 
-        with patch("melvil.ops.open_browser.resolve_db_path", side_effect=Exception("boom")):
+        with patch("melvil.ops.open_browser.load_assets", side_effect=Exception("boom")):
             op.draw(MagicMock())
 
         op.layout.label.assert_called()
@@ -118,12 +118,8 @@ class TestDraw:
         materials = [_make_asset("m1", "Red", "MATERIAL")]
         meshes = [_make_asset("b1", "Rock", "MESH")]
 
-        with patch("melvil.ops.open_browser.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.open_browser.open_db") as mock_open, \
-             patch("melvil.ops.open_browser.list_assets", side_effect=[materials, meshes]), \
+        with patch("melvil.ops.open_browser.load_assets", side_effect=[materials, meshes]), \
              patch("melvil.ops.open_browser.draw_asset_section") as mock_draw:
-            mock_open.return_value.__enter__ = lambda s: MagicMock()
-            mock_open.return_value.__exit__ = MagicMock(return_value=False)
             op.draw(MagicMock())
 
         assert mock_draw.call_count == 2

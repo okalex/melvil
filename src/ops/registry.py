@@ -7,6 +7,12 @@ import bpy
 from ..utils import register_class as _safe_register
 from .delete import MELVIL_OT_delete_asset
 from .load import MELVIL_OT_load_asset
+from . import load_material as _load_material_mod
+from .load_material import (
+    MELVIL_OT_load_material_to_slot,
+    MELVIL_PG_MaterialItem,
+    MELVIL_UL_MaterialList,
+)
 from .open_browser import MELVIL_OT_open_browser
 from .save import MELVIL_OT_save_asset
 from .toggle_sidebar import MELVIL_OT_toggle_sidebar
@@ -14,6 +20,7 @@ from .toggle_sidebar import MELVIL_OT_toggle_sidebar
 _classes = (
     MELVIL_OT_save_asset,
     MELVIL_OT_load_asset,
+    MELVIL_OT_load_material_to_slot,
     MELVIL_OT_delete_asset,
     MELVIL_OT_open_browser,
     MELVIL_OT_toggle_sidebar,
@@ -21,6 +28,7 @@ _classes = (
 
 
 def register():
+    _load_material_mod.register()
     for cls in _classes:
         _safe_register(cls)
 
@@ -28,3 +36,4 @@ def register():
 def unregister():
     for cls in reversed(_classes):
         bpy.utils.unregister_class(cls)
+    _load_material_mod.unregister()
