@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from ..core.library import resolve_db_path
 from ..db import open_db
-from ..db.assets import list_assets
+from ..db.assets import get_asset as _get_asset, list_assets
 from ..db.kits import list_kits
 from ..db import tags as tags_db
 from ..db.tags import (
@@ -17,6 +17,12 @@ from ..db.tags import (
     get_asset_tag_names as _get_asset_tag_names,
     list_tags_for_asset_ids as _list_tags_for_asset_ids,
 )
+
+_TYPE_LABELS: dict[str, str] = {
+    "MATERIAL": "Material",
+    "MESH": "Mesh",
+    "NODE_GROUP": "Node Group",
+}
 
 
 def draw_asset_section(
@@ -26,9 +32,7 @@ def draw_asset_section(
     assets,
     *,
     show_load: bool = True,
-    kits=(),
-    asset_tags: dict | None = None,
-    active_tag_ids=(),
+    selected_asset_id: str = "",
 ) -> None:
     """
     Draw a titled box containing one row per asset in *assets*.
@@ -36,13 +40,10 @@ def draw_asset_section(
     Each row has:
     - the asset name (label)
     - a Load button  (IMPORT icon → ``melvil.load_asset``) — only if *show_load* is True
-    - a Move to Kit button — only if *kits* is non-empty
-    - a Delete button (TRASH icon → ``melvil.delete_asset``)
+    - a Details button (PROPERTIES icon → ``melvil.asset_select``) — always shown
 
-    When *asset_tags* is provided, a second sub-row is rendered below each asset
-    showing its tag pills (clickable, invoking ``melvil.tag_filter_toggle``) and
-    a pencil button (``melvil.asset_edit_tags``).  The sub-row is always drawn
-    so the layout height stays consistent even for untagged assets.
+    The Details button is rendered depressed when the asset is currently selected
+    in the detail panel.  Clicking it again deselects.
 
     When *assets* is empty a placeholder label is shown instead.
 
@@ -59,14 +60,9 @@ def draw_asset_section(
     show_load:
         When ``False`` the Load button is omitted (e.g. for asset types that
         must be loaded from a specific editor context).
-    kits:
-        When provided, a "Move to Kit" button is shown per asset row that
-        invokes ``melvil.asset_set_kit``.
-    asset_tags:
-        Optional ``{asset_id: [{id, name}, ...]}`` mapping.  When supplied,
-        each asset gets an inline tag pill row below its main row.
-    active_tag_ids:
-        UUIDs of tags currently active as filters (renders pills depressed).
+    selected_asset_id:
+        The UUID of the currently selected asset, used to depress its Details
+        button so the user can see which asset is open in the detail panel.
     """
 
     layout.label(text=title, icon=icon)
@@ -76,8 +72,6 @@ def draw_asset_section(
         box.label(text=f"No {title.lower()} saved yet")
         return
 
-    active_set = set(active_tag_ids)
-
     for asset in assets:
         row = box.row(align=True)
         row.label(text=asset["name"])
@@ -86,33 +80,13 @@ def draw_asset_section(
             load_op = row.operator("melvil.load_asset", text="", icon="IMPORT")
             load_op.asset_id = asset["id"]
 
-        if kits:
-            move_op = row.operator("melvil.asset_set_kit", text="", icon="FOLDER_REDIRECT")
-            move_op.asset_id = asset["id"]
-
-        del_op = row.operator("melvil.delete_asset", text="", icon="TRASH")
-        del_op.asset_id = asset["id"]
-
-        if asset_tags is not None:
-            tag_row = box.row(align=True)
-            tags_for_asset = asset_tags.get(asset["id"], [])
-            if tags_for_asset:
-                for tag in tags_for_asset:
-                    pill = tag_row.operator(
-                        "melvil.tag_filter_toggle",
-                        text=tag["name"],
-                        depress=(tag["id"] in active_set),
-                    )
-                    pill.tag_id = tag["id"]
-            else:
-                sub = tag_row.row()
-                sub.enabled = False
-                sub.label(text="No tags")
-            edit_op = tag_row.operator(
-                "melvil.asset_edit_tags", text="", icon="GREASEPENCIL"
-            )
-            edit_op.asset_id = asset["id"]
-            edit_op.asset_name = asset["name"]
+        detail_op = row.operator(
+            "melvil.asset_select",
+            text="",
+            icon="PROPERTIES",
+            depress=(asset["id"] == selected_asset_id),
+        )
+        detail_op.asset_id = asset["id"]
 
     layout.separator()
 
@@ -315,3 +289,88 @@ def draw_tag_management_section(layout, tags_with_usage, sort_by: str = "NAME") 
             text="Delete Unused Tags",
             icon="CANCEL",
         )
+
+
+def draw_asset_details(
+    layout,
+    asset,
+    tags: list,
+    kit_name: str,
+    active_tag_ids=(),
+) -> None:
+    """Draw the asset detail panel with metadata and action buttons.
+
+    Parameters
+    ----------
+    layout:
+        The ``bpy.types.UILayout`` to draw into.
+    asset:
+        DB row with at least ``"id"``, ``"name"``, and ``"type"`` keys.
+    tags:
+        List of tag rows with ``"id"`` and ``"name"`` keys for this asset.
+    kit_name:
+        Human-readable name of the kit this asset belongs to.
+    active_tag_ids:
+        UUIDs of tags currently active as filters (renders pills depressed).
+    """
+    layout.label(text=asset["name"], icon="INFO")
+    layout.separator()
+
+    col = layout.column(align=False)
+
+    # Type
+    type_row = col.row()
+    type_row.label(text="Type:")
+    type_row.label(text=_TYPE_LABELS.get(asset["type"], asset["type"]))
+
+    # Kit
+    kit_row = col.row()
+    kit_row.label(text="Kit:")
+    kit_row.label(text=kit_name)
+
+    col.separator()
+
+    # Tags
+    col.label(text="Tags:")
+    if tags:
+        active_set = set(active_tag_ids)
+        tag_row = col.row(align=True)
+        for tag in tags:
+            pill = tag_row.operator(
+                "melvil.tag_filter_toggle",
+                text=tag["name"],
+                depress=(tag["id"] in active_set),
+            )
+            pill.tag_id = tag["id"]
+    else:
+        sub = col.row()
+        sub.enabled = False
+        sub.label(text="No tags")
+
+    col.separator()
+
+    # Action buttons
+    rename_op = col.operator("melvil.asset_rename", text="Rename", icon="GREASEPENCIL")
+    rename_op.asset_id = asset["id"]
+
+    edit_tags_op = col.operator("melvil.asset_edit_tags", text="Edit Tags", icon="TAG")
+    edit_tags_op.asset_id = asset["id"]
+    edit_tags_op.asset_name = asset["name"]
+
+    kit_op = col.operator("melvil.asset_set_kit", text="Move to Kit", icon="FOLDER_REDIRECT")
+    kit_op.asset_id = asset["id"]
+
+    col.separator()
+
+    del_op = col.operator("melvil.delete_asset", text="Delete", icon="TRASH")
+    del_op.asset_id = asset["id"]
+
+
+def load_asset(asset_id: str):
+    """Return a single asset DB row by *asset_id*, or ``None`` if not found.
+
+    Raises on configuration or database errors — callers decide how to surface
+    the failure in the UI.
+    """
+    with open_db(resolve_db_path()) as conn:
+        return _get_asset(conn, asset_id)

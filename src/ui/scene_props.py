@@ -52,6 +52,12 @@ def register() -> None:
         default="NAME",
         options={"HIDDEN", "SKIP_SAVE"},
     )
+    bpy.types.WindowManager.melvil_selected_asset_id = StringProperty(
+        name="Selected Asset",
+        description="UUID of the asset currently selected for detail view in the browser",
+        default="",
+        options={"HIDDEN", "SKIP_SAVE"},
+    )
 
 
 def unregister() -> None:
@@ -59,3 +65,4 @@ def unregister() -> None:
     del bpy.types.Scene.melvil_mru_kit_id
     del bpy.types.WindowManager.melvil_active_tag_filters
     del bpy.types.WindowManager.melvil_tag_sort
+    del bpy.types.WindowManager.melvil_selected_asset_id

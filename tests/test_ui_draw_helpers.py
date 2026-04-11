@@ -40,7 +40,7 @@ class TestDrawAssetSection:
 
         layout.label.assert_any_call(text="Meshes", icon="MESH_DATA")
 
-    def test_each_asset_gets_load_and_delete_buttons(self):
+    def test_each_asset_gets_load_and_details_buttons(self):
         from melvil.ui.draw_helpers import draw_asset_section
 
         layout = MagicMock()
@@ -53,7 +53,7 @@ class TestDrawAssetSection:
 
         ops = [c[0][0] for c in row.operator.call_args_list]
         assert "melvil.load_asset" in ops
-        assert "melvil.delete_asset" in ops
+        assert "melvil.asset_select" in ops
 
     def test_load_button_asset_id_is_set(self):
         from melvil.ui.draw_helpers import draw_asset_section
@@ -64,8 +64,8 @@ class TestDrawAssetSection:
         row = MagicMock()
         box.row.return_value = row
         load_op = MagicMock()
-        del_op = MagicMock()
-        row.operator.side_effect = [load_op, del_op]
+        detail_op = MagicMock()
+        row.operator.side_effect = [load_op, detail_op]
 
         draw_asset_section(layout, "Meshes", "MESH_DATA", [_make_asset("abc-123", "Rock", "MESH")])
 
@@ -84,7 +84,7 @@ class TestDrawAssetSection:
 
         ops = [c[0][0] for c in row.operator.call_args_list]
         assert "melvil.load_asset" not in ops
-        assert "melvil.delete_asset" in ops
+        assert "melvil.asset_select" in ops
 
     def test_multiple_assets_each_get_a_row(self):
         from melvil.ui.draw_helpers import draw_asset_section
@@ -221,57 +221,6 @@ class TestLoadKits:
             with pytest.raises(LibraryNotConfiguredError):
                 load_kits()
 
-
-class TestDrawAssetSectionKits:
-    def test_kits_provided_shows_move_to_kit_button(self):
-        from melvil.ui.draw_helpers import draw_asset_section
-
-        layout = MagicMock()
-        box = MagicMock()
-        layout.box.return_value = box
-        row = MagicMock()
-        box.row.return_value = row
-        fake_kits = [{"id": "kit-1", "name": "General"}]
-
-        draw_asset_section(layout, "Meshes", "MESH_DATA",
-                           [_make_asset("1", "Rock", "MESH")], kits=fake_kits)
-
-        ops = [c[0][0] for c in row.operator.call_args_list]
-        assert "melvil.asset_set_kit" in ops
-
-    def test_no_kits_omits_move_to_kit_button(self):
-        from melvil.ui.draw_helpers import draw_asset_section
-
-        layout = MagicMock()
-        box = MagicMock()
-        layout.box.return_value = box
-        row = MagicMock()
-        box.row.return_value = row
-
-        draw_asset_section(layout, "Meshes", "MESH_DATA",
-                           [_make_asset("1", "Rock", "MESH")])  # no kits kwarg
-
-        ops = [c[0][0] for c in row.operator.call_args_list]
-        assert "melvil.asset_set_kit" not in ops
-
-    def test_move_to_kit_asset_id_is_set(self):
-        from melvil.ui.draw_helpers import draw_asset_section
-
-        layout = MagicMock()
-        box = MagicMock()
-        layout.box.return_value = box
-        row = MagicMock()
-        box.row.return_value = row
-        load_op = MagicMock()
-        move_op = MagicMock()
-        del_op = MagicMock()
-        row.operator.side_effect = [load_op, move_op, del_op]
-        fake_kits = [{"id": "kit-1", "name": "General"}]
-
-        draw_asset_section(layout, "Meshes", "MESH_DATA",
-                           [_make_asset("asset-xyz", "Rock", "MESH")], kits=fake_kits)
-
-        assert move_op.asset_id == "asset-xyz"
 
 
 # ---------------------------------------------------------------------------
@@ -745,178 +694,6 @@ class TestDrawTagManagementSection:
 
         assert name_texts == ["common", "medium", "rare"]
 
-
-# ---------------------------------------------------------------------------
-# draw_asset_section — asset_tags parameter (inline tag pills)
-# ---------------------------------------------------------------------------
-
-
-class TestDrawAssetSectionAssetTags:
-    """Tests for the optional asset_tags and active_tag_ids parameters."""
-
-    def _draw(self, assets, asset_tags=None, active_tag_ids=()):
-        from melvil.ui.draw_helpers import draw_asset_section
-
-        layout = MagicMock()
-        box = MagicMock()
-        layout.box.return_value = box
-        # box.row() returns a new mock each time so we can inspect per-row calls.
-        box.row.side_effect = lambda **kwargs: MagicMock()
-        draw_asset_section(
-            layout, "Meshes", "MESH_DATA", assets,
-            asset_tags=asset_tags, active_tag_ids=active_tag_ids,
-        )
-        return layout, box
-
-    def test_no_tag_row_when_asset_tags_is_none(self):
-        """Without asset_tags each asset only gets one row."""
-        from melvil.ui.draw_helpers import draw_asset_section
-
-        layout = MagicMock()
-        box = MagicMock()
-        layout.box.return_value = box
-        box.row.return_value = MagicMock()
-
-        draw_asset_section(layout, "Meshes", "MESH_DATA",
-                           [_make_asset("a1", "Rock", "MESH")])
-
-        # One row per asset
-        assert box.row.call_count == 1
-
-    def test_tag_row_added_per_asset_when_asset_tags_provided(self):
-        """With asset_tags, each asset gets a main row + a tag sub-row."""
-        layout, box = self._draw(
-            [_make_asset("a1", "Rock", "MESH")],
-            asset_tags={"a1": [{"id": "t1", "name": "outdoor"}]},
-        )
-        # 2 rows for 1 asset: main + tag
-        assert box.row.call_count == 2
-
-    def test_tag_pill_operator_invoked_for_each_tag(self):
-        from melvil.ui.draw_helpers import draw_asset_section
-
-        layout = MagicMock()
-        box = MagicMock()
-        layout.box.return_value = box
-        main_row = MagicMock()
-        tag_row = MagicMock()
-        box.row.side_effect = [main_row, tag_row]
-
-        draw_asset_section(
-            layout, "Meshes", "MESH_DATA",
-            [_make_asset("a1", "Rock", "MESH")],
-            asset_tags={"a1": [{"id": "t1", "name": "outdoor"}, {"id": "t2", "name": "pbr"}]},
-        )
-
-        ops = [c[0][0] for c in tag_row.operator.call_args_list]
-        assert ops.count("melvil.tag_filter_toggle") == 2
-
-    def test_tag_pill_depress_reflects_active_tag_ids(self):
-        from melvil.ui.draw_helpers import draw_asset_section
-
-        layout = MagicMock()
-        box = MagicMock()
-        layout.box.return_value = box
-        main_row = MagicMock()
-        tag_row = MagicMock()
-        pill = MagicMock()
-        tag_row.operator.return_value = pill
-        box.row.side_effect = [main_row, tag_row]
-
-        draw_asset_section(
-            layout, "Meshes", "MESH_DATA",
-            [_make_asset("a1", "Rock", "MESH")],
-            asset_tags={"a1": [{"id": "active-id", "name": "active"}]},
-            active_tag_ids=["active-id"],
-        )
-
-        # call_args_list[0] is the pill; call_args_list[-1] is the edit button
-        _op_id, kwargs = tag_row.operator.call_args_list[0]
-        assert kwargs.get("depress") is True
-
-    def test_inactive_tag_pill_not_depressed(self):
-        from melvil.ui.draw_helpers import draw_asset_section
-
-        layout = MagicMock()
-        box = MagicMock()
-        layout.box.return_value = box
-        main_row = MagicMock()
-        tag_row = MagicMock()
-        pill = MagicMock()
-        tag_row.operator.return_value = pill
-        box.row.side_effect = [main_row, tag_row]
-
-        draw_asset_section(
-            layout, "Meshes", "MESH_DATA",
-            [_make_asset("a1", "Rock", "MESH")],
-            asset_tags={"a1": [{"id": "inactive-id", "name": "rare"}]},
-            active_tag_ids=[],
-        )
-
-        # call_args_list[0] is the pill; call_args_list[-1] is the edit button
-        _op_id, kwargs = tag_row.operator.call_args_list[0]
-        assert kwargs.get("depress") is False
-
-    def test_edit_button_always_shown_in_tag_row(self):
-        from melvil.ui.draw_helpers import draw_asset_section
-
-        layout = MagicMock()
-        box = MagicMock()
-        layout.box.return_value = box
-        main_row = MagicMock()
-        tag_row = MagicMock()
-        box.row.side_effect = [main_row, tag_row]
-
-        draw_asset_section(
-            layout, "Meshes", "MESH_DATA",
-            [_make_asset("a1", "Rock", "MESH")],
-            asset_tags={"a1": []},  # no tags
-        )
-
-        ops = [c[0][0] for c in tag_row.operator.call_args_list]
-        assert "melvil.asset_edit_tags" in ops
-
-    def test_edit_button_asset_id_and_name_set(self):
-        from melvil.ui.draw_helpers import draw_asset_section
-
-        layout = MagicMock()
-        box = MagicMock()
-        layout.box.return_value = box
-        main_row = MagicMock()
-        tag_row = MagicMock()
-        edit_op = MagicMock()
-        tag_row.operator.return_value = edit_op
-        box.row.side_effect = [main_row, tag_row]
-
-        draw_asset_section(
-            layout, "Meshes", "MESH_DATA",
-            [_make_asset("asset-99", "Big Rock", "MESH")],
-            asset_tags={"asset-99": []},
-        )
-
-        assert edit_op.asset_id == "asset-99"
-        assert edit_op.asset_name == "Big Rock"
-
-    def test_no_tags_shows_disabled_no_tags_label(self):
-        from melvil.ui.draw_helpers import draw_asset_section
-
-        layout = MagicMock()
-        box = MagicMock()
-        layout.box.return_value = box
-        main_row = MagicMock()
-        tag_row = MagicMock()
-        sub_row = MagicMock()
-        tag_row.row.return_value = sub_row
-        box.row.side_effect = [main_row, tag_row]
-
-        draw_asset_section(
-            layout, "Meshes", "MESH_DATA",
-            [_make_asset("a1", "Rock", "MESH")],
-            asset_tags={"a1": []},
-        )
-
-        sub_row.label.assert_called_once_with(text="No tags")
-        assert sub_row.enabled is False
 
 
 # ---------------------------------------------------------------------------

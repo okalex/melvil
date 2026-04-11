@@ -44,7 +44,7 @@ def _make_invoke_ctx(tools_x=35, tools_width=45, tools_y=100, tools_height=674, 
     return ctx
 
 
-_POPUP_WIDTH = 700
+_POPUP_WIDTH = 900
 
 
 # ---------------------------------------------------------------------------
@@ -193,23 +193,32 @@ class TestExecute:
 
 class TestDraw:
     def _make_ctx(self):
-        return MagicMock()
+        ctx = MagicMock()
+        ctx.window_manager.melvil_active_tag_filters = ""
+        ctx.window_manager.melvil_tag_sort = "NAME"
+        ctx.window_manager.melvil_selected_asset_id = ""
+        return ctx
 
     def _make_op_with_layout(self):
         op = _make_op()
         layout = MagicMock()
-        right_col = MagicMock()
         left_col = MagicMock()
-        split_mock = MagicMock()
-        split_mock.column.side_effect = [left_col, right_col]
-        layout.split.return_value = split_mock
+        rest_col = MagicMock()
+        middle_col = MagicMock()
+        right_col = MagicMock()
+        outer_split = MagicMock()
+        inner_split = MagicMock()
+        outer_split.column.side_effect = [left_col, rest_col]
+        inner_split.column.side_effect = [middle_col, right_col]
+        rest_col.split.return_value = inner_split
+        layout.split.return_value = outer_split
         op.layout = layout
-        return op, left_col, right_col
+        return op, left_col, middle_col, right_col
 
     # --- left column uses prop with expand ---
 
     def test_draw_left_column_type_filter_prop_expand(self):
-        op, left_col, right_col = self._make_op_with_layout()
+        op, left_col, middle_col, _right = self._make_op_with_layout()
         op.type_filter = "ALL"
         ctx = self._make_ctx()
 
@@ -221,7 +230,7 @@ class TestDraw:
         left_col.prop.assert_any_call(op, "type_filter", expand=True)
 
     def test_draw_left_column_kit_filter_prop_expand(self):
-        op, left_col, right_col = self._make_op_with_layout()
+        op, left_col, middle_col, _right = self._make_op_with_layout()
         op.type_filter = "ALL"
         ctx = self._make_ctx()
 
@@ -235,7 +244,7 @@ class TestDraw:
     # --- right column filtering ---
 
     def test_draw_all_shows_all_sections(self):
-        op, left_col, right_col = self._make_op_with_layout()
+        op, left_col, middle_col, _right = self._make_op_with_layout()
         op.type_filter = "ALL"
         ctx = self._make_ctx()
 
@@ -255,7 +264,7 @@ class TestDraw:
         assert "Node Groups" in titles
 
     def test_draw_material_filter_shows_only_materials(self):
-        op, left_col, right_col = self._make_op_with_layout()
+        op, left_col, middle_col, _right = self._make_op_with_layout()
         op.type_filter = "MATERIAL"
         ctx = self._make_ctx()
 
@@ -268,7 +277,7 @@ class TestDraw:
         assert mock_draw.call_args[0][1] == "Materials"
 
     def test_draw_mesh_filter_shows_only_meshes(self):
-        op, left_col, right_col = self._make_op_with_layout()
+        op, left_col, middle_col, _right = self._make_op_with_layout()
         op.type_filter = "MESH"
         ctx = self._make_ctx()
 
@@ -281,7 +290,7 @@ class TestDraw:
         assert mock_draw.call_args[0][1] == "Meshes"
 
     def test_draw_node_group_filter_shows_only_node_groups(self):
-        op, left_col, right_col = self._make_op_with_layout()
+        op, left_col, middle_col, _right = self._make_op_with_layout()
         op.type_filter = "NODE_GROUP"
         ctx = self._make_ctx()
 
@@ -294,20 +303,20 @@ class TestDraw:
         assert mock_draw.call_args[0][1] == "Node Groups"
 
     def test_db_error_shows_error_label_on_right_column(self):
-        op, left_col, right_col = self._make_op_with_layout()
+        op, left_col, middle_col, _right = self._make_op_with_layout()
         op.type_filter = "ALL"
         ctx = self._make_ctx()
 
         with patch("melvil.ops.open_browser.load_kits", side_effect=Exception("boom")):
             op.draw(ctx)
 
-        icon_calls = [c for c in right_col.label.call_args_list if c[1].get("icon") == "ERROR"]
+        icon_calls = [c for c in middle_col.label.call_args_list if c[1].get("icon") == "ERROR"]
         assert icon_calls
 
     # --- search input ---
 
     def test_draw_renders_search_prop_on_right_column(self):
-        op, left_col, right_col = self._make_op_with_layout()
+        op, left_col, middle_col, _right = self._make_op_with_layout()
         op.type_filter = "ALL"
         op.search_query = ""
         ctx = self._make_ctx()
@@ -317,10 +326,10 @@ class TestDraw:
              patch("melvil.ops.open_browser.draw_asset_section"):
             op.draw(ctx)
 
-        right_col.prop.assert_any_call(op, "search_query", text="", icon="VIEWZOOM")
+        middle_col.prop.assert_any_call(op, "search_query", text="", icon="VIEWZOOM")
 
     def test_draw_search_filters_assets_passed_to_draw_section(self):
-        op, left_col, right_col = self._make_op_with_layout()
+        op, left_col, middle_col, _right = self._make_op_with_layout()
         op.type_filter = "MATERIAL"
         op.search_query = "pla"
         ctx = self._make_ctx()
@@ -341,7 +350,7 @@ class TestDraw:
         assert {a["name"] for a in passed_assets} == {"Plastic", "Plaster"}
 
     def test_draw_empty_search_passes_all_assets(self):
-        op, left_col, right_col = self._make_op_with_layout()
+        op, left_col, middle_col, _right = self._make_op_with_layout()
         op.type_filter = "MESH"
         op.search_query = ""
         ctx = self._make_ctx()
@@ -365,20 +374,27 @@ class TestDraw:
 class TestDrawTagManagement:
     def _make_ctx(self):
         ctx = MagicMock()
+        ctx.window_manager.melvil_active_tag_filters = ""
         ctx.window_manager.melvil_tag_sort = "NAME"
+        ctx.window_manager.melvil_selected_asset_id = ""
         return ctx
 
     def _make_op_with_layout(self):
         op = _make_op()
         op.show_manage_tags = False
         layout = MagicMock()
-        right_col = MagicMock()
         left_col = MagicMock()
-        split_mock = MagicMock()
-        split_mock.column.side_effect = [left_col, right_col]
-        layout.split.return_value = split_mock
+        rest_col = MagicMock()
+        middle_col = MagicMock()
+        right_col = MagicMock()
+        outer_split = MagicMock()
+        inner_split = MagicMock()
+        outer_split.column.side_effect = [left_col, rest_col]
+        inner_split.column.side_effect = [middle_col, right_col]
+        rest_col.split.return_value = inner_split
+        layout.split.return_value = outer_split
         op.layout = layout
-        return op, left_col, right_col
+        return op, left_col, middle_col, right_col
 
     def test_show_manage_tags_prop_exists(self):
         """BoolProperty annotation should be declared on the class."""
@@ -387,7 +403,7 @@ class TestDrawTagManagement:
         assert "show_manage_tags" in MELVIL_OT_open_browser.__annotations__
 
     def test_manage_tags_toggle_rendered_on_left_column(self):
-        op, left_col, _right = self._make_op_with_layout()
+        op, left_col, _mid, _right = self._make_op_with_layout()
         ctx = self._make_ctx()
 
         with patch("melvil.ops.open_browser.load_assets", return_value=[]), \
@@ -400,7 +416,7 @@ class TestDrawTagManagement:
         assert prop_calls, "Expected left_col.prop(op, 'show_manage_tags', ...) call"
 
     def test_tag_section_hidden_when_show_manage_tags_false(self):
-        op, left_col, _right = self._make_op_with_layout()
+        op, left_col, _mid, _right = self._make_op_with_layout()
         op.show_manage_tags = False
         ctx = self._make_ctx()
 
@@ -413,7 +429,7 @@ class TestDrawTagManagement:
         mock_dts.assert_not_called()
 
     def test_tag_section_drawn_when_show_manage_tags_true(self):
-        op, left_col, _right = self._make_op_with_layout()
+        op, left_col, _mid, _right = self._make_op_with_layout()
         op.show_manage_tags = True
         ctx = self._make_ctx()
 
@@ -431,7 +447,7 @@ class TestDrawTagManagement:
         assert call_tags == fake_tags
 
     def test_tag_section_passes_sort_from_wm(self):
-        op, left_col, _right = self._make_op_with_layout()
+        op, left_col, _mid, _right = self._make_op_with_layout()
         op.show_manage_tags = True
         ctx = self._make_ctx()
         ctx.window_manager.melvil_tag_sort = "USAGE"
@@ -447,7 +463,7 @@ class TestDrawTagManagement:
         assert sort_by == "USAGE"
 
     def test_tag_section_shows_error_on_load_failure(self):
-        op, left_col, _right = self._make_op_with_layout()
+        op, left_col, _mid, _right = self._make_op_with_layout()
         op.show_manage_tags = True
         ctx = self._make_ctx()
 
@@ -476,18 +492,24 @@ class TestDrawTagFilterPills:
         ctx = MagicMock()
         ctx.window_manager.melvil_active_tag_filters = active_filters
         ctx.window_manager.melvil_tag_sort = "NAME"
+        ctx.window_manager.melvil_selected_asset_id = ""
         return ctx
 
     def _make_op_with_layout(self):
         op = _make_op()
         layout = MagicMock()
-        right_col = MagicMock()
         left_col = MagicMock()
-        split_mock = MagicMock()
-        split_mock.column.side_effect = [left_col, right_col]
-        layout.split.return_value = split_mock
+        rest_col = MagicMock()
+        middle_col = MagicMock()
+        right_col = MagicMock()
+        outer_split = MagicMock()
+        inner_split = MagicMock()
+        outer_split.column.side_effect = [left_col, rest_col]
+        inner_split.column.side_effect = [middle_col, right_col]
+        rest_col.split.return_value = inner_split
+        layout.split.return_value = outer_split
         op.layout = layout
-        return op, left_col, right_col
+        return op, left_col, middle_col, right_col
 
     def _default_patches(self, assets=None, tags=None, memberships=None):
         """Return a dict of standard patches for draw() calls in this class."""
@@ -499,7 +521,7 @@ class TestDrawTagFilterPills:
         }
 
     def test_pills_not_rendered_when_no_visible_tags(self):
-        op, left_col, _right = self._make_op_with_layout()
+        op, left_col, _mid, _right = self._make_op_with_layout()
         ctx = self._make_ctx()
 
         with patch("melvil.ops.open_browser.load_assets", return_value=[]), \
@@ -513,7 +535,7 @@ class TestDrawTagFilterPills:
         mock_pills.assert_not_called()
 
     def test_pills_rendered_when_visible_tags_exist(self):
-        op, left_col, _right = self._make_op_with_layout()
+        op, left_col, _mid, _right = self._make_op_with_layout()
         op.type_filter = "MATERIAL"
         ctx = self._make_ctx()
         asset = _make_asset("a1", "Iron", "MATERIAL")
@@ -533,7 +555,7 @@ class TestDrawTagFilterPills:
         assert tags_arg == [_TAG_METAL]
 
     def test_pills_receive_active_filters_from_wm(self):
-        op, left_col, _right = self._make_op_with_layout()
+        op, left_col, _mid, _right = self._make_op_with_layout()
         op.type_filter = "MATERIAL"
         ctx = self._make_ctx(active_filters="aaaa-0001")
 
@@ -550,7 +572,7 @@ class TestDrawTagFilterPills:
 
     def test_tag_filter_applied_to_sections(self):
         """Assets without active tags should be excluded from the drawn sections."""
-        op, left_col, _right = self._make_op_with_layout()
+        op, left_col, _mid, _right = self._make_op_with_layout()
         op.type_filter = "MATERIAL"
         ctx = self._make_ctx(active_filters="aaaa-0001")
 
@@ -575,7 +597,7 @@ class TestDrawTagFilterPills:
 
     def test_no_tag_filter_passes_all_assets_to_sections(self):
         """With no active filters, all search-matched assets are drawn."""
-        op, left_col, _right = self._make_op_with_layout()
+        op, left_col, _mid, _right = self._make_op_with_layout()
         op.type_filter = "MATERIAL"
         ctx = self._make_ctx(active_filters="")
 
@@ -594,7 +616,7 @@ class TestDrawTagFilterPills:
 
     def test_load_tags_called_with_asset_ids(self):
         """load_tags_for_asset_ids receives the IDs of pre-filtered assets."""
-        op, left_col, _right = self._make_op_with_layout()
+        op, left_col, _mid, _right = self._make_op_with_layout()
         op.type_filter = "MATERIAL"
         ctx = self._make_ctx()
         asset = _make_asset("unique-id-123", "Iron", "MATERIAL")
@@ -612,7 +634,7 @@ class TestDrawTagFilterPills:
 
     def test_pill_row_separator_rendered_before_pills(self):
         """A separator should appear between kit filter and pills."""
-        op, left_col, _right = self._make_op_with_layout()
+        op, left_col, _mid, _right = self._make_op_with_layout()
         op.type_filter = "MATERIAL"
         ctx = self._make_ctx()
 
@@ -641,22 +663,28 @@ class TestTagNameSearch:
         ctx = MagicMock()
         ctx.window_manager.melvil_active_tag_filters = ""
         ctx.window_manager.melvil_tag_sort = "NAME"
+        ctx.window_manager.melvil_selected_asset_id = ""
         return ctx
 
     def _make_op_with_layout(self, query=""):
         op = _make_op()
         op.search_query = query
         layout = MagicMock()
-        right_col = MagicMock()
         left_col = MagicMock()
-        split_mock = MagicMock()
-        split_mock.column.side_effect = [left_col, right_col]
-        layout.split.return_value = split_mock
+        rest_col = MagicMock()
+        middle_col = MagicMock()
+        right_col = MagicMock()
+        outer_split = MagicMock()
+        inner_split = MagicMock()
+        outer_split.column.side_effect = [left_col, rest_col]
+        inner_split.column.side_effect = [middle_col, right_col]
+        rest_col.split.return_value = inner_split
+        layout.split.return_value = outer_split
         op.layout = layout
-        return op, left_col, right_col
+        return op, left_col, middle_col, right_col
 
     def test_load_asset_tag_names_called_when_query_non_empty(self):
-        op, _left, _right = self._make_op_with_layout(query="metal")
+        op, _left, _mid, _right = self._make_op_with_layout(query="metal")
         op.type_filter = "MATERIAL"
         ctx = self._make_ctx()
         asset = _make_asset("a1", "Iron", "MATERIAL")
@@ -674,7 +702,7 @@ class TestTagNameSearch:
         mock_names.assert_called_once_with(["a1"])
 
     def test_load_asset_tag_names_not_called_when_query_empty(self):
-        op, _left, _right = self._make_op_with_layout(query="")
+        op, _left, _mid, _right = self._make_op_with_layout(query="")
         op.type_filter = "MATERIAL"
         ctx = self._make_ctx()
 
@@ -689,7 +717,7 @@ class TestTagNameSearch:
 
     def test_asset_included_when_tag_matches_query_but_name_does_not(self):
         """An asset whose name doesn't match the query but has a matching tag is shown."""
-        op, _left, _right = self._make_op_with_layout(query="metal")
+        op, _left, _mid, _right = self._make_op_with_layout(query="metal")
         op.type_filter = "MATERIAL"
         ctx = self._make_ctx()
         # "Glass" does not contain "metal", but the asset is tagged "metal"
@@ -710,7 +738,7 @@ class TestTagNameSearch:
         assert drawn_assets[0]["id"] == "a1"
 
     def test_asset_excluded_when_neither_name_nor_tag_matches(self):
-        op, _left, _right = self._make_op_with_layout(query="metal")
+        op, _left, _mid, _right = self._make_op_with_layout(query="metal")
         op.type_filter = "MATERIAL"
         ctx = self._make_ctx()
         asset = _make_asset("a1", "Glass", "MATERIAL")

@@ -30,10 +30,12 @@ from ..db import open_db
 from ..db.kits import list_kits
 from .tag_filter_toggle import get_active_tag_filters
 from ..ui.draw_helpers import (
+    draw_asset_details,
     draw_asset_section,
     draw_tag_filter_pills,
     draw_tag_management_section,
     filter_assets,
+    load_asset,
     load_asset_tag_memberships,
     load_asset_tag_names,
     load_assets,
@@ -42,7 +44,7 @@ from ..ui.draw_helpers import (
     load_tags_with_usage,
 )
 
-_POPUP_WIDTH = 700
+_POPUP_WIDTH = 900
 
 # Vertical offset (at UI scale 1.0) subtracted from the top of the TOOLS
 # region so that the popup aligns with the first toolbar button rather than
@@ -179,7 +181,13 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
         layout.label(text="Melvil Asset Library", icon="ASSET_MANAGER")
         layout.separator()
 
-        split = layout.split(factor=0.25)
+        # Three-column split: left filters | asset list | asset details.
+        outer_split = layout.split(factor=0.22)
+        left = outer_split.column()
+        rest_col = outer_split.column()
+        inner_split = rest_col.split(factor=0.48)
+        middle = inner_split.column()
+        right = inner_split.column()
 
         # ------------------------------------------------------------------
         # Front-load all data so both columns can share it without extra queries.
@@ -188,6 +196,7 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
         kit_id = self.kit_filter if self.kit_filter != "ALL_KITS" else None
         query = self.search_query
         active_tag_ids = get_active_tag_filters(context.window_manager)
+        selected_id = getattr(context.window_manager, "melvil_selected_asset_id", "")
 
         # Determine which type sections are visible (respects type_filter).
         visible_types = [
@@ -217,21 +226,10 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
             }
 
             # Bulk-load tag memberships for all pre-filtered assets in one
-            # query, then use them for both pill derivation and tag filtering.
+            # query, then use them for pill derivation and tag filtering.
             all_pre_ids = [a["id"] for assets in pre_tag.values() for a in assets]
             memberships = load_asset_tag_memberships(all_pre_ids)
             visible_tags = load_tags_for_asset_ids(all_pre_ids)
-
-            # Build a tag-id → name lookup and then a per-asset tag map so that
-            # draw_asset_section can render inline tag pills without extra queries.
-            tag_lookup = {t["id"]: t["name"] for t in visible_tags}
-            asset_tags_map: dict[str, list] = {
-                aid: sorted(
-                    [{"id": tid, "name": tag_lookup[tid]} for tid in tids if tid in tag_lookup],
-                    key=lambda t: t["name"],
-                )
-                for aid, tids in memberships.items()
-            }
 
             # Apply the active tag filter (AND semantics).
             if active_tag_ids:
@@ -253,12 +251,27 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
             visible_tags = []
             active_tag_ids = []
             section_assets = {t: [] for t in visible_types}
-            asset_tags_map = {}
+
+        # Load the selected asset details in a separate try so that a missing
+        # selection does not pollute the main load_error path.
+        selected_asset = None
+        selected_tags: list = []
+        selected_kit_name = "Default"
+        if selected_id and load_error is None:
+            try:
+                selected_asset = load_asset(selected_id)
+                if selected_asset is not None:
+                    selected_tags = list(load_tags_for_asset_ids([selected_id]))
+                    selected_kit_name = next(
+                        (k["name"] for k in kits if k["id"] == selected_asset["kit_id"]),
+                        "Default",
+                    )
+            except Exception:  # noqa: BLE001
+                selected_asset = None
 
         # ------------------------------------------------------------------
         # Left column — category + kit selectors + tag pills + manage tags
         # ------------------------------------------------------------------
-        left = split.column()
 
         left.label(text="Asset type")
         left.prop(self, "type_filter", expand=True)
@@ -294,14 +307,13 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
                 left.label(text="Could not load tags", icon="ERROR")
 
         # ------------------------------------------------------------------
-        # Right column — filtered asset list
+        # Middle column — filtered asset list
         # ------------------------------------------------------------------
-        right = split.column()
-        right.prop(self, "search_query", text="", icon="VIEWZOOM")
-        right.separator()
+        middle.prop(self, "search_query", text="", icon="VIEWZOOM")
+        middle.separator()
 
         if load_error is not None:
-            right.label(text="Could not open library database", icon="ERROR")
+            middle.label(text="Could not open library database", icon="ERROR")
             return
 
         _SECTION_SPECS = {
@@ -312,13 +324,27 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
         for type_key in visible_types:
             title, icon, show_load = _SECTION_SPECS[type_key]
             draw_asset_section(
-                right, title, icon,
+                middle, title, icon,
                 section_assets.get(type_key, []),
                 show_load=show_load,
-                kits=kits,
-                asset_tags=asset_tags_map,
-                active_tag_ids=active_tag_ids,
+                selected_asset_id=selected_id,
             )
+
+        # ------------------------------------------------------------------
+        # Right column — asset detail panel
+        # ------------------------------------------------------------------
+
+        if selected_asset is not None:
+            draw_asset_details(
+                right,
+                selected_asset,
+                selected_tags,
+                selected_kit_name,
+                active_tag_ids,
+            )
+        else:
+            right.label(text="Select an asset", icon="INFO")
+            right.label(text="to view its details.")
 
 
 # ---------------------------------------------------------------------------
