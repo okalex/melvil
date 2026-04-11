@@ -488,10 +488,12 @@ def _make_selectable_node(select: bool = True, node_type: str = "SHADER", ng=Non
 
 
 class TestSaveNodesAsAssetPoll:
-    def test_poll_true_in_node_editor_with_selected_node(self):
+    def test_poll_true_for_single_selected_group_node(self):
         from melvil.ops.save import MELVIL_OT_save_nodes_as_asset
 
-        ctx = _make_node_editor_context(nodes=[_make_selectable_node(select=True)])
+        ng = MagicMock()
+        node = _make_selectable_node(select=True, node_type="GROUP", ng=ng)
+        ctx = _make_node_editor_context(nodes=[node])
         assert MELVIL_OT_save_nodes_as_asset.poll(ctx) is True
 
     def test_poll_false_when_no_selected_nodes(self):
@@ -500,11 +502,31 @@ class TestSaveNodesAsAssetPoll:
         ctx = _make_node_editor_context(nodes=[_make_selectable_node(select=False)])
         assert MELVIL_OT_save_nodes_as_asset.poll(ctx) is False
 
+    def test_poll_false_for_multiple_selected_nodes(self):
+        """Multiple selected nodes should disable the operator."""
+        from melvil.ops.save import MELVIL_OT_save_nodes_as_asset
+
+        ng = MagicMock()
+        nodes = [
+            _make_selectable_node(select=True, node_type="GROUP", ng=ng),
+            _make_selectable_node(select=True, node_type="GROUP", ng=ng),
+        ]
+        ctx = _make_node_editor_context(nodes=nodes)
+        assert MELVIL_OT_save_nodes_as_asset.poll(ctx) is False
+
+    def test_poll_false_for_single_non_group_node(self):
+        """A single selected non-GROUP node should disable the operator."""
+        from melvil.ops.save import MELVIL_OT_save_nodes_as_asset
+
+        ctx = _make_node_editor_context(nodes=[_make_selectable_node(select=True, node_type="MATH")])
+        assert MELVIL_OT_save_nodes_as_asset.poll(ctx) is False
+
     def test_poll_false_outside_node_editor(self):
         from melvil.ops.save import MELVIL_OT_save_nodes_as_asset
 
+        ng = MagicMock()
         ctx = _make_node_editor_context(
-            nodes=[_make_selectable_node(select=True)],
+            nodes=[_make_selectable_node(select=True, node_type="GROUP", ng=ng)],
             area_type="VIEW_3D",
         )
         assert MELVIL_OT_save_nodes_as_asset.poll(ctx) is False
@@ -513,7 +535,6 @@ class TestSaveNodesAsAssetPoll:
         from melvil.ops.save import MELVIL_OT_save_nodes_as_asset
 
         ctx = _make_node_editor_context(has_space=False)
-        # space_data is None → node_tree is None
         ctx.area.type = "NODE_EDITOR"
         assert MELVIL_OT_save_nodes_as_asset.poll(ctx) is False
 
@@ -530,74 +551,20 @@ class TestSaveNodesAsAssetPoll:
 
 
 class TestSaveNodesAsAssetInvoke:
-    def test_single_group_node_invokes_save_asset_directly(self):
-        """A single selected GROUP node should skip group_make."""
+    def test_invoke_delegates_to_save_asset(self):
+        """invoke() must call melvil.save_asset(INVOKE_DEFAULT) unconditionally."""
         import bpy
         from melvil.ops.save import MELVIL_OT_save_nodes_as_asset
 
         ng = MagicMock()
-        group_node = _make_selectable_node(select=True, node_type="GROUP", ng=ng)
-
-        ctx = _make_node_editor_context(nodes=[group_node])
-        with patch.object(bpy.ops, "melvil", create=True) as mock_melvil_ops, \
-             patch.object(bpy.ops, "node", create=True) as mock_node_ops:
-            mock_melvil_ops.save_asset.return_value = {"RUNNING_MODAL"}
-            op = MELVIL_OT_save_nodes_as_asset()
-            op.invoke(ctx, MagicMock())
-
-            mock_node_ops.group_make.assert_not_called()
-            mock_melvil_ops.save_asset.assert_called_once_with("INVOKE_DEFAULT")
-
-    def test_multiple_nodes_calls_group_make_then_save_asset(self):
-        """Multiple selected nodes should be grouped before saving."""
-        import bpy
-        from melvil.ops.save import MELVIL_OT_save_nodes_as_asset
-
-        nodes = [
-            _make_selectable_node(select=True, node_type="BSDF_PRINCIPLED"),
-            _make_selectable_node(select=True, node_type="TEX_NOISE"),
-        ]
-        ctx = _make_node_editor_context(nodes=nodes)
-
-        with patch.object(bpy.ops, "melvil", create=True) as mock_melvil_ops, \
-             patch.object(bpy.ops, "node", create=True) as mock_node_ops:
-            mock_node_ops.group_make.return_value = {"FINISHED"}
-            mock_melvil_ops.save_asset.return_value = {"RUNNING_MODAL"}
-            op = MELVIL_OT_save_nodes_as_asset()
-            op.invoke(ctx, MagicMock())
-
-            mock_node_ops.group_make.assert_called_once()
-            mock_melvil_ops.save_asset.assert_called_once_with("INVOKE_DEFAULT")
-
-    def test_non_group_single_node_calls_group_make(self):
-        """A single non-GROUP node should still be wrapped via group_make."""
-        import bpy
-        from melvil.ops.save import MELVIL_OT_save_nodes_as_asset
-
-        node = _make_selectable_node(select=True, node_type="MATH")
+        node = _make_selectable_node(select=True, node_type="GROUP", ng=ng)
         ctx = _make_node_editor_context(nodes=[node])
 
-        with patch.object(bpy.ops, "melvil", create=True) as mock_melvil_ops, \
-             patch.object(bpy.ops, "node", create=True) as mock_node_ops:
-            mock_node_ops.group_make.return_value = {"FINISHED"}
+        with patch.object(bpy.ops, "melvil", create=True) as mock_melvil_ops:
             mock_melvil_ops.save_asset.return_value = {"RUNNING_MODAL"}
-            op = MELVIL_OT_save_nodes_as_asset()
-            op.invoke(ctx, MagicMock())
-
-            mock_node_ops.group_make.assert_called_once()
-
-    def test_group_make_failure_returns_cancelled(self):
-        """If group_make does not finish, invoke returns CANCELLED."""
-        import bpy
-        from melvil.ops.save import MELVIL_OT_save_nodes_as_asset
-
-        nodes = [_make_selectable_node(select=True, node_type="MATH")]
-        ctx = _make_node_editor_context(nodes=nodes)
-
-        with patch.object(bpy.ops, "node", create=True) as mock_node_ops:
-            mock_node_ops.group_make.return_value = {"CANCELLED"}
             op = MELVIL_OT_save_nodes_as_asset()
             result = op.invoke(ctx, MagicMock())
 
-        assert result == {"CANCELLED"}
+        mock_melvil_ops.save_asset.assert_called_once_with("INVOKE_DEFAULT")
+        assert result == {"RUNNING_MODAL"}
 

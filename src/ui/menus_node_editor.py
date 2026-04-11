@@ -4,8 +4,9 @@ Melvil submenu for the Node Editor context menu (right-click).
 ``MELVIL_MT_node_editor_submenu`` appears as a "Melvil ▶" entry in
 ``NODE_MT_context_menu`` whenever at least one node is selected.  It exposes:
 
-- **Save as Asset** — groups the selected nodes (or saves an already-selected
-  GROUP node directly) as a ``"NODE_GROUP"`` asset in the Melvil library.
+- **Save as Asset** — saves the selected GROUP node as a ``"NODE_GROUP"``
+  asset in the Melvil library.  The entry is grayed out unless exactly one
+  GROUP-type node is selected.
 """
 
 from __future__ import annotations

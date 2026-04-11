@@ -206,12 +206,11 @@ class MELVIL_OT_save_asset(bpy.types.Operator):
 
 
 class MELVIL_OT_save_nodes_as_asset(bpy.types.Operator):
-    """Group selected nodes and save as a Melvil node group asset.
+    """Save the selected node group as a Melvil asset.
 
-    When exactly one GROUP-type node is selected its node tree is saved
-    directly.  For any other selection the nodes are first grouped using
-    Blender's built-in *Make Group* operator, then the resulting group is
-    handed to ``melvil.save_asset`` for naming and persistence.
+    Enabled only when exactly one GROUP-type node is selected.  Selecting
+    multiple nodes or a non-group node disables the operator (shown grayed
+    out in the context menu).
     """
 
     bl_idname = "melvil.save_nodes_as_asset"
@@ -226,25 +225,12 @@ class MELVIL_OT_save_nodes_as_asset(bpy.types.Operator):
         node_tree = getattr(space, "node_tree", None) if space else None
         if node_tree is None:
             return False
-        return any(getattr(n, "select", False) for n in node_tree.nodes)
-
-    def invoke(self, context, event):
-        space = context.space_data
-        node_tree = space.node_tree
         selected = [n for n in node_tree.nodes if getattr(n, "select", False)]
-
-        # A single existing GROUP node: save it directly without re-wrapping.
-        if (
+        return (
             len(selected) == 1
             and getattr(selected[0], "type", None) == "GROUP"
             and getattr(selected[0], "node_tree", None) is not None
-        ):
-            return bpy.ops.melvil.save_asset("INVOKE_DEFAULT")
+        )
 
-        # Otherwise group the selection first, then invoke the save dialog.
-        result = bpy.ops.node.group_make()
-        if "FINISHED" not in result:
-            self.report({"ERROR"}, "Melvil: could not group the selected nodes.")
-            return {"CANCELLED"}
-
+    def invoke(self, context, event):
         return bpy.ops.melvil.save_asset("INVOKE_DEFAULT")
