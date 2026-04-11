@@ -363,3 +363,43 @@ def test_delete_asset_cascades_to_asset_tags(conn, asset_id):
     ).fetchall()
     assert rows == []
 
+
+# ---------------------------------------------------------------------------
+# clear_asset_tags
+# ---------------------------------------------------------------------------
+
+
+def test_clear_asset_tags_removes_all_associations(conn, asset_id):
+    tags_db.add_asset_tag(conn, asset_id, "metal")
+    tags_db.add_asset_tag(conn, asset_id, "pbr")
+    tags_db.clear_asset_tags(conn, asset_id)
+    result = tags_db.get_asset_tags(conn, asset_id)
+    assert result == []
+
+
+def test_clear_asset_tags_leaves_tag_records_intact(conn, asset_id):
+    tags_db.add_asset_tag(conn, asset_id, "metal")
+    tags_db.clear_asset_tags(conn, asset_id)
+    tag = tags_db.get_tag_by_name(conn, "metal")
+    assert tag is not None
+
+
+def test_clear_asset_tags_no_op_when_asset_has_no_tags(conn, asset_id):
+    # Should not raise when there are no associations to remove.
+    tags_db.clear_asset_tags(conn, asset_id)
+    result = tags_db.get_asset_tags(conn, asset_id)
+    assert result == []
+
+
+def test_clear_asset_tags_does_not_affect_other_assets(conn, asset_id):
+    asset2 = "bbbbbbbb-0000-4000-8000-000000000009"
+    assets_db.insert_asset(
+        conn, id=asset2, name="Glass", type="MATERIAL", blend_path="glass.blend"
+    )
+    tags_db.add_asset_tag(conn, asset_id, "metal")
+    tags_db.add_asset_tag(conn, asset2, "metal")
+    tags_db.clear_asset_tags(conn, asset_id)
+    # The other asset should still be tagged.
+    result = tags_db.get_asset_tags(conn, asset2)
+    assert "metal" in result
+

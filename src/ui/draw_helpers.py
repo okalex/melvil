@@ -18,14 +18,30 @@ from ..db.tags import (
 )
 
 
-def draw_asset_section(layout, title: str, icon: str, assets, *, show_load: bool = True, kits=()) -> None:
+def draw_asset_section(
+    layout,
+    title: str,
+    icon: str,
+    assets,
+    *,
+    show_load: bool = True,
+    kits=(),
+    asset_tags: dict | None = None,
+    active_tag_ids=(),
+) -> None:
     """
     Draw a titled box containing one row per asset in *assets*.
 
     Each row has:
     - the asset name (label)
     - a Load button  (IMPORT icon → ``melvil.load_asset``) — only if *show_load* is True
+    - a Move to Kit button — only if *kits* is non-empty
     - a Delete button (TRASH icon → ``melvil.delete_asset``)
+
+    When *asset_tags* is provided, a second sub-row is rendered below each asset
+    showing its tag pills (clickable, invoking ``melvil.tag_filter_toggle``) and
+    a pencil button (``melvil.asset_edit_tags``).  The sub-row is always drawn
+    so the layout height stays consistent even for untagged assets.
 
     When *assets* is empty a placeholder label is shown instead.
 
@@ -45,6 +61,11 @@ def draw_asset_section(layout, title: str, icon: str, assets, *, show_load: bool
     kits:
         When provided, a "Move to Kit" button is shown per asset row that
         invokes ``melvil.asset_set_kit``.
+    asset_tags:
+        Optional ``{asset_id: [{id, name}, ...]}`` mapping.  When supplied,
+        each asset gets an inline tag pill row below its main row.
+    active_tag_ids:
+        UUIDs of tags currently active as filters (renders pills depressed).
     """
 
     layout.label(text=title, icon=icon)
@@ -53,6 +74,8 @@ def draw_asset_section(layout, title: str, icon: str, assets, *, show_load: bool
     if not assets:
         box.label(text=f"No {title.lower()} saved yet")
         return
+
+    active_set = set(active_tag_ids)
 
     for asset in assets:
         row = box.row(align=True)
@@ -68,6 +91,27 @@ def draw_asset_section(layout, title: str, icon: str, assets, *, show_load: bool
 
         del_op = row.operator("melvil.delete_asset", text="", icon="TRASH")
         del_op.asset_id = asset["id"]
+
+        if asset_tags is not None:
+            tag_row = box.row(align=True)
+            tags_for_asset = asset_tags.get(asset["id"], [])
+            if tags_for_asset:
+                for tag in tags_for_asset:
+                    pill = tag_row.operator(
+                        "melvil.tag_filter_toggle",
+                        text=tag["name"],
+                        depress=(tag["id"] in active_set),
+                    )
+                    pill.tag_id = tag["id"]
+            else:
+                sub = tag_row.row()
+                sub.enabled = False
+                sub.label(text="No tags")
+            edit_op = tag_row.operator(
+                "melvil.asset_edit_tags", text="", icon="GREASEPENCIL"
+            )
+            edit_op.asset_id = asset["id"]
+            edit_op.asset_name = asset["name"]
 
     layout.separator()
 

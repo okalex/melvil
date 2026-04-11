@@ -211,6 +211,17 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
             memberships = load_asset_tag_memberships(all_pre_ids)
             visible_tags = load_tags_for_asset_ids(all_pre_ids)
 
+            # Build a tag-id → name lookup and then a per-asset tag map so that
+            # draw_asset_section can render inline tag pills without extra queries.
+            tag_lookup = {t["id"]: t["name"] for t in visible_tags}
+            asset_tags_map: dict[str, list] = {
+                aid: sorted(
+                    [{"id": tid, "name": tag_lookup[tid]} for tid in tids if tid in tag_lookup],
+                    key=lambda t: t["name"],
+                )
+                for aid, tids in memberships.items()
+            }
+
             # Apply the active tag filter (AND semantics).
             if active_tag_ids:
                 active_set = set(active_tag_ids)
@@ -231,6 +242,7 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
             visible_tags = []
             active_tag_ids = []
             section_assets = {t: [] for t in visible_types}
+            asset_tags_map = {}
 
         # ------------------------------------------------------------------
         # Left column — category + kit selectors + tag pills + manage tags
@@ -293,6 +305,8 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
                 section_assets.get(type_key, []),
                 show_load=show_load,
                 kits=kits,
+                asset_tags=asset_tags_map,
+                active_tag_ids=active_tag_ids,
             )
 
 

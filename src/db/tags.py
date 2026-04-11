@@ -140,6 +140,11 @@ def remove_asset_tag(conn: sqlite3.Connection, asset_id: str, tag_id: str) -> No
     )
 
 
+def clear_asset_tags(conn: sqlite3.Connection, asset_id: str) -> None:
+    """Remove all tag associations for *asset_id* without deleting the tag records."""
+    conn.execute("DELETE FROM asset_tags WHERE asset_id = ?", (asset_id,))
+
+
 def get_asset_tags(conn: sqlite3.Connection, asset_id: str) -> list[str]:
     rows = conn.execute(
         """
