@@ -99,6 +99,34 @@ def _make_bpy_mock() -> types.ModuleType:
             except ValueError:
                 pass
 
+    class NODE_MT_context_menu:
+        _handlers: list = []
+
+        @classmethod
+        def append(cls, fn):
+            cls._handlers.append(fn)
+
+        @classmethod
+        def remove(cls, fn):
+            try:
+                cls._handlers.remove(fn)
+            except ValueError:
+                pass
+
+    class NODE_MT_add:
+        _handlers: list = []
+
+        @classmethod
+        def append(cls, fn):
+            cls._handlers.append(fn)
+
+        @classmethod
+        def remove(cls, fn):
+            try:
+                cls._handlers.remove(fn)
+            except ValueError:
+                pass
+
     bpy_types.Operator = Operator
     bpy_types.Panel = Panel
     bpy_types.PropertyGroup = PropertyGroup
@@ -108,6 +136,8 @@ def _make_bpy_mock() -> types.ModuleType:
     bpy_types.VIEW3D_MT_object_context_menu = VIEW3D_MT_object_context_menu
     bpy_types.VIEW3D_MT_add = VIEW3D_MT_add
     bpy_types.MATERIAL_MT_context_menu = MATERIAL_MT_context_menu
+    bpy_types.NODE_MT_context_menu = NODE_MT_context_menu
+    bpy_types.NODE_MT_add = NODE_MT_add
 
     class WindowManager:
         """Minimal WindowManager stand-in for attribute assignment in register()."""

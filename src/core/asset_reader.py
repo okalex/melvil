@@ -25,6 +25,7 @@ from ..db.assets import get_asset
 _TYPE_TO_COLLECTION: dict[str, str] = {
     "MATERIAL": "materials",
     "MESH": "objects",
+    "NODE_GROUP": "node_groups",
 }
 
 

@@ -24,6 +24,13 @@ Externally-referenced images used by the datablock are:
    managed .blend file, which is stored directly in the library root).
 3. After ``bpy.data.libraries.write()`` completes the original paths are
    restored unconditionally (even on error).
+
+Node group handling
+-------------------
+When ``asset_type`` is ``"NODE_GROUP"`` the writer discovers all nested node
+groups referenced by the root node tree (recursively) and writes every one of
+them into the same managed ``.blend`` file.  This ensures that a group which
+depends on shared sub-groups is fully self-contained inside the library.
 """
 
 from __future__ import annotations
@@ -60,6 +67,31 @@ def _write_blend_file(filepath: str, datablocks: set) -> None:
     )
 
 
+def _collect_nested_node_groups(node_tree) -> set:
+    """
+    Recursively collect *node_tree* and every node group it references.
+
+    Traverses GROUP-type nodes in *node_tree* and follows their
+    ``node_tree`` pointer, continuing recursively until all dependencies
+    have been visited.  The returned set contains the root node tree and
+    all discovered nested node trees.
+    """
+    collected: set = set()
+
+    def _walk(tree) -> None:
+        if tree in collected:
+            return
+        collected.add(tree)
+        for node in tree.nodes:
+            if node.type == "GROUP":
+                nested = getattr(node, "node_tree", None)
+                if nested is not None:
+                    _walk(nested)
+
+    _walk(node_tree)
+    return collected
+
+
 class AssetWriter:
     """Write a datablock to the library and register it in the database."""
 
@@ -79,12 +111,12 @@ class AssetWriter:
         ----------
         datablock:
             Any Blender data-block (``bpy.types.Material``,
-            ``bpy.types.Object``, …).
+            ``bpy.types.Object``, ``bpy.types.NodeTree``, …).
         name:
             Human-readable name for the asset (stored in the DB and used to
             derive the filename).
         asset_type:
-            One of ``"MATERIAL"`` or ``"MESH"``.
+            One of ``"MATERIAL"``, ``"MESH"``, or ``"NODE_GROUP"``.
 
         Returns
         -------
@@ -95,7 +127,10 @@ class AssetWriter:
         blend_filename = self._build_filename(name, asset_id)
         blend_path = self.library_root / blend_filename
 
-        self._write_with_textures(datablock, name, blend_path)
+        if asset_type == "NODE_GROUP":
+            self._write_node_group_with_textures(datablock, name, blend_path)
+        else:
+            self._write_with_textures(datablock, name, blend_path)
 
         insert_asset(
             self.conn,
@@ -143,5 +178,40 @@ class AssetWriter:
             _write_blend_file(str(blend_path), {datablock})
         finally:
             datablock.name = original_name
+            for img, original in original_paths.items():
+                img.filepath = original
+
+    def _write_node_group_with_textures(self, node_tree, name: str, blend_path: Path) -> None:
+        """Write a node group and all its nested dependencies to a .blend file.
+
+        Collects every node group reachable from *node_tree* (recursively
+        following GROUP-type nodes), gathers external textures from the full
+        dependency tree, temporarily repoints image paths, writes the complete
+        set of datablocks, then unconditionally restores all original paths.
+
+        The root *node_tree* is temporarily renamed to *name* before writing
+        so that the name stored in the DB matches the name inside the .blend
+        file, which is what ``AssetReader`` uses to locate the datablock.
+        """
+        # Collect the root group plus all nested groups.
+        all_groups = _collect_nested_node_groups(node_tree)
+
+        textures_dir = self.library_root / "textures"
+        # collect_external_images recurses into nested groups automatically.
+        images = collect_external_images(node_tree)
+        remapping = copy_textures(images, textures_dir)
+
+        original_paths: dict = {img: img.filepath for img in images if img.filepath in remapping}
+        original_name: str = node_tree.name
+
+        try:
+            node_tree.name = name
+            for img in original_paths:
+                img.filepath = remapping[img.filepath]
+
+            self.library_root.mkdir(parents=True, exist_ok=True)
+            _write_blend_file(str(blend_path), all_groups)
+        finally:
+            node_tree.name = original_name
             for img, original in original_paths.items():
                 img.filepath = original

@@ -48,6 +48,28 @@ def _make_mock_datablock():
     return db
 
 
+def _make_mock_node_group(name="MyGroup", nested=None):
+    """
+    A minimal fake NodeTree (node group) datablock.
+
+    *nested* is an optional list of (group_node_tree,) that will be added
+    as GROUP-type child nodes so _collect_nested_node_groups can find them.
+    """
+    ng = MagicMock()
+    ng.name = name
+    nodes = []
+    for child_tree in (nested or []):
+        group_node = MagicMock()
+        group_node.type = "GROUP"
+        group_node.node_tree = child_tree
+        nodes.append(group_node)
+    ng.nodes = nodes
+    # NodeTrees don't have node_tree or material_slots attributes.
+    del ng.node_tree
+    del ng.material_slots
+    return ng
+
+
 # ---------------------------------------------------------------------------
 # _slugify
 # ---------------------------------------------------------------------------
@@ -211,3 +233,145 @@ class TestAssetWriterWrite:
             writer.write(datablock, "Test", "MATERIAL")
 
         assert library_root.exists()
+
+
+# ---------------------------------------------------------------------------
+# _collect_nested_node_groups
+# ---------------------------------------------------------------------------
+
+
+class TestCollectNestedNodeGroups:
+    def test_root_only_returned_when_no_children(self):
+        from melvil.core.asset_writer import _collect_nested_node_groups
+
+        root = _make_mock_node_group("Root")
+        result = _collect_nested_node_groups(root)
+        assert result == {root}
+
+    def test_single_nested_group_included(self):
+        from melvil.core.asset_writer import _collect_nested_node_groups
+
+        child = _make_mock_node_group("Child")
+        root = _make_mock_node_group("Root", nested=[child])
+        result = _collect_nested_node_groups(root)
+        assert root in result
+        assert child in result
+
+    def test_deeply_nested_groups_all_included(self):
+        from melvil.core.asset_writer import _collect_nested_node_groups
+
+        grandchild = _make_mock_node_group("Grandchild")
+        child = _make_mock_node_group("Child", nested=[grandchild])
+        root = _make_mock_node_group("Root", nested=[child])
+        result = _collect_nested_node_groups(root)
+        assert {root, child, grandchild} == result
+
+    def test_diamond_dependency_not_duplicated(self):
+        """A shared sub-group referenced by two parents appears once."""
+        from melvil.core.asset_writer import _collect_nested_node_groups
+
+        shared = _make_mock_node_group("Shared")
+        left = _make_mock_node_group("Left", nested=[shared])
+        right = _make_mock_node_group("Right", nested=[shared])
+        root = _make_mock_node_group("Root", nested=[left, right])
+        result = _collect_nested_node_groups(root)
+        assert result == {root, left, right, shared}
+
+    def test_cycle_does_not_recurse_infinitely(self):
+        """A cyclic reference must not cause infinite recursion."""
+        from melvil.core.asset_writer import _collect_nested_node_groups
+
+        root = _make_mock_node_group("Root")
+        # Manually wire a self-referential cycle
+        group_node = MagicMock()
+        group_node.type = "GROUP"
+        group_node.node_tree = root
+        root.nodes = [group_node]
+
+        result = _collect_nested_node_groups(root)
+        assert result == {root}
+
+
+# ---------------------------------------------------------------------------
+# AssetWriter.write — NODE_GROUP
+# ---------------------------------------------------------------------------
+
+
+class TestAssetWriterWriteNodeGroup:
+    def test_write_node_group_inserts_db_record(self, library_root, conn):
+        from melvil.core.asset_writer import AssetWriter
+
+        ng = _make_mock_node_group("Noise FX")
+        writer = AssetWriter(library_root, conn)
+
+        with patch("melvil.core.asset_writer._write_blend_file"), \
+             patch("melvil.core.textures.collect_external_images", return_value=[]):
+            asset_id = writer.write(ng, "Noise FX", "NODE_GROUP")
+
+        row = assets_db.get_asset(conn, asset_id)
+        assert row is not None
+        assert row["name"] == "Noise FX"
+        assert row["type"] == "NODE_GROUP"
+
+    def test_write_node_group_includes_nested_in_datablocks(self, library_root, conn):
+        """_write_blend_file must receive the root and all nested node groups."""
+        from melvil.core.asset_writer import AssetWriter
+
+        child = _make_mock_node_group("Child")
+        root = _make_mock_node_group("Root", nested=[child])
+        writer = AssetWriter(library_root, conn)
+
+        with patch("melvil.core.asset_writer._write_blend_file") as mock_write, \
+             patch("melvil.core.textures.collect_external_images", return_value=[]):
+            writer.write(root, "Root", "NODE_GROUP")
+
+        _, datablocks_arg = mock_write.call_args[0]
+        assert root in datablocks_arg
+        assert child in datablocks_arg
+
+    def test_write_node_group_texture_paths_restored(self, library_root, conn):
+        """Image filepaths must be restored after writing a node group."""
+        from melvil.core.asset_writer import AssetWriter
+
+        img = MagicMock()
+        img.filepath = "/original/noise.png"
+        ng = _make_mock_node_group("Noise FX")
+        writer = AssetWriter(library_root, conn)
+
+        with patch("melvil.core.asset_writer._write_blend_file"), \
+             patch("melvil.core.textures.collect_external_images", return_value=[img]), \
+             patch("melvil.core.textures.copy_textures", return_value={"/original/noise.png": "//textures/noise.png"}):
+            writer.write(ng, "Noise FX", "NODE_GROUP")
+
+        assert img.filepath == "/original/noise.png"
+
+    def test_write_node_group_texture_paths_restored_on_error(self, library_root, conn):
+        """Image filepaths must be restored even when write raises."""
+        from melvil.core.asset_writer import AssetWriter
+
+        img = MagicMock()
+        img.filepath = "/original/noise.png"
+        ng = _make_mock_node_group("Noise FX")
+        writer = AssetWriter(library_root, conn)
+
+        with pytest.raises(RuntimeError), \
+             patch("melvil.core.asset_writer._write_blend_file", side_effect=RuntimeError("boom")), \
+             patch("melvil.core.textures.collect_external_images", return_value=[img]), \
+             patch("melvil.core.textures.copy_textures", return_value={"/original/noise.png": "//textures/noise.png"}):
+            writer.write(ng, "Noise FX", "NODE_GROUP")
+
+        assert img.filepath == "/original/noise.png"
+
+    def test_write_node_group_root_name_restored(self, library_root, conn):
+        """The root node group's name must be restored after writing."""
+        from melvil.core.asset_writer import AssetWriter
+
+        ng = _make_mock_node_group("Original Name")
+        writer = AssetWriter(library_root, conn)
+
+        with patch("melvil.core.asset_writer._write_blend_file"), \
+             patch("melvil.core.textures.collect_external_images", return_value=[]):
+            writer.write(ng, "New Name", "NODE_GROUP")
+
+        assert ng.name == "Original Name"
+

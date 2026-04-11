@@ -5,6 +5,7 @@ Central registry for all Melvil operators.
 import bpy
 
 from ..utils import register_class as _safe_register
+from .add_node_group import MELVIL_OT_add_node_group
 from .delete import MELVIL_OT_delete_asset
 from .load import MELVIL_OT_load_asset
 from . import load_material as _load_material_mod
@@ -15,11 +16,13 @@ from .load_material import (
 )
 from . import open_browser as _open_browser_mod
 from .open_browser import MELVIL_OT_open_browser
-from .save import MELVIL_OT_save_asset
+from .save import MELVIL_OT_save_asset, MELVIL_OT_save_nodes_as_asset
 from .toggle_sidebar import MELVIL_OT_toggle_sidebar
 
 _classes = (
+    MELVIL_OT_add_node_group,
     MELVIL_OT_save_asset,
+    MELVIL_OT_save_nodes_as_asset,
     MELVIL_OT_load_asset,
     MELVIL_OT_load_material_to_slot,
     MELVIL_OT_delete_asset,

@@ -28,19 +28,35 @@ def collect_external_images(datablock) -> list:
     Handles:
     - Materials with a node tree (``ShaderNodeTexImage`` nodes).
     - Objects with material slots (recurses into each material).
+    - NodeTree datablocks (node groups) — scans the tree directly and
+      recursively follows nested ``GROUP`` nodes to collect images from
+      all dependency node groups.
     """
     images: list = []
-    seen: set = set()
+    seen_images: set = set()
+    seen_trees: set = set()
+
+    def _scan_node_tree(node_tree) -> None:
+        """Recursively scan *node_tree*, following GROUP nodes for TEX_IMAGE nodes."""
+        tree_id = id(node_tree)
+        if tree_id in seen_trees:
+            return
+        seen_trees.add(tree_id)
+        for node in node_tree.nodes:
+            if node.type == "TEX_IMAGE" and getattr(node, "image", None):
+                img = node.image
+                if img.id_data not in seen_images and _is_external(img):
+                    seen_images.add(img.id_data)
+                    images.append(img)
+            if node.type == "GROUP":
+                nested = getattr(node, "node_tree", None)
+                if nested is not None:
+                    _scan_node_tree(nested)
 
     def _scan_material(mat) -> None:
         if mat is None or not getattr(mat, "node_tree", None):
             return
-        for node in mat.node_tree.nodes:
-            if node.type == "TEX_IMAGE" and getattr(node, "image", None):
-                img = node.image
-                if img.id_data not in seen and _is_external(img):
-                    seen.add(img.id_data)
-                    images.append(img)
+        _scan_node_tree(mat.node_tree)
 
     # Material datablock
     if hasattr(datablock, "node_tree"):
@@ -49,6 +65,9 @@ def collect_external_images(datablock) -> list:
     elif hasattr(datablock, "material_slots"):
         for slot in datablock.material_slots:
             _scan_material(slot.material)
+    # NodeTree datablock (node group) — datablock IS the node tree
+    elif hasattr(datablock, "nodes"):
+        _scan_node_tree(datablock)
 
     return images
 

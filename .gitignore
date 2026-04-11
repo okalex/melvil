@@ -6,6 +6,9 @@ __pycache__/
 # uv / virtualenv
 .venv/
 
+# Github
+.github/
+
 # Build
 dist/
 *.egg-info/

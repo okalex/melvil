@@ -277,3 +277,327 @@ class TestInvokeContextDetection:
         obj = _make_mesh_object(material=None)
         op = self._invoke(area_type="VIEW_3D", obj=obj)
         assert op.save_type == "MESH"
+
+    def test_node_editor_with_group_node_selects_node_group(self):
+        """Active GROUP node in node editor → save_type must be NODE_GROUP."""
+        from melvil.ops.save import MELVIL_OT_save_asset
+
+        ng = MagicMock()
+        ng.name = "Noise Setup"
+        active_node = MagicMock()
+        active_node.type = "GROUP"
+        active_node.node_tree = ng
+
+        op = MELVIL_OT_save_asset()
+        op.save_type = "MESH"
+        op.mesh_name = ""
+        op.material_name = ""
+        op.node_group_name = ""
+
+        ctx = _make_context(obj=_make_mesh_object(), area_type="NODE_EDITOR")
+        ctx.active_node = active_node
+
+        with patch.object(ctx.window_manager, "invoke_props_dialog", return_value={"RUNNING_MODAL"}):
+            op.invoke(ctx, MagicMock())
+
+        assert op.save_type == "NODE_GROUP"
+        assert op.node_group_name == "Noise Setup"
+
+    def test_node_editor_with_material_and_no_group_node_selects_material(self):
+        """NODE_EDITOR with a material active but no GROUP node → MATERIAL (unchanged)."""
+        mat = _make_material()
+        obj = _make_mesh_object(material=mat)
+        op = self._invoke(area_type="NODE_EDITOR", obj=obj)
+        assert op.save_type == "MATERIAL"
+
+    def test_node_editor_group_node_takes_priority_over_material(self):
+        """A GROUP node active in node editor beats the material context."""
+        from melvil.ops.save import MELVIL_OT_save_asset
+
+        ng = MagicMock()
+        ng.name = "Fancy Group"
+        active_node = MagicMock()
+        active_node.type = "GROUP"
+        active_node.node_tree = ng
+
+        mat = _make_material()
+        obj = _make_mesh_object(material=mat)
+        op = MELVIL_OT_save_asset()
+        op.save_type = "MESH"
+        op.mesh_name = ""
+        op.material_name = ""
+        op.node_group_name = ""
+
+        ctx = _make_context(obj=obj, area_type="NODE_EDITOR")
+        ctx.active_node = active_node
+
+        with patch.object(ctx.window_manager, "invoke_props_dialog", return_value={"RUNNING_MODAL"}):
+            op.invoke(ctx, MagicMock())
+
+        assert op.save_type == "NODE_GROUP"
+
+
+# ---------------------------------------------------------------------------
+# poll() — node group
+# ---------------------------------------------------------------------------
+
+
+class TestPollNodeGroup:
+    def test_poll_true_with_group_node_and_no_active_object(self):
+        """poll() returns True when active_node is a GROUP even without active_object."""
+        from melvil.ops.save import MELVIL_OT_save_asset
+
+        ng = MagicMock()
+        active_node = MagicMock()
+        active_node.type = "GROUP"
+        active_node.node_tree = ng
+
+        ctx = MagicMock()
+        ctx.active_object = None
+        ctx.active_node = active_node
+
+        assert MELVIL_OT_save_asset.poll(ctx) is True
+
+    def test_poll_false_without_active_object_or_group_node(self):
+        from melvil.ops.save import MELVIL_OT_save_asset
+
+        ctx = MagicMock()
+        ctx.active_object = None
+        active_node = MagicMock()
+        active_node.type = "MATH"  # not a GROUP node
+        active_node.node_tree = None
+        ctx.active_node = active_node
+
+        assert MELVIL_OT_save_asset.poll(ctx) is False
+
+
+# ---------------------------------------------------------------------------
+# execute() — NODE_GROUP
+# ---------------------------------------------------------------------------
+
+
+class TestExecuteNodeGroup:
+    def _make_op(self, node_group_name="Noise FX"):
+        from melvil.ops.save import MELVIL_OT_save_asset
+
+        op = MELVIL_OT_save_asset()
+        op.save_type = "NODE_GROUP"
+        op.mesh_name = ""
+        op.material_name = ""
+        op.node_group_name = node_group_name
+        return op
+
+    def _make_ng_context(self, ng_name="Noise FX"):
+        ng = MagicMock()
+        ng.name = ng_name
+        active_node = MagicMock()
+        active_node.type = "GROUP"
+        active_node.node_tree = ng
+        ctx = _make_context(obj=_make_mesh_object(), area_type="NODE_EDITOR")
+        ctx.active_node = active_node
+        return ctx, ng
+
+    def test_save_node_group_returns_finished(self, conn):
+        op = self._make_op()
+        ctx, _ = self._make_ng_context()
+
+        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
+             patch("melvil.ops.save.AssetWriter") as MockWriter:
+            MockWriter.return_value.write.return_value = "dddddddd-0000-4000-8000-000000000004"
+            result = op.execute(ctx)
+
+        assert result == {"FINISHED"}
+
+    def test_save_node_group_calls_writer_with_correct_args(self, conn):
+        op = self._make_op(node_group_name="Noise FX")
+        ctx, ng = self._make_ng_context(ng_name="Noise FX")
+
+        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
+             patch("melvil.ops.save.AssetWriter") as MockWriter:
+            mock_instance = MockWriter.return_value
+            mock_instance.write.return_value = "dddddddd-0000-4000-8000-000000000004"
+            op.execute(ctx)
+
+        mock_instance.write.assert_called_once_with(ng, "Noise FX", "NODE_GROUP")
+
+    def test_error_when_no_active_node(self, conn):
+        op = self._make_op()
+        ctx = _make_context(obj=_make_mesh_object(), area_type="NODE_EDITOR")
+        ctx.active_node = None
+
+        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"):
+            result = op.execute(ctx)
+
+        assert result == {"CANCELLED"}
+
+    def test_error_when_active_node_has_no_node_tree(self, conn):
+        op = self._make_op()
+        ctx = _make_context(obj=_make_mesh_object(), area_type="NODE_EDITOR")
+        active_node = MagicMock()
+        active_node.type = "GROUP"
+        active_node.node_tree = None
+        ctx.active_node = active_node
+
+        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"):
+            result = op.execute(ctx)
+
+        assert result == {"CANCELLED"}
+
+    def test_error_when_empty_node_group_name(self, conn):
+        op = self._make_op(node_group_name="   ")
+        ctx, _ = self._make_ng_context()
+
+        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"):
+            result = op.execute(ctx)
+
+        assert result == {"CANCELLED"}
+
+
+# ---------------------------------------------------------------------------
+# MELVIL_OT_save_nodes_as_asset — poll
+# ---------------------------------------------------------------------------
+
+
+def _make_node_editor_context(nodes=None, has_space=True, area_type="NODE_EDITOR"):
+    ctx = MagicMock()
+    area = MagicMock()
+    area.type = area_type
+    ctx.area = area
+    if has_space:
+        nt = MagicMock()
+        nt.nodes = nodes or []
+        ctx.space_data.node_tree = nt
+    else:
+        ctx.space_data = None
+    return ctx
+
+
+def _make_selectable_node(select: bool = True, node_type: str = "SHADER", ng=None):
+    node = MagicMock()
+    node.select = select
+    node.type = node_type
+    node.node_tree = ng
+    return node
+
+
+class TestSaveNodesAsAssetPoll:
+    def test_poll_true_in_node_editor_with_selected_node(self):
+        from melvil.ops.save import MELVIL_OT_save_nodes_as_asset
+
+        ctx = _make_node_editor_context(nodes=[_make_selectable_node(select=True)])
+        assert MELVIL_OT_save_nodes_as_asset.poll(ctx) is True
+
+    def test_poll_false_when_no_selected_nodes(self):
+        from melvil.ops.save import MELVIL_OT_save_nodes_as_asset
+
+        ctx = _make_node_editor_context(nodes=[_make_selectable_node(select=False)])
+        assert MELVIL_OT_save_nodes_as_asset.poll(ctx) is False
+
+    def test_poll_false_outside_node_editor(self):
+        from melvil.ops.save import MELVIL_OT_save_nodes_as_asset
+
+        ctx = _make_node_editor_context(
+            nodes=[_make_selectable_node(select=True)],
+            area_type="VIEW_3D",
+        )
+        assert MELVIL_OT_save_nodes_as_asset.poll(ctx) is False
+
+    def test_poll_false_when_no_node_tree(self):
+        from melvil.ops.save import MELVIL_OT_save_nodes_as_asset
+
+        ctx = _make_node_editor_context(has_space=False)
+        # space_data is None → node_tree is None
+        ctx.area.type = "NODE_EDITOR"
+        assert MELVIL_OT_save_nodes_as_asset.poll(ctx) is False
+
+    def test_poll_false_when_empty_node_list(self):
+        from melvil.ops.save import MELVIL_OT_save_nodes_as_asset
+
+        ctx = _make_node_editor_context(nodes=[])
+        assert MELVIL_OT_save_nodes_as_asset.poll(ctx) is False
+
+
+# ---------------------------------------------------------------------------
+# MELVIL_OT_save_nodes_as_asset — invoke
+# ---------------------------------------------------------------------------
+
+
+class TestSaveNodesAsAssetInvoke:
+    def test_single_group_node_invokes_save_asset_directly(self):
+        """A single selected GROUP node should skip group_make."""
+        import bpy
+        from melvil.ops.save import MELVIL_OT_save_nodes_as_asset
+
+        ng = MagicMock()
+        group_node = _make_selectable_node(select=True, node_type="GROUP", ng=ng)
+
+        ctx = _make_node_editor_context(nodes=[group_node])
+        with patch.object(bpy.ops, "melvil", create=True) as mock_melvil_ops, \
+             patch.object(bpy.ops, "node", create=True) as mock_node_ops:
+            mock_melvil_ops.save_asset.return_value = {"RUNNING_MODAL"}
+            op = MELVIL_OT_save_nodes_as_asset()
+            op.invoke(ctx, MagicMock())
+
+            mock_node_ops.group_make.assert_not_called()
+            mock_melvil_ops.save_asset.assert_called_once_with("INVOKE_DEFAULT")
+
+    def test_multiple_nodes_calls_group_make_then_save_asset(self):
+        """Multiple selected nodes should be grouped before saving."""
+        import bpy
+        from melvil.ops.save import MELVIL_OT_save_nodes_as_asset
+
+        nodes = [
+            _make_selectable_node(select=True, node_type="BSDF_PRINCIPLED"),
+            _make_selectable_node(select=True, node_type="TEX_NOISE"),
+        ]
+        ctx = _make_node_editor_context(nodes=nodes)
+
+        with patch.object(bpy.ops, "melvil", create=True) as mock_melvil_ops, \
+             patch.object(bpy.ops, "node", create=True) as mock_node_ops:
+            mock_node_ops.group_make.return_value = {"FINISHED"}
+            mock_melvil_ops.save_asset.return_value = {"RUNNING_MODAL"}
+            op = MELVIL_OT_save_nodes_as_asset()
+            op.invoke(ctx, MagicMock())
+
+            mock_node_ops.group_make.assert_called_once()
+            mock_melvil_ops.save_asset.assert_called_once_with("INVOKE_DEFAULT")
+
+    def test_non_group_single_node_calls_group_make(self):
+        """A single non-GROUP node should still be wrapped via group_make."""
+        import bpy
+        from melvil.ops.save import MELVIL_OT_save_nodes_as_asset
+
+        node = _make_selectable_node(select=True, node_type="MATH")
+        ctx = _make_node_editor_context(nodes=[node])
+
+        with patch.object(bpy.ops, "melvil", create=True) as mock_melvil_ops, \
+             patch.object(bpy.ops, "node", create=True) as mock_node_ops:
+            mock_node_ops.group_make.return_value = {"FINISHED"}
+            mock_melvil_ops.save_asset.return_value = {"RUNNING_MODAL"}
+            op = MELVIL_OT_save_nodes_as_asset()
+            op.invoke(ctx, MagicMock())
+
+            mock_node_ops.group_make.assert_called_once()
+
+    def test_group_make_failure_returns_cancelled(self):
+        """If group_make does not finish, invoke returns CANCELLED."""
+        import bpy
+        from melvil.ops.save import MELVIL_OT_save_nodes_as_asset
+
+        nodes = [_make_selectable_node(select=True, node_type="MATH")]
+        ctx = _make_node_editor_context(nodes=nodes)
+
+        with patch.object(bpy.ops, "node", create=True) as mock_node_ops:
+            mock_node_ops.group_make.return_value = {"CANCELLED"}
+            op = MELVIL_OT_save_nodes_as_asset()
+            result = op.invoke(ctx, MagicMock())
+
+        assert result == {"CANCELLED"}
+

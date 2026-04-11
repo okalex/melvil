@@ -139,3 +139,44 @@ class TestAssetNotFoundError:
         reader = AssetReader(library_root, conn)
         with pytest.raises(AssetNotFoundError, match="missing-id"):
             reader.read("missing-id")
+
+
+SAMPLE_NODE_GROUP = dict(
+    id="dddddddd-0000-4000-8000-000000000004",
+    name="Noise Shader",
+    type="NODE_GROUP",
+    blend_path="noise_shader_dddddddd.blend",
+)
+
+
+class TestAssetReaderReadNodeGroup:
+    def test_loads_node_group_with_node_groups_collection(self, library_root, conn):
+        from melvil.core.asset_reader import AssetReader
+
+        assets_db.insert_asset(conn, **SAMPLE_NODE_GROUP)
+        mock_ng = MagicMock()
+
+        with patch("melvil.core.asset_reader._load_datablock", return_value=mock_ng) as mock_load:
+            reader = AssetReader(library_root, conn)
+            result = reader.read(SAMPLE_NODE_GROUP["id"])
+
+        _, _, collection_arg = mock_load.call_args[0]
+        assert collection_arg == "node_groups"
+        assert result is mock_ng
+
+    def test_node_group_blend_path_resolved_correctly(self, library_root, conn):
+        from melvil.core.asset_reader import AssetReader
+
+        assets_db.insert_asset(conn, **SAMPLE_NODE_GROUP)
+        captured = {}
+
+        def fake_load(filepath, name, collection):
+            captured["filepath"] = filepath
+            return MagicMock()
+
+        with patch("melvil.core.asset_reader._load_datablock", side_effect=fake_load):
+            reader = AssetReader(library_root, conn)
+            reader.read(SAMPLE_NODE_GROUP["id"])
+
+        assert captured["filepath"] == str(library_root / SAMPLE_NODE_GROUP["blend_path"])
+

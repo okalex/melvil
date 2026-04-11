@@ -126,6 +126,102 @@ class TestCollectExternalImages:
         result = collect_external_images(mat)
         assert result == []
 
+    def test_node_group_datablock_returns_tex_image(self):
+        """A NodeTree datablock (node group) with a TEX_IMAGE node is collected."""
+        from melvil.core.textures import collect_external_images
+
+        img = _make_image("/src/noise.png")
+        node = _make_tex_image_node(img)
+        node_group = MagicMock()
+        node_group.nodes = [node]
+        # NodeTrees don't have node_tree or material_slots
+        del node_group.node_tree
+        del node_group.material_slots
+
+        result = collect_external_images(node_group)
+        assert img in result
+
+    def test_node_group_nested_images_collected(self):
+        """Images inside nested GROUP nodes are collected recursively."""
+        from melvil.core.textures import collect_external_images
+
+        img_inner = _make_image("/src/inner.png")
+        inner_node = _make_tex_image_node(img_inner)
+
+        nested_tree = MagicMock()
+        nested_tree.nodes = [inner_node]
+
+        group_node = MagicMock()
+        group_node.type = "GROUP"
+        group_node.node_tree = nested_tree
+
+        root_tree = MagicMock()
+        root_tree.nodes = [group_node]
+        del root_tree.node_tree
+        del root_tree.material_slots
+
+        result = collect_external_images(root_tree)
+        assert img_inner in result
+
+    def test_node_group_nested_deduplication(self):
+        """The same image referenced in multiple nested groups is returned once."""
+        from melvil.core.textures import collect_external_images
+
+        img = _make_image("/src/shared.png")
+        node_a = _make_tex_image_node(img)
+        node_b = _make_tex_image_node(img)
+
+        nested_tree = MagicMock()
+        nested_tree.nodes = [node_b]
+
+        group_node = MagicMock()
+        group_node.type = "GROUP"
+        group_node.node_tree = nested_tree
+
+        root_tree = MagicMock()
+        root_tree.nodes = [node_a, group_node]
+        del root_tree.node_tree
+        del root_tree.material_slots
+
+        result = collect_external_images(root_tree)
+        assert result.count(img) == 1
+
+    def test_node_group_cycle_does_not_recurse_infinitely(self):
+        """A self-referencing node tree must not cause infinite recursion."""
+        from melvil.core.textures import collect_external_images
+
+        root_tree = MagicMock()
+        group_node = MagicMock()
+        group_node.type = "GROUP"
+        group_node.node_tree = root_tree  # cycle: root → root
+        root_tree.nodes = [group_node]
+        del root_tree.node_tree
+        del root_tree.material_slots
+
+        # Should complete without hitting Python's recursion limit.
+        result = collect_external_images(root_tree)
+        assert result == []
+
+    def test_material_group_node_images_collected(self):
+        """Images inside GROUP nodes within a material's node tree are collected."""
+        from melvil.core.textures import collect_external_images
+
+        img = _make_image("/src/detail.png")
+        inner_node = _make_tex_image_node(img)
+
+        nested_tree = MagicMock()
+        nested_tree.nodes = [inner_node]
+
+        group_node = MagicMock()
+        group_node.type = "GROUP"
+        group_node.node_tree = nested_tree
+
+        mat = MagicMock()
+        mat.node_tree.nodes = [group_node]
+
+        result = collect_external_images(mat)
+        assert img in result
+
 
 # ---------------------------------------------------------------------------
 # copy_textures
