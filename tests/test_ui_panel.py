@@ -47,17 +47,6 @@ class TestDraw:
 
         return MELVIL_PT_main()
 
-    def test_save_button_always_drawn(self):
-        panel = self._panel()
-        layout = _make_layout()
-        panel.layout = layout
-
-        panel.draw(_make_context())
-
-        layout.operator.assert_any_call(
-            "melvil.save_asset", text="Save as Asset", icon="ADD"
-        )
-
     def test_browse_button_always_drawn(self):
         panel = self._panel()
         layout = _make_layout()

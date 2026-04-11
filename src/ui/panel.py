@@ -33,9 +33,6 @@ class MELVIL_PT_main(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
 
-        # "Save as Asset" is always shown; Blender greys it out when the
-        # operator's poll() fails (no active object).
-        layout.operator("melvil.save_asset", text="Save as Asset", icon="ADD")
         layout.operator("melvil.open_browser", text="Browse Library", icon="ASSET_MANAGER")
 
         layout.separator()
