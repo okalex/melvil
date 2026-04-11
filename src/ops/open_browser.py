@@ -28,12 +28,16 @@ from bpy.props import BoolProperty, EnumProperty, StringProperty
 from ..core.library import resolve_db_path
 from ..db import open_db
 from ..db.kits import list_kits
+from .tag_filter_toggle import get_active_tag_filters
 from ..ui.draw_helpers import (
     draw_asset_section,
+    draw_tag_filter_pills,
     draw_tag_management_section,
     filter_assets,
+    load_asset_tag_memberships,
     load_assets,
     load_kits,
+    load_tags_for_asset_ids,
     load_tags_with_usage,
 )
 
@@ -177,7 +181,59 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
         split = layout.split(factor=0.25)
 
         # ------------------------------------------------------------------
-        # Left column — category + kit selectors
+        # Front-load all data so both columns can share it without extra queries.
+        # ------------------------------------------------------------------
+        selected = self.type_filter
+        kit_id = self.kit_filter if self.kit_filter != "ALL_KITS" else None
+        query = self.search_query
+        active_tag_ids = get_active_tag_filters(context.window_manager)
+
+        # Determine which type sections are visible (respects type_filter).
+        visible_types = [
+            t for t in ("MATERIAL", "MESH", "NODE_GROUP")
+            if selected in ("ALL", t)
+        ]
+
+        try:
+            kits = load_kits()
+
+            # Load and search-filter assets per type (no tag filter yet).
+            # These are used both to derive the tag pills and (after tag
+            # filtering) to draw the actual asset sections.
+            pre_tag: dict[str, list] = {
+                t: filter_assets(load_assets(t, kit_id=kit_id), query)
+                for t in visible_types
+            }
+
+            # Bulk-load tag memberships for all pre-filtered assets in one
+            # query, then use them for both pill derivation and tag filtering.
+            all_pre_ids = [a["id"] for assets in pre_tag.values() for a in assets]
+            memberships = load_asset_tag_memberships(all_pre_ids)
+            visible_tags = load_tags_for_asset_ids(all_pre_ids)
+
+            # Apply the active tag filter (AND semantics).
+            if active_tag_ids:
+                active_set = set(active_tag_ids)
+                section_assets: dict[str, list] = {
+                    t: [
+                        a for a in assets
+                        if active_set.issubset(memberships.get(a["id"], set()))
+                    ]
+                    for t, assets in pre_tag.items()
+                }
+            else:
+                section_assets = pre_tag
+
+            load_error = None
+        except Exception as exc:  # noqa: BLE001
+            load_error = exc
+            kits = []
+            visible_tags = []
+            active_tag_ids = []
+            section_assets = {t: [] for t in visible_types}
+
+        # ------------------------------------------------------------------
+        # Left column — category + kit selectors + tag pills + manage tags
         # ------------------------------------------------------------------
         left = split.column()
 
@@ -197,6 +253,11 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
 
         left.prop(self, "kit_filter", expand=True)
 
+        # Tag filter pills — shown below the kit selector.
+        if visible_tags:
+            left.separator()
+            draw_tag_filter_pills(left, visible_tags, active_tag_ids)
+
         left.separator()
 
         # Tag management section — toggled by the "Manage Tags" button.
@@ -215,20 +276,24 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
         right = split.column()
         right.prop(self, "search_query", text="", icon="VIEWZOOM")
         right.separator()
-        selected = self.type_filter
-        kit_id = self.kit_filter if self.kit_filter != "ALL_KITS" else None
 
-        try:
-            kits = load_kits()
-            query = self.search_query
-            if selected in ("ALL", "MATERIAL"):
-                draw_asset_section(right, "Materials", "MATERIAL", filter_assets(load_assets("MATERIAL", kit_id=kit_id), query), kits=kits)
-            if selected in ("ALL", "MESH"):
-                draw_asset_section(right, "Meshes", "MESH_DATA", filter_assets(load_assets("MESH", kit_id=kit_id), query), kits=kits)
-            if selected in ("ALL", "NODE_GROUP"):
-                draw_asset_section(right, "Node Groups", "NODETREE", filter_assets(load_assets("NODE_GROUP", kit_id=kit_id), query), show_load=False, kits=kits)
-        except Exception:
+        if load_error is not None:
             right.label(text="Could not open library database", icon="ERROR")
+            return
+
+        _SECTION_SPECS = {
+            "MATERIAL":   ("Materials",   "MATERIAL",  True),
+            "MESH":        ("Meshes",       "MESH_DATA", True),
+            "NODE_GROUP": ("Node Groups",  "NODETREE",  False),
+        }
+        for type_key in visible_types:
+            title, icon, show_load = _SECTION_SPECS[type_key]
+            draw_asset_section(
+                right, title, icon,
+                section_assets.get(type_key, []),
+                show_load=show_load,
+                kits=kits,
+            )
 
 
 # ---------------------------------------------------------------------------

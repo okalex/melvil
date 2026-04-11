@@ -270,6 +270,87 @@ def test_list_assets_for_tag_normalizes(conn, asset_id):
 
 
 # ---------------------------------------------------------------------------
+# list_tags_for_asset_ids
+# ---------------------------------------------------------------------------
+
+
+def test_list_tags_for_asset_ids_returns_tags(conn, asset_id):
+    tags_db.add_asset_tag(conn, asset_id, "metal")
+    tags_db.add_asset_tag(conn, asset_id, "pbr")
+    rows = tags_db.list_tags_for_asset_ids(conn, [asset_id])
+    names = {r["name"] for r in rows}
+    assert names == {"metal", "pbr"}
+
+
+def test_list_tags_for_asset_ids_deduplicates_across_assets(conn, asset_id):
+    asset2 = "bbbbbbbb-0000-4000-8000-000000000002"
+    assets_db.insert_asset(
+        conn, id=asset2, name="Glass", type="MATERIAL", blend_path="glass.blend"
+    )
+    tags_db.add_asset_tag(conn, asset_id, "metal")
+    tags_db.add_asset_tag(conn, asset2, "metal")  # same tag on both assets
+    tags_db.add_asset_tag(conn, asset2, "pbr")
+    rows = tags_db.list_tags_for_asset_ids(conn, [asset_id, asset2])
+    names = {r["name"] for r in rows}
+    assert names == {"metal", "pbr"}
+    assert len(rows) == 2  # no duplicates
+
+
+def test_list_tags_for_asset_ids_empty_input(conn):
+    rows = tags_db.list_tags_for_asset_ids(conn, [])
+    assert rows == []
+
+
+def test_list_tags_for_asset_ids_sorted_by_name(conn, asset_id):
+    tags_db.add_asset_tag(conn, asset_id, "zinc")
+    tags_db.add_asset_tag(conn, asset_id, "aluminium")
+    tags_db.add_asset_tag(conn, asset_id, "iron")
+    rows = tags_db.list_tags_for_asset_ids(conn, [asset_id])
+    assert [r["name"] for r in rows] == ["aluminium", "iron", "zinc"]
+
+
+# ---------------------------------------------------------------------------
+# get_asset_tag_memberships
+# ---------------------------------------------------------------------------
+
+
+def test_get_asset_tag_memberships_returns_mapping(conn, asset_id):
+    tags_db.add_asset_tag(conn, asset_id, "metal")
+    tags_db.add_asset_tag(conn, asset_id, "pbr")
+    result = tags_db.get_asset_tag_memberships(conn, [asset_id])
+    assert asset_id in result
+    tag_names = {
+        tags_db.get_tag_by_id(conn, tid)["name"]
+        for tid in result[asset_id]
+    }
+    assert tag_names == {"metal", "pbr"}
+
+
+def test_get_asset_tag_memberships_empty_input(conn):
+    assert tags_db.get_asset_tag_memberships(conn, []) == {}
+
+
+def test_get_asset_tag_memberships_asset_without_tags_omitted(conn, asset_id):
+    # asset_id has no tags → should not appear in result
+    result = tags_db.get_asset_tag_memberships(conn, [asset_id])
+    assert result == {}
+
+
+def test_get_asset_tag_memberships_multiple_assets(conn, asset_id):
+    asset2 = "bbbbbbbb-0000-4000-8000-000000000002"
+    assets_db.insert_asset(
+        conn, id=asset2, name="Glass", type="MATERIAL", blend_path="glass.blend"
+    )
+    tags_db.add_asset_tag(conn, asset_id, "metal")
+    tags_db.add_asset_tag(conn, asset2, "pbr")
+    result = tags_db.get_asset_tag_memberships(conn, [asset_id, asset2])
+    assert asset_id in result
+    assert asset2 in result
+    assert len(result[asset_id]) == 1
+    assert len(result[asset2]) == 1
+
+
+# ---------------------------------------------------------------------------
 # Cascade on asset delete
 # ---------------------------------------------------------------------------
 

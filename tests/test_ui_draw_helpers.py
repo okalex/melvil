@@ -401,6 +401,131 @@ class TestLoadTagsWithUsage:
 
 
 # ---------------------------------------------------------------------------
+# load_tags_for_asset_ids()
+# ---------------------------------------------------------------------------
+
+
+class TestLoadTagsForAssetIds:
+    def test_returns_tags_for_given_assets(self, conn):
+        from melvil.db import assets as assets_db, tags as tags_db
+        from melvil.ui.draw_helpers import load_tags_for_asset_ids
+
+        asset_id = "aaaaaaaa-0000-4000-8000-000000000001"
+        assets_db.insert_asset(
+            conn, id=asset_id, name="Iron", type="MATERIAL", blend_path="iron.blend"
+        )
+        tags_db.add_asset_tag(conn, asset_id, "metal")
+        tags_db.add_asset_tag(conn, asset_id, "pbr")
+        conn.commit()
+
+        with patch("melvil.ui.draw_helpers.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ui.draw_helpers.open_db", _mock_open_db(conn)):
+            rows = load_tags_for_asset_ids([asset_id])
+
+        assert {r["name"] for r in rows} == {"metal", "pbr"}
+
+    def test_empty_asset_ids_returns_empty(self, conn):
+        from melvil.ui.draw_helpers import load_tags_for_asset_ids
+
+        # Should short-circuit without a DB call
+        rows = load_tags_for_asset_ids([])
+        assert rows == []
+
+    def test_raises_on_library_not_configured(self):
+        from melvil.core.library import LibraryNotConfiguredError
+        from melvil.ui.draw_helpers import load_tags_for_asset_ids
+
+        with patch("melvil.ui.draw_helpers.resolve_db_path",
+                   side_effect=LibraryNotConfiguredError("not set")):
+            with pytest.raises(LibraryNotConfiguredError):
+                load_tags_for_asset_ids(["some-id"])
+
+
+# ---------------------------------------------------------------------------
+# draw_tag_filter_pills()
+# ---------------------------------------------------------------------------
+
+
+def _make_pill_tag(id: str, name: str) -> dict:
+    return {"id": id, "name": name}
+
+
+class TestDrawTagFilterPills:
+    def test_empty_visible_tags_renders_nothing(self):
+        from melvil.ui.draw_helpers import draw_tag_filter_pills
+
+        layout = MagicMock()
+        draw_tag_filter_pills(layout, [], [])
+        layout.row.assert_not_called()
+
+    def test_each_tag_gets_a_button(self):
+        from melvil.ui.draw_helpers import draw_tag_filter_pills
+
+        layout = MagicMock()
+        row = MagicMock()
+        layout.row.return_value = row
+
+        tags = [_make_pill_tag("id1", "metal"), _make_pill_tag("id2", "pbr")]
+        draw_tag_filter_pills(layout, tags, [])
+
+        op_ids = [c[0][0] for c in row.operator.call_args_list]
+        assert op_ids.count("melvil.tag_filter_toggle") == 2
+
+    def test_active_tag_button_is_depressed(self):
+        from melvil.ui.draw_helpers import draw_tag_filter_pills
+
+        layout = MagicMock()
+        row = MagicMock()
+        layout.row.return_value = row
+        active_btn = MagicMock()
+        inactive_btn = MagicMock()
+        row.operator.side_effect = [active_btn, inactive_btn]
+
+        tags = [_make_pill_tag("id1", "metal"), _make_pill_tag("id2", "pbr")]
+        draw_tag_filter_pills(layout, tags, ["id1"])
+
+        _, kwargs0 = row.operator.call_args_list[0]
+        _, kwargs1 = row.operator.call_args_list[1]
+        assert kwargs0.get("depress") is True
+        assert kwargs1.get("depress") is False
+
+    def test_tag_id_set_on_button(self):
+        from melvil.ui.draw_helpers import draw_tag_filter_pills
+
+        layout = MagicMock()
+        row = MagicMock()
+        layout.row.return_value = row
+        btn = MagicMock()
+        row.operator.return_value = btn
+
+        draw_tag_filter_pills(layout, [_make_pill_tag("uuid-123", "metal")], [])
+
+        assert btn.tag_id == "uuid-123"
+
+    def test_clear_button_shown_when_filters_active(self):
+        from melvil.ui.draw_helpers import draw_tag_filter_pills
+
+        layout = MagicMock()
+        layout.row.return_value = MagicMock()
+
+        draw_tag_filter_pills(layout, [_make_pill_tag("id1", "metal")], ["id1"])
+
+        op_ids = [c[0][0] for c in layout.operator.call_args_list]
+        assert "melvil.tag_filter_clear" in op_ids
+
+    def test_clear_button_not_shown_when_no_filters_active(self):
+        from melvil.ui.draw_helpers import draw_tag_filter_pills
+
+        layout = MagicMock()
+        layout.row.return_value = MagicMock()
+
+        draw_tag_filter_pills(layout, [_make_pill_tag("id1", "metal")], [])
+
+        op_ids = [c[0][0] for c in layout.operator.call_args_list]
+        assert "melvil.tag_filter_clear" not in op_ids
+
+
+# ---------------------------------------------------------------------------
 # draw_tag_management_section()
 # ---------------------------------------------------------------------------
 

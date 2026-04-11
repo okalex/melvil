@@ -164,3 +164,49 @@ def list_assets_for_tag(conn: sqlite3.Connection, tag_name: str) -> list[sqlite3
         """,
         (normalize_tag(tag_name),),
     ).fetchall()
+
+
+def list_tags_for_asset_ids(
+    conn: sqlite3.Connection,
+    asset_ids: list[str],
+) -> list[sqlite3.Row]:
+    """Return distinct tag rows (id, name) present on any of *asset_ids*, sorted by name.
+
+    Returns an empty list when *asset_ids* is empty.
+    """
+    if not asset_ids:
+        return []
+    placeholders = ",".join("?" * len(asset_ids))
+    return conn.execute(
+        f"""
+        SELECT DISTINCT t.id, t.name
+        FROM tags t
+        JOIN asset_tags at ON at.tag_id = t.id
+        WHERE at.asset_id IN ({placeholders})
+        ORDER BY t.name
+        """,  # noqa: S608
+        asset_ids,
+    ).fetchall()
+
+
+def get_asset_tag_memberships(
+    conn: sqlite3.Connection,
+    asset_ids: list[str],
+) -> dict[str, set[str]]:
+    """Return ``{asset_id: {tag_id, ...}}`` for each asset in *asset_ids*.
+
+    Assets with no tags are omitted from the result.  Returns an empty dict
+    when *asset_ids* is empty.
+    """
+    if not asset_ids:
+        return {}
+    placeholders = ",".join("?" * len(asset_ids))
+    rows = conn.execute(
+        f"SELECT asset_id, tag_id FROM asset_tags WHERE asset_id IN ({placeholders})",  # noqa: S608
+        asset_ids,
+    ).fetchall()
+    result: dict[str, set[str]] = {}
+    for row in rows:
+        result.setdefault(row["asset_id"], set()).add(row["tag_id"])
+    return result
+

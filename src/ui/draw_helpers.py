@@ -12,6 +12,10 @@ from ..db import open_db
 from ..db.assets import list_assets
 from ..db.kits import list_kits
 from ..db import tags as tags_db
+from ..db.tags import (
+    get_asset_tag_memberships as _get_asset_tag_memberships,
+    list_tags_for_asset_ids as _list_tags_for_asset_ids,
+)
 
 
 def draw_asset_section(layout, title: str, icon: str, assets, *, show_load: bool = True, kits=()) -> None:
@@ -116,6 +120,64 @@ def load_tags_with_usage():
     """
     with open_db(resolve_db_path()) as conn:
         return tags_db.list_tags_with_usage(conn)
+
+
+def load_asset_tag_memberships(asset_ids: list[str]) -> dict[str, set]:
+    """Return ``{asset_id: {tag_id, ...}}`` for *asset_ids*.
+
+    Returns an empty dict immediately when *asset_ids* is empty, without
+    opening the database.  Raises on configuration or DB errors.
+    """
+    if not asset_ids:
+        return {}
+    with open_db(resolve_db_path()) as conn:
+        return _get_asset_tag_memberships(conn, asset_ids)
+
+
+def load_tags_for_asset_ids(asset_ids: list[str]):
+    """Return distinct tag rows (id, name) present on any of *asset_ids*.
+
+    Raises on configuration or database errors — caller decides how to surface
+    the failure in the UI.  Returns an empty list when *asset_ids* is empty.
+    """
+    if not asset_ids:
+        return []
+    with open_db(resolve_db_path()) as conn:
+        return _list_tags_for_asset_ids(conn, asset_ids)
+
+
+def draw_tag_filter_pills(
+    layout,
+    visible_tags,
+    active_tag_ids: list[str],
+) -> None:
+    """Draw the tag filter pill row and, when filters are active, a clear button.
+
+    Parameters
+    ----------
+    layout:
+        The ``bpy.types.UILayout`` to draw into.
+    visible_tags:
+        Sequence of tag rows with ``"id"`` and ``"name"`` keys — only the tags
+        present on assets currently visible in the browser.
+    active_tag_ids:
+        UUIDs of tags currently used as filters (rendered depressed).
+    """
+    if not visible_tags:
+        return
+
+    row = layout.row(align=True)
+    active_set = set(active_tag_ids)
+    for tag in visible_tags:  # already sorted by name from DB query
+        btn = row.operator(
+            "melvil.tag_filter_toggle",
+            text=tag["name"],
+            depress=(tag["id"] in active_set),
+        )
+        btn.tag_id = tag["id"]
+
+    if active_tag_ids:
+        layout.operator("melvil.tag_filter_clear", text="Clear filters", icon="X")
 
 
 def draw_tag_management_section(layout, tags_with_usage, sort_by: str = "NAME") -> None:

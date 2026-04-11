@@ -463,3 +463,170 @@ class TestDrawTagManagement:
         assert error_calls
 
 
+# ---------------------------------------------------------------------------
+# draw() — tag filter pills
+# ---------------------------------------------------------------------------
+
+_TAG_METAL = {"id": "aaaa-0001", "name": "metal"}
+_TAG_PBR = {"id": "bbbb-0002", "name": "pbr"}
+
+
+class TestDrawTagFilterPills:
+    def _make_ctx(self, active_filters=""):
+        ctx = MagicMock()
+        ctx.window_manager.melvil_active_tag_filters = active_filters
+        ctx.window_manager.melvil_tag_sort = "NAME"
+        return ctx
+
+    def _make_op_with_layout(self):
+        op = _make_op()
+        layout = MagicMock()
+        right_col = MagicMock()
+        left_col = MagicMock()
+        split_mock = MagicMock()
+        split_mock.column.side_effect = [left_col, right_col]
+        layout.split.return_value = split_mock
+        op.layout = layout
+        return op, left_col, right_col
+
+    def _default_patches(self, assets=None, tags=None, memberships=None):
+        """Return a dict of standard patches for draw() calls in this class."""
+        return {
+            "melvil.ops.open_browser.load_assets": assets if assets is not None else [],
+            "melvil.ops.open_browser.load_kits": [],
+            "melvil.ops.open_browser.load_asset_tag_memberships": memberships or {},
+            "melvil.ops.open_browser.load_tags_for_asset_ids": tags if tags is not None else [],
+        }
+
+    def test_pills_not_rendered_when_no_visible_tags(self):
+        op, left_col, _right = self._make_op_with_layout()
+        ctx = self._make_ctx()
+
+        with patch("melvil.ops.open_browser.load_assets", return_value=[]), \
+             patch("melvil.ops.open_browser.load_kits", return_value=[]), \
+             patch("melvil.ops.open_browser.load_asset_tag_memberships", return_value={}), \
+             patch("melvil.ops.open_browser.load_tags_for_asset_ids", return_value=[]), \
+             patch("melvil.ops.open_browser.draw_asset_section"), \
+             patch("melvil.ops.open_browser.draw_tag_filter_pills") as mock_pills:
+            op.draw(ctx)
+
+        mock_pills.assert_not_called()
+
+    def test_pills_rendered_when_visible_tags_exist(self):
+        op, left_col, _right = self._make_op_with_layout()
+        op.type_filter = "MATERIAL"
+        ctx = self._make_ctx()
+        asset = _make_asset("a1", "Iron", "MATERIAL")
+        asset["id"] = "a1"
+
+        with patch("melvil.ops.open_browser.load_assets", return_value=[asset]), \
+             patch("melvil.ops.open_browser.load_kits", return_value=[]), \
+             patch("melvil.ops.open_browser.load_asset_tag_memberships", return_value={}), \
+             patch("melvil.ops.open_browser.load_tags_for_asset_ids",
+                   return_value=[_TAG_METAL]), \
+             patch("melvil.ops.open_browser.draw_asset_section"), \
+             patch("melvil.ops.open_browser.draw_tag_filter_pills") as mock_pills:
+            op.draw(ctx)
+
+        mock_pills.assert_called_once()
+        _layout_arg, tags_arg, active_arg = mock_pills.call_args[0]
+        assert tags_arg == [_TAG_METAL]
+
+    def test_pills_receive_active_filters_from_wm(self):
+        op, left_col, _right = self._make_op_with_layout()
+        op.type_filter = "MATERIAL"
+        ctx = self._make_ctx(active_filters="aaaa-0001")
+
+        with patch("melvil.ops.open_browser.load_assets", return_value=[_make_asset("a1", "Iron", "MATERIAL")]), \
+             patch("melvil.ops.open_browser.load_kits", return_value=[]), \
+             patch("melvil.ops.open_browser.load_asset_tag_memberships", return_value={}), \
+             patch("melvil.ops.open_browser.load_tags_for_asset_ids", return_value=[_TAG_METAL]), \
+             patch("melvil.ops.open_browser.draw_asset_section"), \
+             patch("melvil.ops.open_browser.draw_tag_filter_pills") as mock_pills:
+            op.draw(ctx)
+
+        _layout_arg, _tags_arg, active_arg = mock_pills.call_args[0]
+        assert "aaaa-0001" in active_arg
+
+    def test_tag_filter_applied_to_sections(self):
+        """Assets without active tags should be excluded from the drawn sections."""
+        op, left_col, _right = self._make_op_with_layout()
+        op.type_filter = "MATERIAL"
+        ctx = self._make_ctx(active_filters="aaaa-0001")
+
+        asset_with_tag = _make_asset("a1", "Iron", "MATERIAL")
+        asset_without_tag = _make_asset("a2", "Plastic", "MATERIAL")
+        # Only a1 has the active tag
+        memberships = {"a1": {"aaaa-0001"}}
+
+        with patch("melvil.ops.open_browser.load_assets",
+                   return_value=[asset_with_tag, asset_without_tag]), \
+             patch("melvil.ops.open_browser.load_kits", return_value=[]), \
+             patch("melvil.ops.open_browser.load_asset_tag_memberships",
+                   return_value=memberships), \
+             patch("melvil.ops.open_browser.load_tags_for_asset_ids", return_value=[_TAG_METAL]), \
+             patch("melvil.ops.open_browser.draw_asset_section") as mock_draw, \
+             patch("melvil.ops.open_browser.draw_tag_filter_pills"):
+            op.draw(ctx)
+
+        drawn_assets = mock_draw.call_args[0][3]
+        assert len(drawn_assets) == 1
+        assert drawn_assets[0]["id"] == "a1"
+
+    def test_no_tag_filter_passes_all_assets_to_sections(self):
+        """With no active filters, all search-matched assets are drawn."""
+        op, left_col, _right = self._make_op_with_layout()
+        op.type_filter = "MATERIAL"
+        ctx = self._make_ctx(active_filters="")
+
+        assets = [_make_asset("a1", "Iron", "MATERIAL"), _make_asset("a2", "Plastic", "MATERIAL")]
+
+        with patch("melvil.ops.open_browser.load_assets", return_value=assets), \
+             patch("melvil.ops.open_browser.load_kits", return_value=[]), \
+             patch("melvil.ops.open_browser.load_asset_tag_memberships", return_value={}), \
+             patch("melvil.ops.open_browser.load_tags_for_asset_ids", return_value=[]), \
+             patch("melvil.ops.open_browser.draw_asset_section") as mock_draw, \
+             patch("melvil.ops.open_browser.draw_tag_filter_pills"):
+            op.draw(ctx)
+
+        drawn_assets = mock_draw.call_args[0][3]
+        assert len(drawn_assets) == 2
+
+    def test_load_tags_called_with_asset_ids(self):
+        """load_tags_for_asset_ids receives the IDs of pre-filtered assets."""
+        op, left_col, _right = self._make_op_with_layout()
+        op.type_filter = "MATERIAL"
+        ctx = self._make_ctx()
+        asset = _make_asset("unique-id-123", "Iron", "MATERIAL")
+
+        with patch("melvil.ops.open_browser.load_assets", return_value=[asset]), \
+             patch("melvil.ops.open_browser.load_kits", return_value=[]), \
+             patch("melvil.ops.open_browser.load_asset_tag_memberships", return_value={}), \
+             patch("melvil.ops.open_browser.load_tags_for_asset_ids",
+                   return_value=[]) as mock_load_tags, \
+             patch("melvil.ops.open_browser.draw_asset_section"), \
+             patch("melvil.ops.open_browser.draw_tag_filter_pills"):
+            op.draw(ctx)
+
+        mock_load_tags.assert_called_once_with(["unique-id-123"])
+
+    def test_pill_row_separator_rendered_before_pills(self):
+        """A separator should appear between kit filter and pills."""
+        op, left_col, _right = self._make_op_with_layout()
+        op.type_filter = "MATERIAL"
+        ctx = self._make_ctx()
+
+        with patch("melvil.ops.open_browser.load_assets",
+                   return_value=[_make_asset("a1", "Iron", "MATERIAL")]), \
+             patch("melvil.ops.open_browser.load_kits", return_value=[]), \
+             patch("melvil.ops.open_browser.load_asset_tag_memberships", return_value={}), \
+             patch("melvil.ops.open_browser.load_tags_for_asset_ids",
+                   return_value=[_TAG_METAL]), \
+             patch("melvil.ops.open_browser.draw_asset_section"), \
+             patch("melvil.ops.open_browser.draw_tag_filter_pills"):
+            op.draw(ctx)
+
+        left_col.separator.assert_called()
+
+
+
