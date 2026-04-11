@@ -343,6 +343,45 @@ class TestInvoke:
 
         assert op._load_error is not None
 
+    def _context_with_kit(self, active_kit_id: str = "ALL_KITS") -> MagicMock:
+        ctx = _make_context(obj=_make_object())
+        scene = MagicMock()
+        scene.melvil_active_kit_id = active_kit_id
+        ctx.scene = scene
+        return ctx
+
+    def test_invoke_passes_kit_id_when_specific_kit_active(self):
+        op = _make_op()
+        kit_id = "00000000-0000-4000-8000-000000000001"
+        ctx = self._context_with_kit(active_kit_id=kit_id)
+
+        with patch("melvil.ops.load_material.load_assets", return_value=[]) as mock_load:
+            op.invoke(ctx, MagicMock())
+
+        _, kwargs = mock_load.call_args
+        assert kwargs.get("kit_id") == kit_id
+
+    def test_invoke_passes_no_kit_filter_when_all_kits(self):
+        op = _make_op()
+        ctx = self._context_with_kit(active_kit_id="ALL_KITS")
+
+        with patch("melvil.ops.load_material.load_assets", return_value=[]) as mock_load:
+            op.invoke(ctx, MagicMock())
+
+        _, kwargs = mock_load.call_args
+        assert kwargs.get("kit_id") is None
+
+    def test_invoke_passes_no_kit_filter_when_no_scene(self):
+        op = _make_op()
+        ctx = _make_context(obj=_make_object())
+        ctx.scene = None
+
+        with patch("melvil.ops.load_material.load_assets", return_value=[]) as mock_load:
+            op.invoke(ctx, MagicMock())
+
+        _, kwargs = mock_load.call_args
+        assert kwargs.get("kit_id") is None
+
 
 # ---------------------------------------------------------------------------
 # execute() — guard checks

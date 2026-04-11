@@ -160,9 +160,15 @@ class MELVIL_OT_load_material_to_slot(bpy.types.Operator):
         wm.melvil_picker_active = True
         wm.melvil_selection_valid = False
 
+        scene = getattr(context, "scene", None)
+        active_kit_id = getattr(scene, "melvil_active_kit_id", None)
+        kit_id = None
+        if isinstance(active_kit_id, str) and active_kit_id != "ALL_KITS":
+            kit_id = active_kit_id
+
         self._load_error = None
         try:
-            materials = load_assets("MATERIAL")
+            materials = load_assets("MATERIAL", kit_id=kit_id)
         except Exception:  # noqa: BLE001
             self._load_error = "db_error"
             materials = []
