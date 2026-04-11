@@ -1,34 +1,24 @@
 """
 MELVIL_OT_save_asset — save the active object or material to the library.
 
-The operator presents a dialog letting the user choose what to save and
-provide names for the asset(s):
+The operator presents a dialog for the user to confirm the asset name.
+The asset type is inferred automatically from context:
 
-- **Mesh** — saves the active object (must be of type ``MESH``) as a
-  ``"MESH"`` asset.
-- **Material** — saves the active material on the active object as a
-  ``"MATERIAL"`` asset.
-- **Both** — saves both as two separate assets in a single operator call.
+- When invoked from a Node Editor or Properties editor with an active
+  material, the material is saved as a ``"MATERIAL"`` asset.
+- Otherwise the active object is saved as a ``"MESH"`` asset.
 
-The default selection adapts to the calling context:
-- When invoked from a Node Editor (shader graph), *Material* is pre-selected.
-- Otherwise, *Mesh* is pre-selected when an active object is present.
+No manual type selection is required from the user.
 """
 
 from __future__ import annotations
 
 import bpy
-from bpy.props import EnumProperty, StringProperty
+from bpy.props import StringProperty
 
 from ..core.asset_writer import AssetWriter
 from ..core.library import LibraryNotConfiguredError, resolve_db_path, resolve_library_root
 from ..db import open_db
-
-_SAVE_TYPE_ITEMS = [
-    ("MESH", "Mesh", "Save the active object as a managed mesh asset"),
-    ("MATERIAL", "Material", "Save the active material as a managed material asset"),
-    ("BOTH", "Both", "Save the active object and its active material as separate assets"),
-]
 
 
 class MELVIL_OT_save_asset(bpy.types.Operator):
@@ -38,11 +28,11 @@ class MELVIL_OT_save_asset(bpy.types.Operator):
     bl_label = "Save as Melvil Asset"
     bl_options = {"REGISTER"}
 
-    save_type: EnumProperty(
+    # Set automatically in invoke() based on context; hidden from the dialog.
+    save_type: StringProperty(
         name="Save as",
-        description="Which datablock(s) to save to the library",
-        items=_SAVE_TYPE_ITEMS,
         default="MESH",
+        options={"HIDDEN"},
     )
 
     mesh_name: StringProperty(
@@ -94,10 +84,9 @@ class MELVIL_OT_save_asset(bpy.types.Operator):
 
     def draw(self, context):
         layout = self.layout
-        layout.prop(self, "save_type")
-        if self.save_type in {"MESH", "BOTH"}:
+        if self.save_type == "MESH":
             layout.prop(self, "mesh_name")
-        if self.save_type in {"MATERIAL", "BOTH"}:
+        elif self.save_type == "MATERIAL":
             layout.prop(self, "material_name")
 
     def execute(self, context):
@@ -107,7 +96,7 @@ class MELVIL_OT_save_asset(bpy.types.Operator):
         # ------------------------------------------------------------------
         # Validate inputs before touching the filesystem.
         # ------------------------------------------------------------------
-        if self.save_type in {"MESH", "BOTH"}:
+        if self.save_type == "MESH":
             if obj is None or obj.type != "MESH":
                 self.report({"ERROR"}, "Melvil: no active mesh object to save.")
                 return {"CANCELLED"}
@@ -115,7 +104,7 @@ class MELVIL_OT_save_asset(bpy.types.Operator):
                 self.report({"ERROR"}, "Melvil: mesh name cannot be empty.")
                 return {"CANCELLED"}
 
-        if self.save_type in {"MATERIAL", "BOTH"}:
+        elif self.save_type == "MATERIAL":
             if mat is None:
                 self.report({"ERROR"}, "Melvil: no active material on the selected object.")
                 return {"CANCELLED"}
@@ -141,14 +130,14 @@ class MELVIL_OT_save_asset(bpy.types.Operator):
             with open_db(db_path) as conn:
                 writer = AssetWriter(library_root, conn)
 
-                if self.save_type in {"MESH", "BOTH"}:
+                if self.save_type == "MESH":
                     asset_id = writer.write(obj, self.mesh_name.strip(), "MESH")
                     self.report(
                         {"INFO"},
                         f"Melvil: mesh '{self.mesh_name.strip()}' saved (id: {asset_id[:8]}…)",
                     )
 
-                if self.save_type in {"MATERIAL", "BOTH"}:
+                elif self.save_type == "MATERIAL":
                     asset_id = writer.write(mat, self.material_name.strip(), "MATERIAL")
                     self.report(
                         {"INFO"},
