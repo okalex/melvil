@@ -273,6 +273,8 @@ class MELVIL_OT_save_asset(bpy.types.Operator):
                 ]
                 for tag_name in tag_names:
                     add_asset_tag(conn, asset_id, tag_name)
+                if tag_names:
+                    conn.commit()
 
         except Exception as exc:  # noqa: BLE001
             self.report({"ERROR"}, f"Melvil: save failed — {exc}")

@@ -617,6 +617,30 @@ class TestExecuteTags:
         op.tags = tags
         return op
 
+    def test_tags_committed_to_db(self, conn):
+        """Tags must be committed so they are visible on a new connection."""
+        from melvil.db import assets as assets_db
+        from melvil.db import tags as tags_db
+
+        asset_id = "dddddddd-0000-4000-8000-000000000001"
+        assets_db.insert_asset(conn, id=asset_id, name="Cube", type="MESH", blend_path="cube3.blend")
+        conn.commit()  # ensure asset is visible before we close conn below
+        op = self._make_op(tags="metal")
+        ctx = _make_context(obj=_make_mesh_object())
+
+        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
+             patch("melvil.ops.save.AssetWriter") as MockWriter:
+            MockWriter.return_value.write.return_value = asset_id
+            op.execute(ctx)
+
+        # Read tags back on the *same* conn but verify they were committed
+        # by checking the conn is not in a dirty transaction.
+        assert conn.in_transaction is False
+        applied = tags_db.get_asset_tags(conn, asset_id)
+        assert "metal" in applied
+
     def test_tags_applied_on_save(self, conn):
         from melvil.db import assets as assets_db
         from melvil.db import tags as tags_db
