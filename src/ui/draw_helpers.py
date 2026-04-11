@@ -11,6 +11,7 @@ from ..core.library import resolve_db_path
 from ..db import open_db
 from ..db.assets import list_assets
 from ..db.kits import list_kits
+from ..db import tags as tags_db
 
 
 def draw_asset_section(layout, title: str, icon: str, assets, *, show_load: bool = True, kits=()) -> None:
@@ -105,3 +106,80 @@ def filter_assets(assets, query: str):
     if not normalized:
         return assets
     return [a for a in assets if normalized in a["name"].replace(" ", "").lower()]
+
+
+def load_tags_with_usage():
+    """Return all tags with usage counts from the configured library DB.
+
+    Raises on configuration or database errors — callers decide how to surface
+    the failure in the UI.
+    """
+    with open_db(resolve_db_path()) as conn:
+        return tags_db.list_tags_with_usage(conn)
+
+
+def draw_tag_management_section(layout, tags_with_usage, sort_by: str = "NAME") -> None:
+    """Draw the tag management inline section.
+
+    Parameters
+    ----------
+    layout:
+        The ``bpy.types.UILayout`` to draw into.
+    tags_with_usage:
+        Sequence of tag rows, each with ``"id"``, ``"name"``, and
+        ``"usage_count"`` keys.
+    sort_by:
+        ``"NAME"`` (alphabetical) or ``"USAGE"`` (descending usage count,
+        then alphabetical).
+    """
+    # Header row: sort toggles on the left, New Tag button on the right.
+    header_row = layout.row(align=False)
+    sort_row = header_row.row(align=True)
+    sort_row.label(text="Sort:")
+    name_btn = sort_row.operator(
+        "melvil.tag_sort_toggle",
+        text="Name",
+        depress=(sort_by == "NAME"),
+    )
+    name_btn.sort_by = "NAME"
+    usage_btn = sort_row.operator(
+        "melvil.tag_sort_toggle",
+        text="Usage",
+        depress=(sort_by == "USAGE"),
+    )
+    usage_btn.sort_by = "USAGE"
+    header_row.operator("melvil.tag_create", text="", icon="ADD")
+
+    # Sort the tags.
+    if sort_by == "USAGE":
+        sorted_tags = sorted(tags_with_usage, key=lambda t: (-t["usage_count"], t["name"]))
+    else:
+        sorted_tags = sorted(tags_with_usage, key=lambda t: t["name"])
+
+    box = layout.box()
+    if not sorted_tags:
+        box.label(text="No tags in library")
+    else:
+        for tag in sorted_tags:
+            row = box.row(align=True)
+
+            # Name column — visually muted (disabled) when usage is zero.
+            name_col = row.column()
+            name_col.enabled = tag["usage_count"] > 0
+            name_col.label(text=tag["name"])
+
+            row.label(text=f"({tag['usage_count']})")
+
+            rename_op = row.operator("melvil.tag_rename", text="", icon="GREASEPENCIL")
+            rename_op.tag_id = tag["id"]
+
+            del_op = row.operator("melvil.tag_delete", text="", icon="TRASH")
+            del_op.tag_id = tag["id"]
+
+    # "Delete Unused Tags" button — only shown when at least one unused tag exists.
+    if any(t["usage_count"] == 0 for t in tags_with_usage):
+        layout.operator(
+            "melvil.tag_delete_unused",
+            text="Delete Unused Tags",
+            icon="CANCEL",
+        )

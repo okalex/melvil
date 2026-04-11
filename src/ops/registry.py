@@ -21,8 +21,11 @@ from .open_browser import MELVIL_OT_open_browser
 from .save import MELVIL_OT_save_asset, MELVIL_OT_save_nodes_as_asset
 from .set_active_kit import MELVIL_OT_set_active_kit
 from .tag_add import MELVIL_OT_tag_add
+from .tag_create import MELVIL_OT_tag_create
 from .tag_delete import MELVIL_OT_tag_delete
+from .tag_delete_unused import MELVIL_OT_tag_delete_unused
 from .tag_filter_toggle import MELVIL_OT_tag_filter_toggle
+from .tag_sort_toggle import MELVIL_OT_tag_sort_toggle
 from .tag_remove import MELVIL_OT_tag_remove
 from .tag_rename import MELVIL_OT_tag_rename
 from .toggle_sidebar import MELVIL_OT_toggle_sidebar
@@ -40,10 +43,13 @@ _classes = (
     MELVIL_OT_open_browser,
     MELVIL_OT_set_active_kit,
     MELVIL_OT_tag_add,
+    MELVIL_OT_tag_create,
     MELVIL_OT_tag_remove,
     MELVIL_OT_tag_rename,
     MELVIL_OT_tag_delete,
+    MELVIL_OT_tag_delete_unused,
     MELVIL_OT_tag_filter_toggle,
+    MELVIL_OT_tag_sort_toggle,
     MELVIL_OT_toggle_sidebar,
 )
 

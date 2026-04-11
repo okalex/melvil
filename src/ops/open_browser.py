@@ -23,12 +23,19 @@ from __future__ import annotations
 import sys
 
 import bpy
-from bpy.props import EnumProperty, StringProperty
+from bpy.props import BoolProperty, EnumProperty, StringProperty
 
 from ..core.library import resolve_db_path
 from ..db import open_db
 from ..db.kits import list_kits
-from ..ui.draw_helpers import draw_asset_section, filter_assets, load_assets, load_kits
+from ..ui.draw_helpers import (
+    draw_asset_section,
+    draw_tag_management_section,
+    filter_assets,
+    load_assets,
+    load_kits,
+    load_tags_with_usage,
+)
 
 _POPUP_WIDTH = 700
 
@@ -108,6 +115,13 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
         options={"HIDDEN", "TEXTEDIT_UPDATE"},
     )
 
+    # Controls visibility of the tag management section in the left column.
+    show_manage_tags: BoolProperty(
+        name="Manage Tags",
+        default=False,
+        options={"HIDDEN"},
+    )
+
     # ------------------------------------------------------------------
     # Blender operator interface
     # ------------------------------------------------------------------
@@ -143,6 +157,7 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
         context.window.cursor_warp(popup_x, popup_y)
 
         self.search_query = ""
+        self.show_manage_tags = False
         return wm.invoke_popup(self, width=_POPUP_WIDTH)
 
     def check(self, context):
@@ -181,6 +196,18 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
         rename_op.kit_id = self.kit_filter if self.kit_filter != "ALL_KITS" else ""
 
         left.prop(self, "kit_filter", expand=True)
+
+        left.separator()
+
+        # Tag management section — toggled by the "Manage Tags" button.
+        left.prop(self, "show_manage_tags", text="Manage Tags", icon="TAG", toggle=True)
+        if getattr(self, "show_manage_tags", False):
+            try:
+                tags = load_tags_with_usage()
+                sort_by = getattr(context.window_manager, "melvil_tag_sort", "NAME") or "NAME"
+                draw_tag_management_section(left, tags, sort_by)
+            except Exception:  # noqa: BLE001
+                left.label(text="Could not load tags", icon="ERROR")
 
         # ------------------------------------------------------------------
         # Right column — filtered asset list

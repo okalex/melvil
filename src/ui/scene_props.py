@@ -46,9 +46,16 @@ def register() -> None:
         default="",
         options={"HIDDEN", "SKIP_SAVE"},
     )
+    bpy.types.WindowManager.melvil_tag_sort = StringProperty(
+        name="Tag Sort Order",
+        description="Current sort order for the tag management section: 'NAME' or 'USAGE'",
+        default="NAME",
+        options={"HIDDEN", "SKIP_SAVE"},
+    )
 
 
 def unregister() -> None:
     del bpy.types.Scene.melvil_active_kit_id
     del bpy.types.Scene.melvil_mru_kit_id
     del bpy.types.WindowManager.melvil_active_tag_filters
+    del bpy.types.WindowManager.melvil_tag_sort

@@ -337,3 +337,285 @@ class TestFilterAssets:
         assets = self._assets("Iron", "Plastic", "Glass")
         result = filter_assets(assets, "zzz")
         assert result == []
+
+
+# ---------------------------------------------------------------------------
+# load_tags_with_usage()
+# ---------------------------------------------------------------------------
+
+
+class TestLoadTagsWithUsage:
+    def test_returns_all_tags(self, conn):
+        from melvil.db import tags as tags_db
+        from melvil.ui.draw_helpers import load_tags_with_usage
+
+        tags_db.get_or_create_tag(conn, "metal")
+        tags_db.get_or_create_tag(conn, "hard")
+        conn.commit()
+
+        with patch("melvil.ui.draw_helpers.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ui.draw_helpers.open_db", _mock_open_db(conn)):
+            rows = load_tags_with_usage()
+
+        assert len(rows) == 2
+        names = {r["name"] for r in rows}
+        assert names == {"metal", "hard"}
+
+    def test_usage_count_reflects_assets(self, conn):
+        from melvil.db import assets as assets_db, tags as tags_db
+        from melvil.ui.draw_helpers import load_tags_with_usage
+
+        asset_id = "aaaaaaaa-0000-4000-8000-000000000001"
+        assets_db.insert_asset(
+            conn, id=asset_id, name="Iron", type="MATERIAL", blend_path="iron.blend"
+        )
+        tags_db.add_asset_tag(conn, asset_id, "metal")
+        tags_db.get_or_create_tag(conn, "orphan")
+        conn.commit()
+
+        with patch("melvil.ui.draw_helpers.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ui.draw_helpers.open_db", _mock_open_db(conn)):
+            rows = load_tags_with_usage()
+
+        by_name = {r["name"]: r for r in rows}
+        assert by_name["metal"]["usage_count"] == 1
+        assert by_name["orphan"]["usage_count"] == 0
+
+    def test_returns_empty_list_when_no_tags(self, conn):
+        from melvil.ui.draw_helpers import load_tags_with_usage
+
+        with patch("melvil.ui.draw_helpers.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ui.draw_helpers.open_db", _mock_open_db(conn)):
+            rows = load_tags_with_usage()
+
+        assert rows == []
+
+    def test_raises_on_library_not_configured(self):
+        from melvil.core.library import LibraryNotConfiguredError
+        from melvil.ui.draw_helpers import load_tags_with_usage
+
+        with patch("melvil.ui.draw_helpers.resolve_db_path",
+                   side_effect=LibraryNotConfiguredError("not set")):
+            with pytest.raises(LibraryNotConfiguredError):
+                load_tags_with_usage()
+
+
+# ---------------------------------------------------------------------------
+# draw_tag_management_section()
+# ---------------------------------------------------------------------------
+
+
+def _make_tag(id: str, name: str, usage_count: int) -> dict:
+    return {"id": id, "name": name, "usage_count": usage_count}
+
+
+class TestDrawTagManagementSection:
+    def _make_layout(self):
+        layout = MagicMock()
+        header_row = MagicMock()
+        sort_row = MagicMock()
+        header_row.row.return_value = sort_row
+        layout.row.return_value = header_row
+        box = MagicMock()
+        box.row.return_value = MagicMock()
+        layout.box.return_value = box
+        return layout, box, header_row, sort_row
+
+    def _simple_layout(self):
+        """Convenience: returns only layout and box for tests that don't inspect the header row."""
+        layout, box, _header, _sort = self._make_layout()
+        return layout, box
+
+    def test_empty_tag_list_shows_placeholder(self):
+        from melvil.ui.draw_helpers import draw_tag_management_section
+
+        layout, box = self._simple_layout()
+        draw_tag_management_section(layout, [])
+        box.label.assert_called_with(text="No tags in library")
+
+    def test_sort_buttons_rendered(self):
+        from melvil.ui.draw_helpers import draw_tag_management_section
+
+        layout, box, header_row, sort_row = self._make_layout()
+
+        draw_tag_management_section(layout, [], sort_by="NAME")
+
+        op_ids = [c[0][0] for c in sort_row.operator.call_args_list]
+        assert op_ids.count("melvil.tag_sort_toggle") == 2
+
+    def test_new_tag_button_rendered(self):
+        from melvil.ui.draw_helpers import draw_tag_management_section
+
+        layout, box, header_row, sort_row = self._make_layout()
+
+        draw_tag_management_section(layout, [], sort_by="NAME")
+
+        op_ids = [c[0][0] for c in header_row.operator.call_args_list]
+        assert "melvil.tag_create" in op_ids
+
+    def test_name_sort_button_depressed_when_sort_by_name(self):
+        from melvil.ui.draw_helpers import draw_tag_management_section
+
+        layout, box, header_row, sort_row = self._make_layout()
+        name_btn = MagicMock()
+        usage_btn = MagicMock()
+        sort_row.operator.side_effect = [name_btn, usage_btn]
+
+        draw_tag_management_section(layout, [], sort_by="NAME")
+
+        _, kwargs = sort_row.operator.call_args_list[0]
+        assert kwargs.get("depress") is True
+        _, kwargs2 = sort_row.operator.call_args_list[1]
+        assert kwargs2.get("depress") is False
+
+    def test_usage_sort_button_depressed_when_sort_by_usage(self):
+        from melvil.ui.draw_helpers import draw_tag_management_section
+
+        layout, box, header_row, sort_row = self._make_layout()
+        name_btn = MagicMock()
+        usage_btn = MagicMock()
+        sort_row.operator.side_effect = [name_btn, usage_btn]
+
+        draw_tag_management_section(layout, [], sort_by="USAGE")
+
+        _, kwargs = sort_row.operator.call_args_list[0]
+        assert kwargs.get("depress") is False
+        _, kwargs2 = sort_row.operator.call_args_list[1]
+        assert kwargs2.get("depress") is True
+
+    def test_each_tag_gets_rename_and_delete_buttons(self):
+        from melvil.ui.draw_helpers import draw_tag_management_section
+
+        layout, box = self._simple_layout()
+        tag_row = MagicMock()
+        box.row.return_value = tag_row
+
+        tags = [_make_tag("id1", "metal", 2)]
+        draw_tag_management_section(layout, tags)
+
+        op_ids = [c[0][0] for c in tag_row.operator.call_args_list]
+        assert "melvil.tag_rename" in op_ids
+        assert "melvil.tag_delete" in op_ids
+
+    def test_rename_op_receives_tag_id(self):
+        from melvil.ui.draw_helpers import draw_tag_management_section
+
+        layout, box = self._simple_layout()
+        tag_row = MagicMock()
+        box.row.return_value = tag_row
+        rename_op = MagicMock()
+        del_op = MagicMock()
+        tag_row.operator.side_effect = [rename_op, del_op]
+
+        tags = [_make_tag("uuid-abc", "metal", 2)]
+        draw_tag_management_section(layout, tags)
+
+        assert rename_op.tag_id == "uuid-abc"
+
+    def test_zero_usage_tag_name_column_is_disabled(self):
+        from melvil.ui.draw_helpers import draw_tag_management_section
+
+        layout, box = self._simple_layout()
+        tag_row = MagicMock()
+        name_col = MagicMock()
+        tag_row.column.return_value = name_col
+        box.row.return_value = tag_row
+
+        tags = [_make_tag("id1", "orphan", 0)]
+        draw_tag_management_section(layout, tags)
+
+        assert name_col.enabled is False
+
+    def test_used_tag_name_column_is_enabled(self):
+        from melvil.ui.draw_helpers import draw_tag_management_section
+
+        layout, box = self._simple_layout()
+        tag_row = MagicMock()
+        name_col = MagicMock()
+        tag_row.column.return_value = name_col
+        box.row.return_value = tag_row
+
+        tags = [_make_tag("id1", "metal", 3)]
+        draw_tag_management_section(layout, tags)
+
+        assert name_col.enabled is True
+
+    def test_delete_unused_button_shown_when_unused_exist(self):
+        from melvil.ui.draw_helpers import draw_tag_management_section
+
+        layout, box = self._simple_layout()
+        tags = [_make_tag("id1", "metal", 1), _make_tag("id2", "orphan", 0)]
+        draw_tag_management_section(layout, tags)
+
+        op_ids = [c[0][0] for c in layout.operator.call_args_list]
+        assert "melvil.tag_delete_unused" in op_ids
+
+    def test_delete_unused_button_not_shown_when_all_used(self):
+        from melvil.ui.draw_helpers import draw_tag_management_section
+
+        layout, box = self._simple_layout()
+        tags = [_make_tag("id1", "metal", 1), _make_tag("id2", "hard", 2)]
+        draw_tag_management_section(layout, tags)
+
+        op_ids = [c[0][0] for c in layout.operator.call_args_list]
+        assert "melvil.tag_delete_unused" not in op_ids
+
+    def test_sort_by_name_orders_alphabetically(self):
+        from melvil.ui.draw_helpers import draw_tag_management_section
+
+        layout, box = self._simple_layout()
+
+        row_mocks = []
+
+        def make_row(**kw):
+            rm = MagicMock()
+            rm.column.return_value = MagicMock()
+            row_mocks.append(rm)
+            return rm
+
+        box.row.side_effect = make_row
+
+        tags = [
+            _make_tag("c", "Zinc", 1),
+            _make_tag("a", "Aluminium", 1),
+            _make_tag("b", "Iron", 1),
+        ]
+        draw_tag_management_section(layout, tags, sort_by="NAME")
+
+        name_texts = []
+        for rm in row_mocks:
+            col = rm.column.return_value
+            if col.label.call_args_list:
+                name_texts.append(col.label.call_args_list[0][1].get("text", ""))
+
+        assert name_texts == ["Aluminium", "Iron", "Zinc"]
+
+    def test_sort_by_usage_orders_by_descending_count(self):
+        from melvil.ui.draw_helpers import draw_tag_management_section
+
+        layout, box = self._simple_layout()
+
+        row_mocks = []
+
+        def make_row(**kw):
+            rm = MagicMock()
+            rm.column.return_value = MagicMock()
+            row_mocks.append(rm)
+            return rm
+
+        box.row.side_effect = make_row
+
+        tags = [
+            _make_tag("a", "rare", 1),
+            _make_tag("b", "common", 5),
+            _make_tag("c", "medium", 3),
+        ]
+        draw_tag_management_section(layout, tags, sort_by="USAGE")
+
+        name_texts = []
+        for rm in row_mocks:
+            col = rm.column.return_value
+            if col.label.call_args_list:
+                name_texts.append(col.label.call_args_list[0][1].get("text", ""))
+
+        assert name_texts == ["common", "medium", "rare"]
