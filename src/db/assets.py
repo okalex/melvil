@@ -10,6 +10,8 @@ import sqlite3
 from datetime import datetime, timezone
 from typing import Optional
 
+from .kits import DEFAULT_KIT_ID
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -22,14 +24,15 @@ def insert_asset(
     name: str,
     type: str,
     blend_path: str,
+    kit_id: str = DEFAULT_KIT_ID,
 ) -> None:
     now = _now()
     conn.execute(
         """
-        INSERT INTO assets (id, name, type, blend_path, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO assets (id, name, type, blend_path, kit_id, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
-        (id, name, type, blend_path, now, now),
+        (id, name, type, blend_path, kit_id, now, now),
     )
 
 
@@ -45,13 +48,20 @@ def list_assets(
     conn: sqlite3.Connection,
     *,
     type: Optional[str] = None,
+    kit_id: Optional[str] = None,
 ) -> list[sqlite3.Row]:
+    conditions: list[str] = []
+    params: list[object] = []
     if type is not None:
-        return conn.execute(
-            "SELECT * FROM assets WHERE type = ? ORDER BY name", (type,)
-        ).fetchall()
+        conditions.append("type = ?")
+        params.append(type)
+    if kit_id is not None:
+        conditions.append("kit_id = ?")
+        params.append(kit_id)
+    where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
     return conn.execute(
-        "SELECT * FROM assets ORDER BY name"
+        f"SELECT * FROM assets {where} ORDER BY name",  # noqa: S608
+        params,
     ).fetchall()
 
 
@@ -61,6 +71,7 @@ def update_asset(
     *,
     name: Optional[str] = None,
     blend_path: Optional[str] = None,
+    kit_id: Optional[str] = None,
 ) -> None:
     fields: list[str] = []
     params: list[object] = []
@@ -70,6 +81,9 @@ def update_asset(
     if blend_path is not None:
         fields.append("blend_path = ?")
         params.append(blend_path)
+    if kit_id is not None:
+        fields.append("kit_id = ?")
+        params.append(kit_id)
     if not fields:
         return
     fields.append("updated_at = ?")

@@ -7,6 +7,7 @@ import pytest
 
 from melvil.db.connection import migrate
 from melvil.db import assets as assets_db
+from melvil.db.kits import DEFAULT_KIT_ID
 
 
 @pytest.fixture
@@ -97,6 +98,58 @@ def test_delete_asset(conn):
     assets_db.insert_asset(conn, **SAMPLE)
     assets_db.delete_asset(conn, SAMPLE["id"])
     assert assets_db.get_asset(conn, SAMPLE["id"]) is None
+
+
+# ---------------------------------------------------------------------------
+# kit_id support
+# ---------------------------------------------------------------------------
+
+CUSTOM_KIT_ID = "bbbbbbbb-0000-4000-8000-000000000001"
+
+
+@pytest.fixture
+def conn_with_kit(conn):
+    """Fixture that adds a second kit alongside the default General kit."""
+    from melvil.db import kits as kits_db
+    kits_db.insert_kit(conn, id=CUSTOM_KIT_ID, name="Game Project")
+    return conn
+
+
+def test_insert_uses_default_kit_when_kit_id_omitted(conn):
+    assets_db.insert_asset(conn, **SAMPLE)
+    row = assets_db.get_asset(conn, SAMPLE["id"])
+    assert row["kit_id"] == DEFAULT_KIT_ID
+
+
+def test_insert_with_explicit_kit_id(conn_with_kit):
+    assets_db.insert_asset(conn_with_kit, **SAMPLE, kit_id=CUSTOM_KIT_ID)
+    row = assets_db.get_asset(conn_with_kit, SAMPLE["id"])
+    assert row["kit_id"] == CUSTOM_KIT_ID
+
+
+def test_list_assets_filtered_by_kit_id(conn_with_kit):
+    assets_db.insert_asset(conn_with_kit, **SAMPLE, kit_id=DEFAULT_KIT_ID)
+    other = {**SAMPLE, "id": "aaaaaaaa-0000-4000-8000-000000000002", "name": "Cube", "type": "MESH"}
+    assets_db.insert_asset(conn_with_kit, **other, kit_id=CUSTOM_KIT_ID)
+    general_assets = assets_db.list_assets(conn_with_kit, kit_id=DEFAULT_KIT_ID)
+    assert len(general_assets) == 1
+    assert general_assets[0]["id"] == SAMPLE["id"]
+
+
+def test_list_assets_filtered_by_type_and_kit_id(conn_with_kit):
+    assets_db.insert_asset(conn_with_kit, **SAMPLE, kit_id=CUSTOM_KIT_ID)
+    mesh = {**SAMPLE, "id": "aaaaaaaa-0000-4000-8000-000000000002", "name": "Cube", "type": "MESH"}
+    assets_db.insert_asset(conn_with_kit, **mesh, kit_id=CUSTOM_KIT_ID)
+    results = assets_db.list_assets(conn_with_kit, type="MATERIAL", kit_id=CUSTOM_KIT_ID)
+    assert len(results) == 1
+    assert results[0]["type"] == "MATERIAL"
+
+
+def test_update_asset_kit_id(conn_with_kit):
+    assets_db.insert_asset(conn_with_kit, **SAMPLE, kit_id=DEFAULT_KIT_ID)
+    assets_db.update_asset(conn_with_kit, SAMPLE["id"], kit_id=CUSTOM_KIT_ID)
+    row = assets_db.get_asset(conn_with_kit, SAMPLE["id"])
+    assert row["kit_id"] == CUSTOM_KIT_ID
 
 
 def test_duplicate_id_raises(conn):
