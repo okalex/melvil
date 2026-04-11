@@ -20,6 +20,11 @@ from .load_material import (
 from .open_browser import MELVIL_OT_open_browser
 from .save import MELVIL_OT_save_asset, MELVIL_OT_save_nodes_as_asset
 from .set_active_kit import MELVIL_OT_set_active_kit
+from .tag_add import MELVIL_OT_tag_add
+from .tag_delete import MELVIL_OT_tag_delete
+from .tag_filter_toggle import MELVIL_OT_tag_filter_toggle
+from .tag_remove import MELVIL_OT_tag_remove
+from .tag_rename import MELVIL_OT_tag_rename
 from .toggle_sidebar import MELVIL_OT_toggle_sidebar
 
 _classes = (
@@ -34,6 +39,11 @@ _classes = (
     MELVIL_OT_delete_asset,
     MELVIL_OT_open_browser,
     MELVIL_OT_set_active_kit,
+    MELVIL_OT_tag_add,
+    MELVIL_OT_tag_remove,
+    MELVIL_OT_tag_rename,
+    MELVIL_OT_tag_delete,
+    MELVIL_OT_tag_filter_toggle,
     MELVIL_OT_toggle_sidebar,
 )
 

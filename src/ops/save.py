@@ -27,6 +27,7 @@ from ..core.asset_writer import AssetWriter
 from ..core.library import LibraryNotConfiguredError, resolve_db_path, resolve_library_root
 from ..db import open_db
 from ..db.kits import DEFAULT_KIT_ID, list_kits
+from ..db.tags import add_asset_tag, normalize_tag
 
 # Module-level cache keeps kit enum strings alive (Blender C GC requirement).
 _save_kit_enum_cache: list[tuple] = [(DEFAULT_KIT_ID, "General", "")]
@@ -89,6 +90,12 @@ class MELVIL_OT_save_asset(bpy.types.Operator):
         description="Kit to save the asset into",
         items=_get_save_kit_items,
         default=0,
+    )
+
+    tags: StringProperty(
+        name="Tags",
+        description="Comma-separated tag names to apply to this asset",
+        default="",
     )
 
     # ------------------------------------------------------------------
@@ -178,6 +185,7 @@ class MELVIL_OT_save_asset(bpy.types.Operator):
             layout.prop(self, "material_name", text="Name")
         elif self.save_type == "NODE_GROUP":
             layout.prop(self, "node_group_name", text="Name")
+        layout.prop(self, "tags", text="Tags")
 
     def execute(self, context):
         obj = context.active_object
@@ -256,6 +264,15 @@ class MELVIL_OT_save_asset(bpy.types.Operator):
                         {"INFO"},
                         f"Melvil: node group '{self.node_group_name.strip()}' saved (id: {asset_id[:8]}…)",
                     )
+
+                # Apply any tags specified in the dialog.
+                tag_names = [
+                    normalize_tag(t)
+                    for t in (getattr(self, "tags", None) or "").split(",")
+                    if normalize_tag(t)
+                ]
+                for tag_name in tag_names:
+                    add_asset_tag(conn, asset_id, tag_name)
 
         except Exception as exc:  # noqa: BLE001
             self.report({"ERROR"}, f"Melvil: save failed — {exc}")

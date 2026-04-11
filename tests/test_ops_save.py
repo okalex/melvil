@@ -598,3 +598,79 @@ class TestSaveNodesAsAssetInvoke:
         mock_melvil_ops.save_asset.assert_called_once_with("INVOKE_DEFAULT")
         assert result == {"RUNNING_MODAL"}
 
+
+# ---------------------------------------------------------------------------
+# execute() — tags property
+# ---------------------------------------------------------------------------
+
+
+class TestExecuteTags:
+    """MELVIL_OT_save_asset should apply tags via add_asset_tag after save."""
+
+    def _make_op(self, tags=""):
+        from melvil.ops.save import MELVIL_OT_save_asset
+
+        op = MELVIL_OT_save_asset()
+        op.save_type = "MESH"
+        op.mesh_name = "Cube"
+        op.material_name = ""
+        op.tags = tags
+        return op
+
+    def test_tags_applied_on_save(self, conn):
+        from melvil.db import assets as assets_db
+        from melvil.db import tags as tags_db
+
+        asset_id = "eeeeeeee-0000-4000-8000-000000000001"
+        # Pre-insert the asset so FK constraints on asset_tags pass.
+        assets_db.insert_asset(conn, id=asset_id, name="Cube", type="MESH", blend_path="cube.blend")
+        op = self._make_op(tags="metal, shiny")
+        ctx = _make_context(obj=_make_mesh_object())
+
+        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
+             patch("melvil.ops.save.AssetWriter") as MockWriter:
+            MockWriter.return_value.write.return_value = asset_id
+            result = op.execute(ctx)
+
+        assert result == {"FINISHED"}
+        applied = tags_db.get_asset_tags(conn, asset_id)
+        assert "metal" in applied
+        assert "shiny" in applied
+
+    def test_empty_tags_property_does_not_fail(self, conn):
+        asset_id = "ffffffff-0000-4000-8000-000000000001"
+        op = self._make_op(tags="")
+        ctx = _make_context(obj=_make_mesh_object())
+
+        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
+             patch("melvil.ops.save.AssetWriter") as MockWriter:
+            MockWriter.return_value.write.return_value = asset_id
+            result = op.execute(ctx)
+
+        assert result == {"FINISHED"}
+
+    def test_tags_normalized_on_save(self, conn):
+        from melvil.db import assets as assets_db
+        from melvil.db import tags as tags_db
+
+        asset_id = "11111111-0000-4000-8000-000000000001"
+        # Pre-insert the asset so FK constraints on asset_tags pass.
+        assets_db.insert_asset(conn, id=asset_id, name="Cube", type="MESH", blend_path="cube2.blend")
+        op = self._make_op(tags="  Metal  , PBR Material")
+        ctx = _make_context(obj=_make_mesh_object())
+
+        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
+             patch("melvil.ops.save.AssetWriter") as MockWriter:
+            MockWriter.return_value.write.return_value = asset_id
+            op.execute(ctx)
+
+        applied = tags_db.get_asset_tags(conn, asset_id)
+        assert "metal" in applied
+        assert "pbr material" in applied
+
