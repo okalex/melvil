@@ -179,3 +179,96 @@ class TestLoadAssets:
                    side_effect=LibraryNotConfiguredError("not set")):
             with pytest.raises(LibraryNotConfiguredError):
                 load_assets("MATERIAL")
+
+    def test_filters_by_kit_id(self, conn):
+        from melvil.ui.draw_helpers import load_assets
+        from melvil.db.kits import DEFAULT_KIT_ID
+        from melvil.db import kits as kits_db
+
+        kit_b_id = "bbbbbbbb-0000-4000-8000-000000000099"
+        kits_db.insert_kit(conn, id=kit_b_id, name="Game Kit")
+        assets_db.insert_asset(conn, **SAMPLE_MATERIAL, kit_id=DEFAULT_KIT_ID)
+        mesh_in_b = {**SAMPLE_MESH, "kit_id": kit_b_id}
+        assets_db.insert_asset(conn, **mesh_in_b)
+
+        with patch("melvil.ui.draw_helpers.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ui.draw_helpers.open_db", _mock_open_db(conn)):
+            rows = load_assets(kit_id=kit_b_id)
+
+        assert len(rows) == 1
+        assert rows[0]["kit_id"] == kit_b_id
+
+
+class TestLoadKits:
+    def test_returns_all_kits(self, conn):
+        from melvil.ui.draw_helpers import load_kits
+        from melvil.db import kits as kits_db
+
+        kits_db.insert_kit(conn, id="cccccccc-0000-4000-8000-000000000001", name="Game Kit")
+
+        with patch("melvil.ui.draw_helpers.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ui.draw_helpers.open_db", _mock_open_db(conn)):
+            rows = load_kits()
+
+        assert len(rows) == 2  # General (from migration) + Game Kit
+
+    def test_raises_on_db_error(self):
+        from melvil.ui.draw_helpers import load_kits
+        from melvil.core.library import LibraryNotConfiguredError
+
+        with patch("melvil.ui.draw_helpers.resolve_db_path",
+                   side_effect=LibraryNotConfiguredError("not set")):
+            with pytest.raises(LibraryNotConfiguredError):
+                load_kits()
+
+
+class TestDrawAssetSectionKits:
+    def test_kits_provided_shows_move_to_kit_button(self):
+        from melvil.ui.draw_helpers import draw_asset_section
+
+        layout = MagicMock()
+        box = MagicMock()
+        layout.box.return_value = box
+        row = MagicMock()
+        box.row.return_value = row
+        fake_kits = [{"id": "kit-1", "name": "General"}]
+
+        draw_asset_section(layout, "Meshes", "MESH_DATA",
+                           [_make_asset("1", "Rock", "MESH")], kits=fake_kits)
+
+        ops = [c[0][0] for c in row.operator.call_args_list]
+        assert "melvil.asset_set_kit" in ops
+
+    def test_no_kits_omits_move_to_kit_button(self):
+        from melvil.ui.draw_helpers import draw_asset_section
+
+        layout = MagicMock()
+        box = MagicMock()
+        layout.box.return_value = box
+        row = MagicMock()
+        box.row.return_value = row
+
+        draw_asset_section(layout, "Meshes", "MESH_DATA",
+                           [_make_asset("1", "Rock", "MESH")])  # no kits kwarg
+
+        ops = [c[0][0] for c in row.operator.call_args_list]
+        assert "melvil.asset_set_kit" not in ops
+
+    def test_move_to_kit_asset_id_is_set(self):
+        from melvil.ui.draw_helpers import draw_asset_section
+
+        layout = MagicMock()
+        box = MagicMock()
+        layout.box.return_value = box
+        row = MagicMock()
+        box.row.return_value = row
+        load_op = MagicMock()
+        move_op = MagicMock()
+        del_op = MagicMock()
+        row.operator.side_effect = [load_op, move_op, del_op]
+        fake_kits = [{"id": "kit-1", "name": "General"}]
+
+        draw_asset_section(layout, "Meshes", "MESH_DATA",
+                           [_make_asset("asset-xyz", "Rock", "MESH")], kits=fake_kits)
+
+        assert move_op.asset_id == "asset-xyz"

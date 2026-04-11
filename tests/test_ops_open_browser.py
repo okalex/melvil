@@ -16,6 +16,7 @@ def _make_op():
 
     op = MELVIL_OT_open_browser()
     op.type_filter = "ALL"
+    op.kit_filter = "ALL_KITS"
     return op
 
 
@@ -115,6 +116,13 @@ class TestInvoke:
         op.invoke(ctx, MagicMock())
         assert op.type_filter == "ALL"
 
+    def test_invoke_resets_kit_filter_to_all(self):
+        op = _make_op()
+        op.kit_filter = "some-uuid"
+        ctx = _make_invoke_ctx()
+        op.invoke(ctx, MagicMock())
+        assert op.kit_filter == "ALL_KITS"
+
     def test_invoke_warps_cursor_to_viewport_top_left(self):
         op = _make_op()
         # tools: x=35, width=45, margin=5 → popup_x=85
@@ -184,16 +192,29 @@ class TestDraw:
 
     # --- left column uses prop with expand ---
 
-    def test_draw_left_column_calls_prop_expand(self):
+    def test_draw_left_column_type_filter_prop_expand(self):
         op, left_col, right_col = self._make_op_with_layout()
         op.type_filter = "ALL"
         ctx = self._make_ctx()
 
         with patch("melvil.ops.open_browser.load_assets", return_value=[]), \
+             patch("melvil.ops.open_browser.load_kits", return_value=[]), \
              patch("melvil.ops.open_browser.draw_asset_section"):
             op.draw(ctx)
 
-        left_col.prop.assert_called_once_with(op, "type_filter", expand=True)
+        left_col.prop.assert_any_call(op, "type_filter", expand=True)
+
+    def test_draw_left_column_kit_filter_prop_expand(self):
+        op, left_col, right_col = self._make_op_with_layout()
+        op.type_filter = "ALL"
+        ctx = self._make_ctx()
+
+        with patch("melvil.ops.open_browser.load_assets", return_value=[]), \
+             patch("melvil.ops.open_browser.load_kits", return_value=[]), \
+             patch("melvil.ops.open_browser.draw_asset_section"):
+            op.draw(ctx)
+
+        left_col.prop.assert_any_call(op, "kit_filter", expand=True)
 
     # --- right column filtering ---
 
@@ -207,6 +228,7 @@ class TestDraw:
         node_groups = [_make_asset("n1", "MyGroup", "NODE_GROUP")]
 
         with patch("melvil.ops.open_browser.load_assets", side_effect=[materials, meshes, node_groups]), \
+             patch("melvil.ops.open_browser.load_kits", return_value=[]), \
              patch("melvil.ops.open_browser.draw_asset_section") as mock_draw:
             op.draw(ctx)
 
@@ -222,6 +244,7 @@ class TestDraw:
         ctx = self._make_ctx()
 
         with patch("melvil.ops.open_browser.load_assets", return_value=[]), \
+             patch("melvil.ops.open_browser.load_kits", return_value=[]), \
              patch("melvil.ops.open_browser.draw_asset_section") as mock_draw:
             op.draw(ctx)
 
@@ -234,6 +257,7 @@ class TestDraw:
         ctx = self._make_ctx()
 
         with patch("melvil.ops.open_browser.load_assets", return_value=[]), \
+             patch("melvil.ops.open_browser.load_kits", return_value=[]), \
              patch("melvil.ops.open_browser.draw_asset_section") as mock_draw:
             op.draw(ctx)
 
@@ -246,6 +270,7 @@ class TestDraw:
         ctx = self._make_ctx()
 
         with patch("melvil.ops.open_browser.load_assets", return_value=[]), \
+             patch("melvil.ops.open_browser.load_kits", return_value=[]), \
              patch("melvil.ops.open_browser.draw_asset_section") as mock_draw:
             op.draw(ctx)
 
@@ -257,7 +282,7 @@ class TestDraw:
         op.type_filter = "ALL"
         ctx = self._make_ctx()
 
-        with patch("melvil.ops.open_browser.load_assets", side_effect=Exception("boom")):
+        with patch("melvil.ops.open_browser.load_kits", side_effect=Exception("boom")):
             op.draw(ctx)
 
         icon_calls = [c for c in right_col.label.call_args_list if c[1].get("icon") == "ERROR"]
