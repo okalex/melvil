@@ -28,6 +28,7 @@ import bpy
 from ..core.library import resolve_db_path
 from ..db import open_db
 from ..db.assets import list_assets
+from .draw_helpers import draw_asset_section
 
 
 class MELVIL_PT_main(bpy.types.Panel):
@@ -49,6 +50,7 @@ class MELVIL_PT_main(bpy.types.Panel):
         # "Save as Asset" is always shown; Blender greys it out when the
         # operator's poll() fails (no active object).
         layout.operator("melvil.save_asset", text="Save as Asset", icon="ADD")
+        layout.operator("melvil.open_browser", text="Browse Library", icon="ASSET_MANAGER")
         layout.separator()
 
         try:
@@ -59,39 +61,5 @@ class MELVIL_PT_main(bpy.types.Panel):
             layout.label(text="Could not open library database", icon="ERROR")
             return
 
-        _draw_asset_section(layout, "Materials", "MATERIAL", materials)
-        _draw_asset_section(layout, "Meshes", "MESH_DATA", meshes)
-
-
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
-
-
-def _draw_asset_section(layout, title: str, icon: str, assets) -> None:
-    """
-    Draw a titled box containing one row per asset in *assets*.
-
-    Each row has:
-    - the asset name (label)
-    - a Load button  (IMPORT icon → ``melvil.load_asset``)
-    - a Delete button (TRASH icon → ``melvil.delete_asset``)
-
-    When *assets* is empty a placeholder label is shown instead.
-    """
-    box = layout.box()
-    box.label(text=title, icon=icon)
-
-    if not assets:
-        box.label(text=f"No {title.lower()} saved yet")
-        return
-
-    for asset in assets:
-        row = box.row(align=True)
-        row.label(text=asset["name"])
-
-        load_op = row.operator("melvil.load_asset", text="", icon="IMPORT")
-        load_op.asset_id = asset["id"]
-
-        del_op = row.operator("melvil.delete_asset", text="", icon="TRASH")
-        del_op.asset_id = asset["id"]
+        draw_asset_section(layout, "Materials", "MATERIAL", materials)
+        draw_asset_section(layout, "Meshes", "MESH_DATA", meshes)

@@ -2,7 +2,7 @@
 Keymap registration for Melvil.
 
 Registers ``Ctrl+Shift+A`` in the 3D View to invoke
-``melvil.toggle_sidebar``, which opens/closes the Melvil N-panel tab.
+``melvil.open_browser``, which opens the Melvil floating library browser.
 
 The ``_keymaps`` list holds ``(KeyMap, KeyMapItem)`` pairs so that
 ``unregister()`` can cleanly remove only the items we added, without
@@ -31,7 +31,7 @@ def register() -> None:
 
     km = kc.keymaps.new(name="3D View", space_type="VIEW_3D")
     kmi = km.keymap_items.new(
-        "melvil.toggle_sidebar",
+        "melvil.open_browser",
         type="A",
         value="PRESS",
         ctrl=True,

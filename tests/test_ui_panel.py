@@ -61,7 +61,7 @@ class TestDraw:
              patch("melvil.ui.panel.list_assets", return_value=[]):
             panel.draw(ctx)
 
-        layout.operator.assert_called_with(
+        layout.operator.assert_any_call(
             "melvil.save_asset", text="Save as Asset", icon="ADD"
         )
 
@@ -96,7 +96,7 @@ class TestDraw:
         with patch("melvil.ui.panel.resolve_db_path", return_value=":memory:"), \
              patch("melvil.ui.panel.open_db", side_effect=_cm), \
              patch("melvil.ui.panel.list_assets", side_effect=[[mat], [mesh]]), \
-             patch("melvil.ui.panel._draw_asset_section") as mock_section:
+             patch("melvil.ui.panel.draw_asset_section") as mock_section:
             panel.draw(MagicMock())
 
         assert mock_section.call_count == 2
@@ -108,85 +108,3 @@ class TestDraw:
         second_call = mock_section.call_args_list[1]
         assert second_call.args[1] == "Meshes"
         assert second_call.args[3] == [mesh]
-
-
-# ---------------------------------------------------------------------------
-# _draw_asset_section()
-# ---------------------------------------------------------------------------
-
-
-class TestDrawAssetSection:
-    def test_empty_assets_shows_placeholder(self):
-        from melvil.ui.panel import _draw_asset_section
-
-        layout = _make_layout()
-        _draw_asset_section(layout, "Materials", "MATERIAL", [])
-
-        box = layout.box.return_value
-        box.label.assert_any_call(text="No materials saved yet")
-
-    def test_header_label_uses_title_and_icon(self):
-        from melvil.ui.panel import _draw_asset_section
-
-        layout = _make_layout()
-        _draw_asset_section(layout, "Meshes", "MESH_DATA", [])
-
-        box = layout.box.return_value
-        box.label.assert_any_call(text="Meshes", icon="MESH_DATA")
-
-    def test_each_asset_row_has_load_and_delete_buttons(self):
-        from melvil.ui.panel import _draw_asset_section
-
-        layout = _make_layout()
-        asset = _make_asset("aaaaaaaa-0000-4000-8000-000000000001", "Red Metal", "MATERIAL")
-
-        _draw_asset_section(layout, "Materials", "MATERIAL", [asset])
-
-        box = layout.box.return_value
-        row = box.row.return_value
-
-        operator_calls = [c.args[0] for c in row.operator.call_args_list]
-        assert "melvil.load_asset" in operator_calls
-        assert "melvil.delete_asset" in operator_calls
-
-    def test_load_and_delete_buttons_get_correct_asset_id(self):
-        from melvil.ui.panel import _draw_asset_section
-
-        layout = _make_layout()
-        asset_id = "aaaaaaaa-0000-4000-8000-000000000001"
-        asset = _make_asset(asset_id, "Red Metal", "MATERIAL")
-
-        _draw_asset_section(layout, "Materials", "MATERIAL", [asset])
-
-        row = layout.box.return_value.row.return_value
-        # The operator() mock returns the same MagicMock for every call,
-        # so we check that asset_id was assigned to the return value.
-        op_mock = row.operator.return_value
-        assert op_mock.asset_id == asset_id
-
-    def test_asset_name_is_shown_as_label(self):
-        from melvil.ui.panel import _draw_asset_section
-
-        layout = _make_layout()
-        asset = _make_asset("bbb", "Suzanne", "MESH")
-
-        _draw_asset_section(layout, "Meshes", "MESH_DATA", [asset])
-
-        row = layout.box.return_value.row.return_value
-        row.label.assert_called_with(text="Suzanne")
-
-    def test_multiple_assets_each_get_a_row(self):
-        from melvil.ui.panel import _draw_asset_section
-
-        layout = _make_layout()
-        assets = [
-            _make_asset("aaa", "Iron", "MATERIAL"),
-            _make_asset("bbb", "Bronze", "MATERIAL"),
-            _make_asset("ccc", "Gold", "MATERIAL"),
-        ]
-
-        _draw_asset_section(layout, "Materials", "MATERIAL", assets)
-
-        box = layout.box.return_value
-        # row(align=True) should be called once per asset
-        assert box.row.call_count == len(assets)
