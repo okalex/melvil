@@ -172,9 +172,10 @@ def _make_bpy_mock() -> types.ModuleType:
     bpy.props = bpy_props
     sys.modules["bpy.props"] = bpy_props
 
-    # bpy.ops / bpy.data — light mocks
+    # bpy.ops / bpy.data / bpy.app — light mocks
     bpy.ops = MagicMock()
     bpy.data = MagicMock()
+    bpy.app = MagicMock()
 
     # bpy.path
     bpy_path = types.ModuleType("bpy.path")
