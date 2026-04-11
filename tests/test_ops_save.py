@@ -287,6 +287,7 @@ class TestInvokeContextDetection:
         active_node = MagicMock()
         active_node.type = "GROUP"
         active_node.node_tree = ng
+        active_node.label = ""  # no custom label → falls back to node_tree.name
 
         op = MELVIL_OT_save_asset()
         op.save_type = "MESH"
@@ -302,6 +303,31 @@ class TestInvokeContextDetection:
 
         assert op.save_type == "NODE_GROUP"
         assert op.node_group_name == "Noise Setup"
+
+    def test_node_group_name_uses_label_when_set(self):
+        """When the node has a custom label, it should be used over node_tree.name."""
+        from melvil.ops.save import MELVIL_OT_save_asset
+
+        ng = MagicMock()
+        ng.name = "Color Ramp"  # internal datablock name
+        active_node = MagicMock()
+        active_node.type = "GROUP"
+        active_node.node_tree = ng
+        active_node.label = "Color Stuff"  # user-visible label
+
+        op = MELVIL_OT_save_asset()
+        op.save_type = "MESH"
+        op.mesh_name = ""
+        op.material_name = ""
+        op.node_group_name = ""
+
+        ctx = _make_context(obj=_make_mesh_object(), area_type="NODE_EDITOR")
+        ctx.active_node = active_node
+
+        with patch.object(ctx.window_manager, "invoke_props_dialog", return_value={"RUNNING_MODAL"}):
+            op.invoke(ctx, MagicMock())
+
+        assert op.node_group_name == "Color Stuff"
 
     def test_node_editor_with_material_and_no_group_node_selects_material(self):
         """NODE_EDITOR with a material active but no GROUP node → MATERIAL (unchanged)."""
@@ -319,6 +345,7 @@ class TestInvokeContextDetection:
         active_node = MagicMock()
         active_node.type = "GROUP"
         active_node.node_tree = ng
+        active_node.label = ""  # no custom label
 
         mat = _make_material()
         obj = _make_mesh_object(material=mat)

@@ -96,7 +96,11 @@ class MELVIL_OT_save_asset(bpy.types.Operator):
             and getattr(active_node, "node_tree", None) is not None
         ):
             self.save_type = "NODE_GROUP"
-            self.node_group_name = active_node.node_tree.name
+            # Prefer the node's user-visible label (set via F2 / double-click
+            # on the header) over the underlying NodeTree datablock name.
+            self.node_group_name = (
+                getattr(active_node, "label", None) or active_node.node_tree.name
+            )
         elif area_type == "NODE_EDITOR" and mat:
             self.save_type = "MATERIAL"
         elif area_type == "PROPERTIES" and mat:
