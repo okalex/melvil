@@ -13,6 +13,7 @@ from .load_material import (
     MELVIL_PG_MaterialItem,
     MELVIL_UL_MaterialList,
 )
+from . import open_browser as _open_browser_mod
 from .open_browser import MELVIL_OT_open_browser
 from .save import MELVIL_OT_save_asset
 from .toggle_sidebar import MELVIL_OT_toggle_sidebar
@@ -29,6 +30,7 @@ _classes = (
 
 def register():
     _load_material_mod.register()
+    _open_browser_mod.register()
     for cls in _classes:
         _safe_register(cls)
 
@@ -36,4 +38,5 @@ def register():
 def unregister():
     for cls in reversed(_classes):
         bpy.utils.unregister_class(cls)
+    _open_browser_mod.unregister()
     _load_material_mod.unregister()
