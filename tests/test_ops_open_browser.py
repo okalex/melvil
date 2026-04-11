@@ -17,6 +17,7 @@ def _make_op():
     op = MELVIL_OT_open_browser()
     op.type_filter = "ALL"
     op.kit_filter = "ALL_KITS"
+    op.search_query = ""
     return op
 
 
@@ -122,6 +123,13 @@ class TestInvoke:
         ctx = _make_invoke_ctx()
         op.invoke(ctx, MagicMock())
         assert op.kit_filter == "ALL_KITS"
+
+    def test_invoke_resets_search_query_to_empty(self):
+        op = _make_op()
+        op.search_query = "previous search"
+        ctx = _make_invoke_ctx()
+        op.invoke(ctx, MagicMock())
+        assert op.search_query == ""
 
     def test_invoke_warps_cursor_to_viewport_top_left(self):
         op = _make_op()
@@ -287,5 +295,57 @@ class TestDraw:
 
         icon_calls = [c for c in right_col.label.call_args_list if c[1].get("icon") == "ERROR"]
         assert icon_calls
+
+    # --- search input ---
+
+    def test_draw_renders_search_prop_on_right_column(self):
+        op, left_col, right_col = self._make_op_with_layout()
+        op.type_filter = "ALL"
+        op.search_query = ""
+        ctx = self._make_ctx()
+
+        with patch("melvil.ops.open_browser.load_assets", return_value=[]), \
+             patch("melvil.ops.open_browser.load_kits", return_value=[]), \
+             patch("melvil.ops.open_browser.draw_asset_section"):
+            op.draw(ctx)
+
+        right_col.prop.assert_any_call(op, "search_query", text="", icon="VIEWZOOM")
+
+    def test_draw_search_filters_assets_passed_to_draw_section(self):
+        op, left_col, right_col = self._make_op_with_layout()
+        op.type_filter = "MATERIAL"
+        op.search_query = "pla"
+        ctx = self._make_ctx()
+
+        all_materials = [
+            _make_asset("m1", "Plastic", "MATERIAL"),
+            _make_asset("m2", "Plaster", "MATERIAL"),
+            _make_asset("m3", "Iron", "MATERIAL"),
+        ]
+
+        with patch("melvil.ops.open_browser.load_assets", return_value=all_materials), \
+             patch("melvil.ops.open_browser.load_kits", return_value=[]), \
+             patch("melvil.ops.open_browser.draw_asset_section") as mock_draw:
+            op.draw(ctx)
+
+        passed_assets = mock_draw.call_args[0][3]
+        assert len(passed_assets) == 2
+        assert {a["name"] for a in passed_assets} == {"Plastic", "Plaster"}
+
+    def test_draw_empty_search_passes_all_assets(self):
+        op, left_col, right_col = self._make_op_with_layout()
+        op.type_filter = "MESH"
+        op.search_query = ""
+        ctx = self._make_ctx()
+
+        meshes = [_make_asset(f"m{i}", f"Mesh {i}", "MESH") for i in range(4)]
+
+        with patch("melvil.ops.open_browser.load_assets", return_value=meshes), \
+             patch("melvil.ops.open_browser.load_kits", return_value=[]), \
+             patch("melvil.ops.open_browser.draw_asset_section") as mock_draw:
+            op.draw(ctx)
+
+        passed_assets = mock_draw.call_args[0][3]
+        assert len(passed_assets) == 4
 
 

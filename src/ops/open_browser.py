@@ -28,7 +28,7 @@ from bpy.props import EnumProperty, StringProperty
 from ..core.library import resolve_db_path
 from ..db import open_db
 from ..db.kits import list_kits
-from ..ui.draw_helpers import draw_asset_section, load_assets, load_kits
+from ..ui.draw_helpers import draw_asset_section, filter_assets, load_assets, load_kits
 
 _POPUP_WIDTH = 700
 
@@ -99,6 +99,15 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
         options={"HIDDEN"},
     )
 
+    # Free-text search query applied on top of the type and kit filters.
+    search_query: StringProperty(
+        name="Search",
+        default="",
+        # TEXTEDIT_UPDATE causes check() to fire on every keypress so the
+        # asset list filters in real time without requiring Enter.
+        options={"HIDDEN", "TEXTEDIT_UPDATE"},
+    )
+
     # ------------------------------------------------------------------
     # Blender operator interface
     # ------------------------------------------------------------------
@@ -133,6 +142,7 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
             popup_y = area.y + area.height - header_height
         context.window.cursor_warp(popup_x, popup_y)
 
+        self.search_query = ""
         return wm.invoke_popup(self, width=_POPUP_WIDTH)
 
     def check(self, context):
@@ -176,17 +186,20 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
         # Right column — filtered asset list
         # ------------------------------------------------------------------
         right = split.column()
+        right.prop(self, "search_query", text="", icon="VIEWZOOM")
+        right.separator()
         selected = self.type_filter
         kit_id = self.kit_filter if self.kit_filter != "ALL_KITS" else None
 
         try:
             kits = load_kits()
+            query = self.search_query
             if selected in ("ALL", "MATERIAL"):
-                draw_asset_section(right, "Materials", "MATERIAL", load_assets("MATERIAL", kit_id=kit_id), kits=kits)
+                draw_asset_section(right, "Materials", "MATERIAL", filter_assets(load_assets("MATERIAL", kit_id=kit_id), query), kits=kits)
             if selected in ("ALL", "MESH"):
-                draw_asset_section(right, "Meshes", "MESH_DATA", load_assets("MESH", kit_id=kit_id), kits=kits)
+                draw_asset_section(right, "Meshes", "MESH_DATA", filter_assets(load_assets("MESH", kit_id=kit_id), query), kits=kits)
             if selected in ("ALL", "NODE_GROUP"):
-                draw_asset_section(right, "Node Groups", "NODETREE", load_assets("NODE_GROUP", kit_id=kit_id), show_load=False, kits=kits)
+                draw_asset_section(right, "Node Groups", "NODETREE", filter_assets(load_assets("NODE_GROUP", kit_id=kit_id), query), show_load=False, kits=kits)
         except Exception:
             right.label(text="Could not open library database", icon="ERROR")
 

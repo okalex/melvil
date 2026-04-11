@@ -272,3 +272,68 @@ class TestDrawAssetSectionKits:
                            [_make_asset("asset-xyz", "Rock", "MESH")], kits=fake_kits)
 
         assert move_op.asset_id == "asset-xyz"
+
+
+# ---------------------------------------------------------------------------
+# filter_assets()
+# ---------------------------------------------------------------------------
+
+
+class TestFilterAssets:
+    def _assets(self, *names):
+        return [{"id": str(i), "name": n} for i, n in enumerate(names)]
+
+    def test_empty_query_returns_all(self):
+        from melvil.ui.draw_helpers import filter_assets
+
+        assets = self._assets("Iron", "Plastic", "Glass")
+        assert filter_assets(assets, "") == assets
+
+    def test_blank_query_returns_all(self):
+        from melvil.ui.draw_helpers import filter_assets
+
+        assets = self._assets("Iron", "Plastic", "Glass")
+        assert filter_assets(assets, "   ") == assets
+
+    def test_exact_match_returns_asset(self):
+        from melvil.ui.draw_helpers import filter_assets
+
+        assets = self._assets("Iron", "Plastic")
+        result = filter_assets(assets, "Iron")
+        assert [a["name"] for a in result] == ["Iron"]
+
+    def test_partial_match_returns_matching_assets(self):
+        from melvil.ui.draw_helpers import filter_assets
+
+        assets = self._assets("Plastic", "Plaster", "Glass")
+        result = filter_assets(assets, "pla")
+        assert [a["name"] for a in result] == ["Plastic", "Plaster"]
+
+    def test_case_insensitive(self):
+        from melvil.ui.draw_helpers import filter_assets
+
+        assets = self._assets("Iron", "IRON OXIDE", "Rubber")
+        result = filter_assets(assets, "iron")
+        assert len(result) == 2
+        assert {a["name"] for a in result} == {"Iron", "IRON OXIDE"}
+
+    def test_ignores_whitespace_in_query(self):
+        from melvil.ui.draw_helpers import filter_assets
+
+        assets = self._assets("IronOxide", "Rubber")
+        result = filter_assets(assets, "iron oxide")
+        assert [a["name"] for a in result] == ["IronOxide"]
+
+    def test_ignores_whitespace_in_asset_name(self):
+        from melvil.ui.draw_helpers import filter_assets
+
+        assets = self._assets("Iron Oxide", "Rubber")
+        result = filter_assets(assets, "ironoxide")
+        assert [a["name"] for a in result] == ["Iron Oxide"]
+
+    def test_no_match_returns_empty(self):
+        from melvil.ui.draw_helpers import filter_assets
+
+        assets = self._assets("Iron", "Plastic", "Glass")
+        result = filter_assets(assets, "zzz")
+        assert result == []

@@ -92,3 +92,16 @@ def load_kits():
     """
     with open_db(resolve_db_path()) as conn:
         return list_kits(conn)
+
+
+def filter_assets(assets, query: str):
+    """Return assets whose names contain *query* (case-insensitive, whitespace-ignored).
+
+    When *query* is empty, blank, or ``None`` all assets are returned unchanged.
+    """
+    if not query:
+        return assets
+    normalized = query.replace(" ", "").lower()
+    if not normalized:
+        return assets
+    return [a for a in assets if normalized in a["name"].replace(" ", "").lower()]
