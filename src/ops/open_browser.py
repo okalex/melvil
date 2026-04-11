@@ -30,6 +30,11 @@ from ..ui.draw_helpers import draw_asset_section, load_assets
 
 _POPUP_WIDTH = 700
 
+# Vertical offset (at UI scale 1.0) subtracted from the top of the TOOLS
+# region so that the popup aligns with the first toolbar button rather than
+# the very top edge of the region.
+_POPUP_Y_ADJUST = 14
+
 # Static definition of the category tree entries.
 # Each tuple: (value, label, icon)
 _TYPE_ENTRIES = [
@@ -107,6 +112,28 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
             item.value = value
             item.icon = icon
         self.type_index = 0
+
+        # Position the popup at the top-left of the viewport, just to the right
+        # of the toolbar.  The gap between the popup and the toolbar matches the
+        # gap between the toolbar buttons and the viewport's left edge (≈ 5 px
+        # at UI scale 1.0).
+        area = context.area
+        tools_region = next(
+            (r for r in area.regions if r.type == "TOOLS"), None
+        )
+        margin = round(context.preferences.system.ui_scale * 5)
+        if tools_region is not None:
+            popup_x = tools_region.x + tools_region.width + margin
+            popup_y = tools_region.y + tools_region.height - round(context.preferences.system.ui_scale * _POPUP_Y_ADJUST)
+        else:
+            header_region = next(
+                (r for r in area.regions if r.type == "HEADER"), None
+            )
+            header_height = header_region.height if header_region is not None else 0
+            popup_x = area.x + margin
+            popup_y = area.y + area.height - header_height
+        context.window.cursor_warp(popup_x, popup_y)
+
         return wm.invoke_popup(self, width=_POPUP_WIDTH)
 
     def check(self, context):

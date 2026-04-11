@@ -39,6 +39,28 @@ def _make_wm_items(entries):
     return wm
 
 
+def _make_invoke_ctx(tools_x=35, tools_width=45, tools_y=100, tools_height=674, area_x=35, area_y=0, area_height=800, ui_scale=1.0, header_height=26):
+    """Build a context mock suitable for invoke() calls."""
+    tools_region = MagicMock()
+    tools_region.type = "TOOLS"
+    tools_region.x = tools_x
+    tools_region.width = tools_width
+    tools_region.y = tools_y
+    tools_region.height = tools_height
+
+    header_region = MagicMock()
+    header_region.type = "HEADER"
+    header_region.height = header_height
+
+    ctx = MagicMock()
+    ctx.area.regions = [tools_region, header_region]
+    ctx.area.x = area_x
+    ctx.area.y = area_y
+    ctx.area.height = area_height
+    ctx.preferences.system.ui_scale = ui_scale
+    return ctx
+
+
 _ENTRIES = [
     ("ALL", "All", "ASSET_MANAGER"),
     ("MATERIAL", "Materials", "MATERIAL"),
@@ -123,20 +145,20 @@ class TestPoll:
 class TestInvoke:
     def test_invoke_calls_invoke_popup(self):
         op = _make_op()
-        ctx = MagicMock()
+        ctx = _make_invoke_ctx()
         op.invoke(ctx, MagicMock())
         ctx.window_manager.invoke_popup.assert_called_once_with(op, width=700)
 
     def test_invoke_returns_popup_result(self):
         op = _make_op()
-        ctx = MagicMock()
+        ctx = _make_invoke_ctx()
         ctx.window_manager.invoke_popup.return_value = {"RUNNING_MODAL"}
         result = op.invoke(ctx, MagicMock())
         assert result == {"RUNNING_MODAL"}
 
     def test_invoke_clears_and_populates_type_items(self):
         op = _make_op()
-        ctx = MagicMock()
+        ctx = _make_invoke_ctx()
         op.invoke(ctx, MagicMock())
         wm = ctx.window_manager
         wm.melvil_type_items.clear.assert_called_once()
@@ -146,9 +168,33 @@ class TestInvoke:
     def test_invoke_resets_type_index_to_zero(self):
         op = _make_op()
         op.type_index = 2
-        ctx = MagicMock()
+        ctx = _make_invoke_ctx()
         op.invoke(ctx, MagicMock())
         assert op.type_index == 0
+
+    def test_invoke_warps_cursor_to_viewport_top_left(self):
+        op = _make_op()
+        # tools: x=35, width=45, margin=5 → popup_x=85
+        # y=100, height=674 → top=774; 774 - round(1.0*17)=17 → popup_y=757
+        ctx = _make_invoke_ctx(tools_x=35, tools_width=45, tools_y=100, tools_height=674, ui_scale=1.0)
+        op.invoke(ctx, MagicMock())
+        ctx.window.cursor_warp.assert_called_once_with(85, 760)
+
+    def test_invoke_cursor_warp_uses_area_fallback_without_tools_region(self):
+        op = _make_op()
+        ctx = _make_invoke_ctx(area_x=10, area_y=0, area_height=600, ui_scale=1.0, header_height=26)
+        # Remove the TOOLS region so fallback path is exercised
+        ctx.area.regions = [r for r in ctx.area.regions if r.type != "TOOLS"]
+        op.invoke(ctx, MagicMock())
+        # fallback: area.x + margin = 10 + 5 = 15; y = 600 - 26 = 574
+        ctx.window.cursor_warp.assert_called_once_with(15, 574)
+
+    def test_invoke_cursor_warp_respects_ui_scale(self):
+        op = _make_op()
+        # ui_scale=2.0 → margin=10; popup_x=90; top=774; 774 - round(2.0*17)=34 → popup_y=740
+        ctx = _make_invoke_ctx(tools_x=35, tools_width=45, tools_y=100, tools_height=674, ui_scale=2.0)
+        op.invoke(ctx, MagicMock())
+        ctx.window.cursor_warp.assert_called_once_with(90, 746)
 
 
 # ---------------------------------------------------------------------------
