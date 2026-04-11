@@ -163,6 +163,11 @@ class AssetWriter:
         The datablock is temporarily renamed to *name* before writing so that
         the name stored in the DB matches the name inside the .blend file,
         which is what ``AssetReader`` uses to locate the datablock on load.
+
+        The datablock is also temporarily marked as an asset so that Blender's
+        Asset Browser can discover it after the .blend file is written.  If the
+        datablock was not already an asset it is cleared again afterwards so
+        the user's scene state is unchanged.
         """
         textures_dir = self.library_root / "textures"
         images = collect_external_images(datablock)
@@ -171,6 +176,7 @@ class AssetWriter:
         # Record original paths so we can unconditionally restore them.
         original_paths: dict = {img: img.filepath for img in images if img.filepath in remapping}
         original_name: str = datablock.name
+        was_asset: bool = datablock.asset_data is not None
 
         try:
             # Rename to the user-chosen name so the .blend file and DB agree.
@@ -178,6 +184,9 @@ class AssetWriter:
             # Repoint to relative paths (//textures/<file>) before writing.
             for img in original_paths:
                 img.filepath = remapping[img.filepath]
+            # Mark as asset so that Blender's Asset Browser indexes this datablock.
+            if not was_asset:
+                datablock.asset_mark()
 
             self.library_root.mkdir(parents=True, exist_ok=True)
             _write_blend_file(str(blend_path), {datablock})
@@ -185,6 +194,9 @@ class AssetWriter:
             datablock.name = original_name
             for img, original in original_paths.items():
                 img.filepath = original
+            # Restore original asset state so the live scene datablock is unchanged.
+            if not was_asset:
+                datablock.asset_clear()
 
     def _write_node_group_with_textures(self, node_tree, name: str, blend_path: Path) -> None:
         """Write a node group and all its nested dependencies to a .blend file.
@@ -208,11 +220,16 @@ class AssetWriter:
 
         original_paths: dict = {img: img.filepath for img in images if img.filepath in remapping}
         original_name: str = node_tree.name
+        was_asset: bool = node_tree.asset_data is not None
 
         try:
             node_tree.name = name
             for img in original_paths:
                 img.filepath = remapping[img.filepath]
+            # Mark only the root node tree as an asset; nested dependencies
+            # should not appear as independent assets in the browser.
+            if not was_asset:
+                node_tree.asset_mark()
 
             self.library_root.mkdir(parents=True, exist_ok=True)
             _write_blend_file(str(blend_path), all_groups)
@@ -220,3 +237,5 @@ class AssetWriter:
             node_tree.name = original_name
             for img, original in original_paths.items():
                 img.filepath = original
+            if not was_asset:
+                node_tree.asset_clear()

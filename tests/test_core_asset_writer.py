@@ -41,9 +41,10 @@ def library_root(tmp_path) -> Path:
 
 
 def _make_mock_datablock():
-    """A minimal fake datablock with no textures."""
+    """A minimal fake datablock with no textures and not already an asset."""
     db = MagicMock()
     db.material_slots = []
+    db.asset_data = None  # not yet marked as a Blender asset
     del db.node_tree  # not a material
     return db
 
@@ -57,6 +58,7 @@ def _make_mock_node_group(name="MyGroup", nested=None):
     """
     ng = MagicMock()
     ng.name = name
+    ng.asset_data = None  # not yet marked as a Blender asset
     nodes = []
     for child_tree in (nested or []):
         group_node = MagicMock()
@@ -377,6 +379,92 @@ class TestAssetWriterWriteNodeGroup:
             writer.write(ng, "Noise FX", "NODE_GROUP")
 
         assert img.filepath == "/original/noise.png"
+
+
+# ---------------------------------------------------------------------------
+# Asset marking lifecycle
+# ---------------------------------------------------------------------------
+
+
+class TestAssetMarkingLifecycle:
+    """Ensure datablocks are temporarily marked as Blender assets during write."""
+
+    def test_datablock_marked_before_write(self, library_root, conn):
+        """asset_mark() must be called before _write_blend_file."""
+        from melvil.core.asset_writer import AssetWriter
+
+        call_order = []
+        datablock = _make_mock_datablock()
+        datablock.asset_mark.side_effect = lambda: call_order.append("mark")
+        writer = AssetWriter(library_root, conn)
+
+        def _record_write(filepath, datablocks, **kwargs):
+            call_order.append("write")
+
+        with patch("melvil.core.asset_writer._write_blend_file", side_effect=_record_write), \
+             patch("melvil.core.textures.collect_external_images", return_value=[]):
+            writer.write(datablock, "Test", "MATERIAL")
+
+        assert call_order.index("mark") < call_order.index("write")
+
+    def test_datablock_cleared_after_successful_write(self, library_root, conn):
+        """asset_clear() must be called after a successful write."""
+        from melvil.core.asset_writer import AssetWriter
+
+        datablock = _make_mock_datablock()
+        writer = AssetWriter(library_root, conn)
+
+        with patch("melvil.core.asset_writer._write_blend_file"), \
+             patch("melvil.core.textures.collect_external_images", return_value=[]):
+            writer.write(datablock, "Test", "MATERIAL")
+
+        datablock.asset_clear.assert_called_once()
+
+    def test_datablock_cleared_after_write_error(self, library_root, conn):
+        """asset_clear() must be called even when _write_blend_file raises."""
+        from melvil.core.asset_writer import AssetWriter
+
+        datablock = _make_mock_datablock()
+        writer = AssetWriter(library_root, conn)
+
+        with pytest.raises(RuntimeError), \
+             patch("melvil.core.asset_writer._write_blend_file", side_effect=RuntimeError("disk full")), \
+             patch("melvil.core.textures.collect_external_images", return_value=[]):
+            writer.write(datablock, "Test", "MATERIAL")
+
+        datablock.asset_clear.assert_called_once()
+
+    def test_already_asset_not_marked_or_cleared(self, library_root, conn):
+        """If datablock is already an asset, asset_mark/clear must not be called."""
+        from melvil.core.asset_writer import AssetWriter
+
+        datablock = _make_mock_datablock()
+        datablock.asset_data = MagicMock()  # already an asset
+        writer = AssetWriter(library_root, conn)
+
+        with patch("melvil.core.asset_writer._write_blend_file"), \
+             patch("melvil.core.textures.collect_external_images", return_value=[]):
+            writer.write(datablock, "Test", "MATERIAL")
+
+        datablock.asset_mark.assert_not_called()
+        datablock.asset_clear.assert_not_called()
+
+    def test_node_group_root_marked_and_cleared(self, library_root, conn):
+        """The root node tree must be marked then cleared; nested groups must not be."""
+        from melvil.core.asset_writer import AssetWriter
+
+        child = _make_mock_node_group("Child")
+        root = _make_mock_node_group("Root", nested=[child])
+        writer = AssetWriter(library_root, conn)
+
+        with patch("melvil.core.asset_writer._write_blend_file"), \
+             patch("melvil.core.textures.collect_external_images", return_value=[]):
+            writer.write(root, "Root", "NODE_GROUP")
+
+        root.asset_mark.assert_called_once()
+        root.asset_clear.assert_called_once()
+        child.asset_mark.assert_not_called()
+        child.asset_clear.assert_not_called()
 
     def test_write_node_group_root_name_restored(self, library_root, conn):
         """The root node group's name must be restored after writing."""
