@@ -38,7 +38,7 @@ class TestDrawAssetSection:
 
         draw_asset_section(layout, "Meshes", "MESH_DATA", [_make_asset("1", "Rock", "MESH")])
 
-        box.label.assert_any_call(text="Meshes", icon="MESH_DATA")
+        layout.label.assert_any_call(text="Meshes", icon="MESH_DATA")
 
     def test_each_asset_gets_load_and_delete_buttons(self):
         from melvil.ui.draw_helpers import draw_asset_section
