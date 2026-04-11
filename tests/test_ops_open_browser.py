@@ -15,28 +15,8 @@ def _make_op():
     from melvil.ops.open_browser import MELVIL_OT_open_browser
 
     op = MELVIL_OT_open_browser()
-    op.type_index = 0
+    op.type_filter = "ALL"
     return op
-
-
-def _make_wm_items(entries):
-    """Build a WM mock whose melvil_type_items behaves like a real collection."""
-    items_list = []
-    for value, label, icon in entries:
-        item = MagicMock()
-        item.value = value
-        item.label = label
-        item.icon = icon
-        items_list.append(item)
-
-    collection = MagicMock()
-    collection.__len__ = MagicMock(return_value=len(items_list))
-    collection.__getitem__ = MagicMock(side_effect=lambda i: items_list[i])
-    collection.__bool__ = MagicMock(return_value=bool(items_list))
-
-    wm = MagicMock()
-    wm.melvil_type_items = collection
-    return wm
 
 
 def _make_invoke_ctx(tools_x=35, tools_width=45, tools_y=100, tools_height=674, area_x=35, area_y=0, area_height=800, ui_scale=1.0, header_height=26):
@@ -61,12 +41,7 @@ def _make_invoke_ctx(tools_x=35, tools_width=45, tools_y=100, tools_height=674, 
     return ctx
 
 
-_ENTRIES = [
-    ("ALL", "All", "ASSET_MANAGER"),
-    ("MATERIAL", "Materials", "MATERIAL"),
-    ("MESH", "Meshes", "MESH_DATA"),
-    ("NODE_GROUP", "Node Groups", "NODETREE"),
-]
+_POPUP_WIDTH = 700
 
 
 # ---------------------------------------------------------------------------
@@ -84,30 +59,6 @@ class TestMetadata:
         from melvil.ops.open_browser import MELVIL_OT_open_browser
 
         assert MELVIL_OT_open_browser.bl_label == "Melvil Library"
-
-
-# ---------------------------------------------------------------------------
-# MELVIL_UL_TypeList
-# ---------------------------------------------------------------------------
-
-
-class TestUIList:
-    def test_bl_idname(self):
-        from melvil.ops.open_browser import MELVIL_UL_TypeList
-
-        assert MELVIL_UL_TypeList.bl_idname == "MELVIL_UL_type_list"
-
-    def test_draw_item_default_layout(self):
-        from melvil.ops.open_browser import MELVIL_UL_TypeList
-
-        ul = MELVIL_UL_TypeList()
-        ul.layout_type = "DEFAULT"
-        layout = MagicMock()
-        item = MagicMock()
-        item.label = "Materials"
-        item.icon = "MATERIAL"
-        ul.draw_item(None, layout, None, item, None, None, None, 1)
-        layout.label.assert_called_once_with(text="Materials", icon="MATERIAL")
 
 
 # ---------------------------------------------------------------------------
@@ -148,7 +99,7 @@ class TestInvoke:
         op = _make_op()
         ctx = _make_invoke_ctx()
         op.invoke(ctx, MagicMock())
-        ctx.window_manager.invoke_popup.assert_called_once_with(op, width=700)
+        ctx.window_manager.invoke_popup.assert_called_once_with(op, width=_POPUP_WIDTH)
 
     def test_invoke_returns_popup_result(self):
         op = _make_op()
@@ -157,21 +108,12 @@ class TestInvoke:
         result = op.invoke(ctx, MagicMock())
         assert result == {"RUNNING_MODAL"}
 
-    def test_invoke_clears_and_populates_type_items(self):
+    def test_invoke_resets_type_filter_to_all(self):
         op = _make_op()
+        op.type_filter = "MESH"
         ctx = _make_invoke_ctx()
         op.invoke(ctx, MagicMock())
-        wm = ctx.window_manager
-        wm.melvil_type_items.clear.assert_called_once()
-        # One add() call per category entry
-        assert wm.melvil_type_items.add.call_count == len(_ENTRIES)
-
-    def test_invoke_resets_type_index_to_zero(self):
-        op = _make_op()
-        op.type_index = 2
-        ctx = _make_invoke_ctx()
-        op.invoke(ctx, MagicMock())
-        assert op.type_index == 0
+        assert op.type_filter == "ALL"
 
     def test_invoke_warps_cursor_to_viewport_top_left(self):
         op = _make_op()
@@ -226,10 +168,8 @@ class TestExecute:
 
 
 class TestDraw:
-    def _make_ctx(self, type_index=0):
-        ctx = MagicMock()
-        ctx.window_manager = _make_wm_items(_ENTRIES)
-        return ctx
+    def _make_ctx(self):
+        return MagicMock()
 
     def _make_op_with_layout(self):
         op = _make_op()
@@ -242,43 +182,43 @@ class TestDraw:
         op.layout = layout
         return op, left_col, right_col
 
-    # --- left column uses template_list ---
+    # --- left column uses prop with expand ---
 
-    def test_draw_left_column_calls_template_list(self):
+    def test_draw_left_column_calls_prop_expand(self):
         op, left_col, right_col = self._make_op_with_layout()
-        op.type_index = 0
+        op.type_filter = "ALL"
         ctx = self._make_ctx()
 
         with patch("melvil.ops.open_browser.load_assets", return_value=[]), \
              patch("melvil.ops.open_browser.draw_asset_section"):
             op.draw(ctx)
 
-        left_col.template_list.assert_called_once()
-        call_args = left_col.template_list.call_args
-        assert call_args[0][0] == "MELVIL_UL_type_list"
+        left_col.prop.assert_called_once_with(op, "type_filter", expand=True)
 
     # --- right column filtering ---
 
-    def test_draw_all_shows_both_sections(self):
+    def test_draw_all_shows_all_sections(self):
         op, left_col, right_col = self._make_op_with_layout()
-        op.type_index = 0  # "ALL"
+        op.type_filter = "ALL"
         ctx = self._make_ctx()
 
         materials = [_make_asset("m1", "Red", "MATERIAL")]
         meshes = [_make_asset("b1", "Rock", "MESH")]
+        node_groups = [_make_asset("n1", "MyGroup", "NODE_GROUP")]
 
-        with patch("melvil.ops.open_browser.load_assets", side_effect=[materials, meshes]), \
+        with patch("melvil.ops.open_browser.load_assets", side_effect=[materials, meshes, node_groups]), \
              patch("melvil.ops.open_browser.draw_asset_section") as mock_draw:
             op.draw(ctx)
 
-        assert mock_draw.call_count == 2
+        assert mock_draw.call_count == 3
         titles = [c[0][1] for c in mock_draw.call_args_list]
         assert "Materials" in titles
         assert "Meshes" in titles
+        assert "Node Groups" in titles
 
     def test_draw_material_filter_shows_only_materials(self):
         op, left_col, right_col = self._make_op_with_layout()
-        op.type_index = 1  # "MATERIAL"
+        op.type_filter = "MATERIAL"
         ctx = self._make_ctx()
 
         with patch("melvil.ops.open_browser.load_assets", return_value=[]), \
@@ -290,7 +230,7 @@ class TestDraw:
 
     def test_draw_mesh_filter_shows_only_meshes(self):
         op, left_col, right_col = self._make_op_with_layout()
-        op.type_index = 2  # "MESH"
+        op.type_filter = "MESH"
         ctx = self._make_ctx()
 
         with patch("melvil.ops.open_browser.load_assets", return_value=[]), \
@@ -300,9 +240,21 @@ class TestDraw:
         assert mock_draw.call_count == 1
         assert mock_draw.call_args[0][1] == "Meshes"
 
+    def test_draw_node_group_filter_shows_only_node_groups(self):
+        op, left_col, right_col = self._make_op_with_layout()
+        op.type_filter = "NODE_GROUP"
+        ctx = self._make_ctx()
+
+        with patch("melvil.ops.open_browser.load_assets", return_value=[]), \
+             patch("melvil.ops.open_browser.draw_asset_section") as mock_draw:
+            op.draw(ctx)
+
+        assert mock_draw.call_count == 1
+        assert mock_draw.call_args[0][1] == "Node Groups"
+
     def test_db_error_shows_error_label_on_right_column(self):
         op, left_col, right_col = self._make_op_with_layout()
-        op.type_index = 0
+        op.type_filter = "ALL"
         ctx = self._make_ctx()
 
         with patch("melvil.ops.open_browser.load_assets", side_effect=Exception("boom")):
@@ -311,16 +263,4 @@ class TestDraw:
         icon_calls = [c for c in right_col.label.call_args_list if c[1].get("icon") == "ERROR"]
         assert icon_calls
 
-    def test_draw_out_of_range_index_defaults_to_all(self):
-        op, left_col, right_col = self._make_op_with_layout()
-        op.type_index = 99  # out of range → fall back to ALL
-        ctx = self._make_ctx()
-
-        with patch("melvil.ops.open_browser.load_assets", return_value=[]), \
-             patch("melvil.ops.open_browser.draw_asset_section") as mock_draw:
-            op.draw(ctx)
-
-        titles = [c[0][1] for c in mock_draw.call_args_list]
-        assert "Materials" in titles
-        assert "Meshes" in titles
 

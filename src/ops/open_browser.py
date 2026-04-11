@@ -6,16 +6,13 @@ Uses ``window_manager.invoke_popup()`` to open a clean floating window
 containing the full Melvil asset list — no Blender editor chrome.
 
 The popup is split into two columns:
-- Left: a UIList tree-style view for selecting the asset category
-  (All, Materials, Meshes).
+- Left: a plain column of toggle buttons for selecting the asset category
+  (All, Materials, Meshes, Node Groups).
 - Right: the filtered asset list for the selected category, drawn using
   the shared ``draw_asset_section`` helper.
 
-Category items are stored in ``WindowManager.melvil_type_items``
-(a ``CollectionProperty`` of ``MELVIL_PG_TypeItem``) so that
-``template_list`` can render them with the native Blender list look.
-The active selection index lives on the operator as ``type_index``
-so that list-click events trigger ``check()`` and redraw the right column.
+The active category lives on the operator as ``type_filter`` (EnumProperty)
+so that button-click events trigger ``check()`` and redraw the right column.
 
 Clicking a Load button inside the popup immediately appends the asset and
 closes the window.
@@ -24,7 +21,7 @@ closes the window.
 from __future__ import annotations
 
 import bpy
-from bpy.props import CollectionProperty, IntProperty, StringProperty
+from bpy.props import EnumProperty
 
 from ..ui.draw_helpers import draw_asset_section, load_assets
 
@@ -35,45 +32,13 @@ _POPUP_WIDTH = 700
 # the very top edge of the region.
 _POPUP_Y_ADJUST = 14
 
-# Static definition of the category tree entries.
-# Each tuple: (value, label, icon)
-_TYPE_ENTRIES = [
-    ("ALL", "All", "ASSET_MANAGER"),
-    ("MATERIAL", "Materials", "MATERIAL"),
-    ("MESH", "Meshes", "MESH_DATA"),
-    ("NODE_GROUP", "Node Groups", "NODETREE"),
+# Enum items for the category selector: (identifier, label, description, icon, value)
+_TYPE_ENUM_ITEMS = [
+    ("ALL",        "All",         "", "ASSET_MANAGER", 0),
+    ("MATERIAL",   "Materials",   "", "MATERIAL",      1),
+    ("MESH",       "Meshes",      "", "MESH_DATA",     2),
+    ("NODE_GROUP", "Node Groups", "", "NODETREE",      3),
 ]
-
-
-# ---------------------------------------------------------------------------
-# PropertyGroup — one row in the category list
-# ---------------------------------------------------------------------------
-
-
-class MELVIL_PG_TypeItem(bpy.types.PropertyGroup):
-    """A single category entry in the browser type list."""
-
-    label: StringProperty(name="Label")
-    value: StringProperty(name="Value")
-    icon: StringProperty(name="Icon")
-
-
-# ---------------------------------------------------------------------------
-# UIList — the scrollable category selector
-# ---------------------------------------------------------------------------
-
-
-class MELVIL_UL_TypeList(bpy.types.UIList):
-    """Tree-style category selector for the Melvil browser."""
-
-    bl_idname = "MELVIL_UL_type_list"
-
-    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
-        if self.layout_type in {"DEFAULT", "COMPACT"}:
-            layout.label(text=item.label, icon=item.icon or "NONE")
-        elif self.layout_type == "GRID":
-            layout.alignment = "CENTER"
-            layout.label(text="", icon=item.icon or "NONE")
 
 
 # ---------------------------------------------------------------------------
@@ -88,11 +53,12 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
     bl_label = "Melvil Library"
     bl_options = {"REGISTER"}
 
-    # Tracks the selected row in the UIList; living on the operator so that
-    # list-click events trigger check() and the right column redraws.
-    type_index: IntProperty(
+    # Tracks the selected category; living on the operator so that
+    # button-click events trigger check() and the right column redraws.
+    type_filter: EnumProperty(
         name="Category",
-        default=0,
+        items=_TYPE_ENUM_ITEMS,
+        default="ALL",
         options={"HIDDEN"},
     )
 
@@ -106,13 +72,7 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
 
     def invoke(self, context, event):
         wm = context.window_manager
-        wm.melvil_type_items.clear()
-        for value, label, icon in _TYPE_ENTRIES:
-            item = wm.melvil_type_items.add()
-            item.label = label
-            item.value = value
-            item.icon = icon
-        self.type_index = 0
+        self.type_filter = "ALL"
 
         # Position the popup at the top-left of the viewport, just to the right
         # of the toolbar.  The gap between the popup and the toolbar matches the
@@ -139,7 +99,7 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
 
     def check(self, context):
         # Returning True forces Blender to redraw the popup whenever the
-        # user clicks a different row in the UIList.
+        # user clicks a different category button.
         return True
 
     def execute(self, context):
@@ -147,34 +107,24 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
 
     def draw(self, context):
         layout = self.layout
-        wm = context.window_manager
 
-        layout.label(text="Melvil Library", icon="ASSET_MANAGER")
+        layout.label(text="Melvil Asset Library", icon="ASSET_MANAGER")
         layout.separator()
 
         split = layout.split(factor=0.25)
 
         # ------------------------------------------------------------------
-        # Left column — category tree list
+        # Left column — category selector
         # ------------------------------------------------------------------
         left = split.column()
-        left.template_list(
-            "MELVIL_UL_type_list",
-            "",
-            wm, "melvil_type_items",
-            self, "type_index",
-            rows=len(_TYPE_ENTRIES),
-        )
+        left.label(text="Asset type")
+        left.prop(self, "type_filter", expand=True)
 
         # ------------------------------------------------------------------
         # Right column — filtered asset list
         # ------------------------------------------------------------------
         right = split.column()
-        items = getattr(wm, "melvil_type_items", None)
-        if items and 0 <= self.type_index < len(items):
-            selected = items[self.type_index].value
-        else:
-            selected = "ALL"
+        selected = self.type_filter
 
         try:
             if selected in ("ALL", "MATERIAL"):
@@ -193,13 +143,8 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
 
 
 def register() -> None:
-    bpy.utils.register_class(MELVIL_PG_TypeItem)
-    bpy.utils.register_class(MELVIL_UL_TypeList)
-    bpy.types.WindowManager.melvil_type_items = CollectionProperty(type=MELVIL_PG_TypeItem)
+    bpy.utils.register_class(MELVIL_OT_open_browser)
 
 
 def unregister() -> None:
-    if hasattr(bpy.types.WindowManager, "melvil_type_items"):
-        delattr(bpy.types.WindowManager, "melvil_type_items")
-    bpy.utils.unregister_class(MELVIL_UL_TypeList)
-    bpy.utils.unregister_class(MELVIL_PG_TypeItem)
+    bpy.utils.unregister_class(MELVIL_OT_open_browser)

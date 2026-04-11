@@ -37,8 +37,9 @@ def draw_asset_section(layout, title: str, icon: str, assets, *, show_load: bool
         When ``False`` the Load button is omitted (e.g. for asset types that
         must be loaded from a specific editor context).
     """
+
+    layout.label(text=title, icon=icon)
     box = layout.box()
-    box.label(text=title, icon=icon)
 
     if not assets:
         box.label(text=f"No {title.lower()} saved yet")
@@ -54,6 +55,8 @@ def draw_asset_section(layout, title: str, icon: str, assets, *, show_load: bool
 
         del_op = row.operator("melvil.delete_asset", text="", icon="TRASH")
         del_op.asset_id = asset["id"]
+
+    layout.separator()
 
 
 def load_assets(asset_type=None):
