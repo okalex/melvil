@@ -5,6 +5,11 @@ from bpy.types import AddonPreferences
 from .utils import register_class as _safe_register
 
 
+def _on_library_root_update(self, context):
+    from .core.library import sync_blender_asset_library
+    sync_blender_asset_library()
+
+
 class MelvilPreferences(AddonPreferences):
     bl_idname = __package__
 
@@ -13,6 +18,7 @@ class MelvilPreferences(AddonPreferences):
         description="Directory where managed .blend files and textures are stored",
         subtype="DIR_PATH",
         default="",
+        update=_on_library_root_update,
     )
 
     db_path: StringProperty(

@@ -5,11 +5,15 @@ is initialised.
 
 from __future__ import annotations
 
+import os
+import sys
 from pathlib import Path
 
 import bpy
 
 from ..db import open_db
+
+BLENDER_ASSET_LIBRARY_NAME = "Melvil Assets"
 
 
 class LibraryNotConfiguredError(Exception):
@@ -21,24 +25,44 @@ def get_prefs():
     return bpy.context.preferences.addons[MelvilPreferences.bl_idname].preferences
 
 
+def _os_app_data_dir() -> Path:
+    """
+    Return the platform-appropriate application data directory for Melvil.
+
+    - macOS:  ~/Library/Application Support/Melvil
+    - Windows: %APPDATA%/Melvil
+    - Linux:   $XDG_DATA_HOME/melvil  (falls back to ~/.local/share/melvil)
+    """
+    if sys.platform == "win32":
+        base = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
+        return base / "Melvil"
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "Melvil"
+    # Linux / other POSIX
+    xdg = os.environ.get("XDG_DATA_HOME", "")
+    base = Path(xdg) if xdg else Path.home() / ".local" / "share"
+    return base / "melvil"
+
+
 def _default_library_root() -> Path:
     """
-    Return the default library root when no explicit path is configured.
+    Return the default assets directory when no explicit path is configured.
 
-    Resolves to something like:
-        ~/Library/Application Support/Blender/5.0/datafiles/melvil
+    Resolves to the platform app data dir + 'assets/', e.g.:
+        ~/Library/Application Support/Melvil/assets/   (macOS)
+        %APPDATA%/Melvil/assets/                        (Windows)
+        ~/.local/share/melvil/assets/                   (Linux)
     """
-    return Path(bpy.utils.user_resource("DATAFILES", path="melvil", create=True))
+    return _os_app_data_dir() / "assets"
 
 
 def resolve_library_root() -> Path:
     """
     Return the absolute path to the library root directory.
 
-    When the library_root preference is empty the default location inside
-    Blender's user data files directory is used (see ``_default_library_root``).
-    The library root is where managed .blend files and the textures/ subfolder
-    are stored.
+    When the library_root preference is empty the default OS app data location
+    is used (see ``_default_library_root``).  The library root is where managed
+    .blend files and the textures/ subfolder are stored.
     """
     prefs = get_prefs()
     root = prefs.library_root.strip()
@@ -49,14 +73,14 @@ def resolve_library_root() -> Path:
 
 def _default_db_path() -> Path:
     """
-    Return the default DB path using Blender's user config directory.
-    This is stable across extension reinstalls.
+    Return the default DB path in the platform app data directory.
 
-    Resolves to something like:
-        ~/Library/Application Support/Blender/5.0/config/melvil/melvil.db
+    Resolves to, e.g.:
+        ~/Library/Application Support/Melvil/melvil.db   (macOS)
+        %APPDATA%/Melvil/melvil.db                        (Windows)
+        ~/.local/share/melvil/melvil.db                   (Linux)
     """
-    config_dir = bpy.utils.user_resource("CONFIG", path="melvil", create=True)
-    return Path(config_dir) / "melvil.db"
+    return _os_app_data_dir() / "melvil.db"
 
 
 def resolve_db_path() -> Path:
@@ -71,6 +95,32 @@ def resolve_db_path() -> Path:
         return Path(bpy.path.abspath(db_path))
 
     return _default_db_path()
+
+
+def sync_blender_asset_library() -> None:
+    """
+    Ensure Blender's asset library list contains a 'Melvil Assets' entry that
+    points to the current assets directory.
+
+    This is idempotent: it creates the entry if absent, and updates the path if
+    it differs from the current library root.  Called on every addon startup and
+    whenever the library_root preference changes.
+    """
+    assets_dir = str(resolve_library_root())
+    asset_libraries = bpy.context.preferences.filepaths.asset_libraries
+
+    # Look for an existing entry by name.
+    for lib in asset_libraries:
+        if lib.name == BLENDER_ASSET_LIBRARY_NAME:
+            if lib.path != assets_dir:
+                lib.path = assets_dir
+            return
+
+    # Not found — add a new entry.
+    bpy.ops.preferences.asset_library_add(directory=assets_dir)
+    # The newly added entry is always appended last.
+    new_lib = asset_libraries[-1]
+    new_lib.name = BLENDER_ASSET_LIBRARY_NAME
 
 
 def ensure_db() -> None:

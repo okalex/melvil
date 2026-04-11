@@ -196,6 +196,16 @@ def _make_bpy_mock() -> types.ModuleType:
     mock_context.preferences.filepaths.asset_libraries = []
     bpy.context = mock_context
 
+    # Make bpy.ops.preferences.asset_library_add() append a stub entry so that
+    # sync_blender_asset_library() can modify asset_libraries[-1] after the call.
+    def _mock_asset_library_add(directory=""):
+        lib = MagicMock()
+        lib.name = ""
+        lib.path = directory
+        mock_context.preferences.filepaths.asset_libraries.append(lib)
+
+    bpy.ops.preferences.asset_library_add.side_effect = _mock_asset_library_add
+
     return bpy
 
 
