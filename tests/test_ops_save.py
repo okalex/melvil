@@ -674,3 +674,60 @@ class TestExecuteTags:
         assert "metal" in applied
         assert "pbr material" in applied
 
+
+# ---------------------------------------------------------------------------
+# draw() — tags field in save dialog
+# ---------------------------------------------------------------------------
+
+
+class TestDrawSaveDialog:
+    """Verify the save dialog renders a Tags field below the Kit selector."""
+
+    def _make_op(self, save_type="MESH"):
+        from melvil.ops.save import MELVIL_OT_save_asset
+
+        op = MELVIL_OT_save_asset()
+        op.save_type = save_type
+        op.mesh_name = "Cube"
+        op.material_name = "Iron"
+        op.node_group_name = "My Group"
+        op.tags = ""
+        op.layout = MagicMock()
+        return op
+
+    def _prop_calls(self, op):
+        """Return list of (prop_name, kwargs) for each layout.prop() call."""
+        return [(c[0][1], c[1]) for c in op.layout.prop.call_args_list]
+
+    def test_tags_field_rendered_for_mesh(self):
+        op = self._make_op("MESH")
+        op.draw(MagicMock())
+        prop_names = [c[0][1] for c in op.layout.prop.call_args_list]
+        assert "tags" in prop_names
+
+    def test_tags_field_rendered_for_material(self):
+        op = self._make_op("MATERIAL")
+        op.draw(MagicMock())
+        prop_names = [c[0][1] for c in op.layout.prop.call_args_list]
+        assert "tags" in prop_names
+
+    def test_tags_field_rendered_for_node_group(self):
+        op = self._make_op("NODE_GROUP")
+        op.draw(MagicMock())
+        prop_names = [c[0][1] for c in op.layout.prop.call_args_list]
+        assert "tags" in prop_names
+
+    def test_kit_id_rendered_before_tags(self):
+        op = self._make_op("MESH")
+        op.draw(MagicMock())
+        prop_names = [c[0][1] for c in op.layout.prop.call_args_list]
+        assert prop_names.index("kit_id") < prop_names.index("tags")
+
+    def test_tags_field_label_is_tags(self):
+        op = self._make_op("MESH")
+        op.draw(MagicMock())
+        tags_call = next(
+            c for c in op.layout.prop.call_args_list if c[0][1] == "tags"
+        )
+        assert tags_call[1].get("text") == "Tags"
+
