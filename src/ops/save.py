@@ -119,11 +119,11 @@ class MELVIL_OT_save_asset(bpy.types.Operator):
     def draw(self, context):
         layout = self.layout
         if self.save_type == "MESH":
-            layout.prop(self, "mesh_name")
+            layout.prop(self, "mesh_name", text="Name")
         elif self.save_type == "MATERIAL":
-            layout.prop(self, "material_name")
+            layout.prop(self, "material_name", text="Name")
         elif self.save_type == "NODE_GROUP":
-            layout.prop(self, "node_group_name")
+            layout.prop(self, "node_group_name", text="Name")
 
     def execute(self, context):
         obj = context.active_object
