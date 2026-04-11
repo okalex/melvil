@@ -9,6 +9,9 @@ __pycache__/
 # Github
 .github/
 
+# Dev
+projects/
+
 # Build
 dist/
 *.egg-info/
