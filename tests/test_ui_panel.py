@@ -16,6 +16,14 @@ def _make_layout():
     return MagicMock()
 
 
+def _make_context(active_kit_id: str = "ALL_KITS") -> MagicMock:
+    ctx = MagicMock()
+    scene = MagicMock()
+    scene.melvil_active_kit_id = active_kit_id
+    ctx.scene = scene
+    return ctx
+
+
 # ---------------------------------------------------------------------------
 # MELVIL_PT_main.poll()
 # ---------------------------------------------------------------------------
@@ -44,7 +52,7 @@ class TestDraw:
         layout = _make_layout()
         panel.layout = layout
 
-        panel.draw(MagicMock())
+        panel.draw(_make_context())
 
         layout.operator.assert_any_call(
             "melvil.save_asset", text="Save as Asset", icon="ADD"
@@ -55,8 +63,77 @@ class TestDraw:
         layout = _make_layout()
         panel.layout = layout
 
-        panel.draw(MagicMock())
+        panel.draw(_make_context())
 
         layout.operator.assert_any_call(
             "melvil.open_browser", text="Browse Library", icon="ASSET_MANAGER"
         )
+
+    def test_active_kit_label_drawn(self):
+        panel = self._panel()
+        layout = _make_layout()
+        panel.layout = layout
+
+        panel.draw(_make_context())
+
+        layout.label.assert_any_call(text="Active Kit")
+
+    def test_active_kit_operator_menu_enum_drawn(self):
+        panel = self._panel()
+        layout = _make_layout()
+        panel.layout = layout
+
+        panel.draw(_make_context())
+
+        layout.operator_menu_enum.assert_called_once_with(
+            "melvil.set_active_kit",
+            "kit_id",
+            text="All Kits",
+            icon="BOOKMARKS",
+        )
+
+    def test_active_kit_shows_all_kits_when_sentinel(self):
+        panel = self._panel()
+        layout = _make_layout()
+        panel.layout = layout
+
+        panel.draw(_make_context(active_kit_id="ALL_KITS"))
+
+        call_kwargs = layout.operator_menu_enum.call_args
+        text = call_kwargs.kwargs.get("text") or call_kwargs[1].get("text")
+        assert text == "All Kits"
+
+    def test_active_kit_shows_kit_name_when_specific_kit(self):
+        panel = self._panel()
+        layout = _make_layout()
+        panel.layout = layout
+
+        kit_id = "00000000-0000-4000-8000-000000000001"
+        ctx = _make_context(active_kit_id=kit_id)
+
+        fake_row = {"name": "General"}
+        with patch("melvil.ui.panel.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ui.panel.open_db") as mock_open, \
+             patch("melvil.ui.panel.get_kit", return_value=fake_row):
+            mock_open.return_value.__enter__ = lambda s: MagicMock()
+            mock_open.return_value.__exit__ = MagicMock(return_value=False)
+            panel.draw(ctx)
+
+        call_kwargs = layout.operator_menu_enum.call_args
+        text = call_kwargs.kwargs.get("text") or call_kwargs[1].get("text")
+        assert text == "General"
+
+    def test_active_kit_falls_back_to_all_kits_on_db_error(self):
+        panel = self._panel()
+        layout = _make_layout()
+        panel.layout = layout
+
+        kit_id = "some-kit-uuid"
+        ctx = _make_context(active_kit_id=kit_id)
+
+        with patch("melvil.ui.panel.resolve_db_path", side_effect=Exception("no db")):
+            panel.draw(ctx)
+
+        call_kwargs = layout.operator_menu_enum.call_args
+        text = call_kwargs.kwargs.get("text") or call_kwargs[1].get("text")
+        assert text == "All Kits"

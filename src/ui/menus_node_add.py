@@ -29,9 +29,15 @@ class MELVIL_MT_node_add_submenu(bpy.types.Menu):
     def draw(self, context):
         layout = self.layout
 
+        scene = getattr(context, "scene", None)
+        active_kit_id = getattr(scene, "melvil_active_kit_id", None)
+        kit_id = None
+        if isinstance(active_kit_id, str) and active_kit_id != "ALL_KITS":
+            kit_id = active_kit_id
+
         try:
             with open_db(resolve_db_path()) as conn:
-                assets = list_assets(conn, type="NODE_GROUP")
+                assets = list_assets(conn, type="NODE_GROUP", kit_id=kit_id)
         except Exception:
             layout.label(text="Could not open library", icon="ERROR")
             return

@@ -121,7 +121,8 @@ class TestExecuteMesh:
             mock_instance.write.return_value = "aaaaaaaa-0000-4000-8000-000000000001"
             op.execute(ctx)
 
-        mock_instance.write.assert_called_once_with(obj, "Suzanne", "MESH")
+        from melvil.db.kits import DEFAULT_KIT_ID
+        mock_instance.write.assert_called_once_with(obj, "Suzanne", "MESH", kit_id=DEFAULT_KIT_ID)
 
     def test_error_when_no_mesh_object(self, conn):
         from melvil.ops.save import MELVIL_OT_save_asset
@@ -206,7 +207,8 @@ class TestExecuteMaterial:
             mock_instance.write.return_value = "bbbbbbbb-0000-4000-8000-000000000002"
             op.execute(ctx)
 
-        mock_instance.write.assert_called_once_with(mat, "Blue Glass", "MATERIAL")
+        from melvil.db.kits import DEFAULT_KIT_ID
+        mock_instance.write.assert_called_once_with(mat, "Blue Glass", "MATERIAL", kit_id=DEFAULT_KIT_ID)
 
     def test_error_when_no_active_material(self):
         from melvil.ops.save import MELVIL_OT_save_asset
@@ -449,7 +451,8 @@ class TestExecuteNodeGroup:
             mock_instance.write.return_value = "dddddddd-0000-4000-8000-000000000004"
             op.execute(ctx)
 
-        mock_instance.write.assert_called_once_with(ng, "Noise FX", "NODE_GROUP")
+        from melvil.db.kits import DEFAULT_KIT_ID
+        mock_instance.write.assert_called_once_with(ng, "Noise FX", "NODE_GROUP", kit_id=DEFAULT_KIT_ID)
 
     def test_error_when_no_active_node(self, conn):
         op = self._make_op()

@@ -234,6 +234,22 @@ class TestAssetWriterWrite:
 
         assert library_root.exists()
 
+    def test_write_with_explicit_kit_id_stores_kit(self, library_root, conn):
+        """kit_id passed to write() should be stored in the DB record."""
+        from melvil.core.asset_writer import AssetWriter
+        from melvil.db.assets import get_asset
+
+        kit_id = "00000000-0000-4000-8000-000000000001"  # General kit (seeded by migration)
+        writer = AssetWriter(library_root, conn)
+        datablock = _make_mock_datablock()
+
+        with patch("melvil.core.asset_writer._write_blend_file"), \
+             patch("melvil.core.textures.collect_external_images", return_value=[]):
+            asset_id = writer.write(datablock, "Brick Wall", "MATERIAL", kit_id=kit_id)
+
+        row = get_asset(conn, asset_id)
+        assert row["kit_id"] == kit_id
+
 
 # ---------------------------------------------------------------------------
 # _collect_nested_node_groups

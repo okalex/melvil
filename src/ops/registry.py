@@ -20,6 +20,7 @@ from .load_material import (
 from . import open_browser as _open_browser_mod
 from .open_browser import MELVIL_OT_open_browser
 from .save import MELVIL_OT_save_asset, MELVIL_OT_save_nodes_as_asset
+from .set_active_kit import MELVIL_OT_set_active_kit
 from .toggle_sidebar import MELVIL_OT_toggle_sidebar
 
 _classes = (
@@ -33,6 +34,7 @@ _classes = (
     MELVIL_OT_load_material_to_slot,
     MELVIL_OT_delete_asset,
     MELVIL_OT_open_browser,
+    MELVIL_OT_set_active_kit,
     MELVIL_OT_toggle_sidebar,
 )
 

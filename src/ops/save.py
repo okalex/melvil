@@ -18,12 +18,38 @@ No manual type selection is required from the user.
 
 from __future__ import annotations
 
+import sys
+
 import bpy
-from bpy.props import StringProperty
+from bpy.props import EnumProperty, StringProperty
 
 from ..core.asset_writer import AssetWriter
 from ..core.library import LibraryNotConfiguredError, resolve_db_path, resolve_library_root
 from ..db import open_db
+from ..db.kits import DEFAULT_KIT_ID, list_kits
+
+# Module-level cache keeps kit enum strings alive (Blender C GC requirement).
+_save_kit_enum_cache: list[tuple] = [(DEFAULT_KIT_ID, "General", "")]
+
+
+def _get_save_kit_items(self, context):
+    """Enum callback: one item per kit (no All-Kits sentinel — save always targets a kit)."""
+    global _save_kit_enum_cache
+    items: list[tuple] = []
+    try:
+        with open_db(resolve_db_path()) as conn:
+            for kit in list_kits(conn):
+                kit_id = sys.intern(str(kit["id"]))
+                kit_name = sys.intern(str(kit["name"]))
+                kit_desc = sys.intern(str(kit["description"] or ""))
+                items.append((kit_id, kit_name, kit_desc))
+    except Exception:  # noqa: BLE001
+        pass
+    if not items:
+        # Fallback so the enum is never empty (Blender requires ≥ 1 item).
+        items = [(sys.intern(DEFAULT_KIT_ID), sys.intern("General"), sys.intern(""))]
+    _save_kit_enum_cache = items
+    return _save_kit_enum_cache
 
 
 class MELVIL_OT_save_asset(bpy.types.Operator):
@@ -56,6 +82,13 @@ class MELVIL_OT_save_asset(bpy.types.Operator):
         name="Node Group Name",
         description="Name for the new node group asset",
         default="",
+    )
+
+    kit_id: EnumProperty(
+        name="Kit",
+        description="Kit to save the asset into",
+        items=_get_save_kit_items,
+        default=0,
     )
 
     # ------------------------------------------------------------------
@@ -114,10 +147,31 @@ class MELVIL_OT_save_asset(bpy.types.Operator):
         else:
             self.save_type = "MESH"
 
+        # Resolve the default kit from scene state.
+        scene = getattr(context, "scene", None)
+        active_kit_id = getattr(scene, "melvil_active_kit_id", None)
+        if not isinstance(active_kit_id, str):
+            active_kit_id = "ALL_KITS"
+        mru_kit_id = getattr(scene, "melvil_mru_kit_id", None)
+        if not isinstance(mru_kit_id, str):
+            mru_kit_id = ""
+
+        if active_kit_id != "ALL_KITS":
+            desired_kit_id = active_kit_id
+        elif mru_kit_id:
+            desired_kit_id = mru_kit_id
+        else:
+            desired_kit_id = DEFAULT_KIT_ID
+
+        # Prime the enum cache before assigning so the identifier is valid.
+        _get_save_kit_items(self, context)
+        self.kit_id = desired_kit_id
+
         return context.window_manager.invoke_props_dialog(self)
 
     def draw(self, context):
         layout = self.layout
+        layout.prop(self, "kit_id", text="Kit")
         if self.save_type == "MESH":
             layout.prop(self, "mesh_name", text="Name")
         elif self.save_type == "MATERIAL":
@@ -176,19 +230,20 @@ class MELVIL_OT_save_asset(bpy.types.Operator):
         # ------------------------------------------------------------------
         # Write asset(s).
         # ------------------------------------------------------------------
+        kit_id = getattr(self, "kit_id", DEFAULT_KIT_ID) or DEFAULT_KIT_ID
         try:
             with open_db(db_path) as conn:
                 writer = AssetWriter(library_root, conn)
 
                 if self.save_type == "MESH":
-                    asset_id = writer.write(obj, self.mesh_name.strip(), "MESH")
+                    asset_id = writer.write(obj, self.mesh_name.strip(), "MESH", kit_id=kit_id)
                     self.report(
                         {"INFO"},
                         f"Melvil: mesh '{self.mesh_name.strip()}' saved (id: {asset_id[:8]}…)",
                     )
 
                 elif self.save_type == "MATERIAL":
-                    asset_id = writer.write(mat, self.material_name.strip(), "MATERIAL")
+                    asset_id = writer.write(mat, self.material_name.strip(), "MATERIAL", kit_id=kit_id)
                     self.report(
                         {"INFO"},
                         f"Melvil: material '{self.material_name.strip()}' saved (id: {asset_id[:8]}…)",
@@ -196,7 +251,7 @@ class MELVIL_OT_save_asset(bpy.types.Operator):
 
                 elif self.save_type == "NODE_GROUP":
                     node_tree = getattr(active_node, "node_tree", None)
-                    asset_id = writer.write(node_tree, self.node_group_name.strip(), "NODE_GROUP")
+                    asset_id = writer.write(node_tree, self.node_group_name.strip(), "NODE_GROUP", kit_id=kit_id)
                     self.report(
                         {"INFO"},
                         f"Melvil: node group '{self.node_group_name.strip()}' saved (id: {asset_id[:8]}…)",
@@ -205,6 +260,14 @@ class MELVIL_OT_save_asset(bpy.types.Operator):
         except Exception as exc:  # noqa: BLE001
             self.report({"ERROR"}, f"Melvil: save failed — {exc}")
             return {"CANCELLED"}
+
+        # Update MRU kit on successful save.
+        scene = getattr(context, "scene", None)
+        if scene is not None:
+            try:
+                scene.melvil_mru_kit_id = kit_id
+            except Exception:  # noqa: BLE001
+                pass
 
         return {"FINISHED"}
 

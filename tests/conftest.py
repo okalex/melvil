@@ -142,7 +142,11 @@ def _make_bpy_mock() -> types.ModuleType:
     class WindowManager:
         """Minimal WindowManager stand-in for attribute assignment in register()."""
 
+    class Scene:
+        """Minimal Scene stand-in for attribute assignment in register()."""
+
     bpy_types.WindowManager = WindowManager
+    bpy_types.Scene = Scene
 
     bpy.types = bpy_types
     sys.modules["bpy.types"] = bpy_types

@@ -41,6 +41,7 @@ from pathlib import Path
 
 from .textures import collect_external_images, copy_textures
 from ..db.assets import insert_asset
+from ..db.kits import DEFAULT_KIT_ID
 
 
 def _slugify(name: str) -> str:
@@ -103,7 +104,7 @@ class AssetWriter:
     # Public API
     # ------------------------------------------------------------------
 
-    def write(self, datablock, name: str, asset_type: str) -> str:
+    def write(self, datablock, name: str, asset_type: str, kit_id: str = DEFAULT_KIT_ID) -> str:
         """
         Persist *datablock* as a managed .blend file and insert a DB record.
 
@@ -117,6 +118,9 @@ class AssetWriter:
             derive the filename).
         asset_type:
             One of ``"MATERIAL"``, ``"MESH"``, or ``"NODE_GROUP"``.
+        kit_id:
+            UUID of the kit this asset belongs to.  Defaults to the General
+            kit when not specified.
 
         Returns
         -------
@@ -138,6 +142,7 @@ class AssetWriter:
             name=name,
             type=asset_type,
             blend_path=blend_filename,  # relative to library root
+            kit_id=kit_id,
         )
         self.conn.commit()
         return asset_id

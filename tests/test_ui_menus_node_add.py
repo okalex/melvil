@@ -138,6 +138,40 @@ class TestDraw:
         call_kwargs = menu.layout.label.call_args
         assert (call_kwargs.kwargs.get("icon") or call_kwargs[1].get("icon")) == "ERROR"
 
+    def _context(self, active_kit_id: str = "ALL_KITS") -> MagicMock:
+        ctx = MagicMock()
+        scene = MagicMock()
+        scene.melvil_active_kit_id = active_kit_id
+        ctx.scene = scene
+        return ctx
+
+    def test_filters_by_active_kit_when_set(self):
+        menu = self._menu()
+        kit_id = "some-kit-uuid"
+
+        with patch("melvil.ui.menus_node_add.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ui.menus_node_add.open_db") as mock_open, \
+             patch("melvil.ui.menus_node_add.list_assets", return_value=[]) as mock_list:
+            mock_open.return_value.__enter__ = lambda s: MagicMock()
+            mock_open.return_value.__exit__ = MagicMock(return_value=False)
+            menu.draw(self._context(active_kit_id=kit_id))
+
+        _, kwargs = mock_list.call_args
+        assert kwargs.get("kit_id") == kit_id
+
+    def test_no_kit_filter_when_all_kits(self):
+        menu = self._menu()
+
+        with patch("melvil.ui.menus_node_add.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ui.menus_node_add.open_db") as mock_open, \
+             patch("melvil.ui.menus_node_add.list_assets", return_value=[]) as mock_list:
+            mock_open.return_value.__enter__ = lambda s: MagicMock()
+            mock_open.return_value.__exit__ = MagicMock(return_value=False)
+            menu.draw(self._context(active_kit_id="ALL_KITS"))
+
+        _, kwargs = mock_list.call_args
+        assert kwargs.get("kit_id") is None
+
 
 # ---------------------------------------------------------------------------
 # _draw_node_add_entry
