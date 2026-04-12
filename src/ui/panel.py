@@ -15,6 +15,7 @@ import bpy
 from ..core.library import resolve_db_path
 from ..db import open_db
 from ..db.kits import get_kit
+from ..preferences import MelvilPreferences
 
 
 class MELVIL_PT_main(bpy.types.Panel):
@@ -37,7 +38,12 @@ class MELVIL_PT_main(bpy.types.Panel):
 
         layout.separator()
 
-        # Active Kit — dropdown backed by melvil.set_active_kit.  The button
+        # Auto-generate previews toggle — reads from addon preferences.
+        prefs = context.preferences.addons.get(MelvilPreferences.bl_idname)
+        if prefs is not None:
+            layout.prop(prefs.preferences, "auto_generate_previews")
+
+        layout.separator()
         # label reflects the current selection stored on the scene.
         scene = getattr(context, "scene", None)
         active_kit_id = getattr(scene, "melvil_active_kit_id", None)

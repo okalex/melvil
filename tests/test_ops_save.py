@@ -1020,3 +1020,33 @@ class TestExecuteNodeGroupPreview:
         mock_mesh.assert_not_called()
         mock_mat.assert_not_called()
 
+
+class TestAutoGeneratePreviewsPreference:
+    """Preview generation must be skipped when the user disables auto-generation."""
+
+    def test_preview_skipped_when_auto_generate_disabled(self, conn):
+        """generate_mesh_preview must not be called when auto_generate_previews=False."""
+        from melvil.ops.save import MELVIL_OT_save_asset
+
+        op = MELVIL_OT_save_asset()
+        op.save_type = "MESH"
+        op.mesh_name = "Cube"
+        op.material_name = ""
+        op.tags = ""
+
+        ctx = _make_context(obj=_make_mesh_object())
+        mock_prefs = MagicMock()
+        mock_prefs.preferences.auto_generate_previews = False
+        ctx.preferences.addons.get.return_value = mock_prefs
+
+        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
+             patch("melvil.ops.save.AssetWriter") as MockWriter, \
+             patch("melvil.ops.save.generate_mesh_preview") as mock_gen:
+            MockWriter.return_value.write.return_value = _PREVIEW_ASSET_ID
+            result = op.execute(ctx)
+
+        assert result == {"FINISHED"}
+        mock_gen.assert_not_called()
+

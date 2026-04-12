@@ -1,5 +1,5 @@
 import bpy
-from bpy.props import StringProperty
+from bpy.props import BoolProperty, StringProperty
 from bpy.types import AddonPreferences
 
 from .utils import register_class as _safe_register
@@ -29,6 +29,12 @@ class MelvilPreferences(AddonPreferences):
         ),
         subtype="FILE_PATH",
         default="",
+    )
+
+    auto_generate_previews: BoolProperty(
+        name="Auto-generate previews",
+        description="Automatically render a preview image when saving an asset",
+        default=True,
     )
 
     def draw(self, context):

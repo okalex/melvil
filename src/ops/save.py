@@ -31,6 +31,7 @@ from ..db import open_db
 from ..db.assets import update_asset
 from ..db.kits import DEFAULT_KIT_ID, list_kits
 from ..db.tags import add_asset_tag, normalize_tag
+from ..preferences import MelvilPreferences
 
 # Module-level cache keeps kit enum strings alive (Blender C GC requirement).
 _save_kit_enum_cache: list[tuple] = [(DEFAULT_KIT_ID, "General", "")]
@@ -281,7 +282,10 @@ class MELVIL_OT_save_asset(bpy.types.Operator):
 
                 # Generate a preview image for MESH and MATERIAL assets.
                 # Node groups are skipped for now (out of scope).
-                if self.save_type in ("MESH", "MATERIAL"):
+                # Skipped entirely when the user has disabled auto-generation.
+                _prefs = context.preferences.addons.get(MelvilPreferences.bl_idname)
+                _auto_preview = _prefs.preferences.auto_generate_previews if _prefs else True
+                if _auto_preview and self.save_type in ("MESH", "MATERIAL"):
                     previews_dir = Path(library_root) / "previews"
                     if self.save_type == "MESH":
                         abs_preview = generate_mesh_preview(context, obj, asset_id, previews_dir)

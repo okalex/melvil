@@ -126,3 +126,29 @@ class TestDraw:
         call_kwargs = layout.operator_menu_enum.call_args
         text = call_kwargs.kwargs.get("text") or call_kwargs[1].get("text")
         assert text == "All Kits"
+
+    def test_auto_generate_previews_checkbox_drawn_when_prefs_available(self):
+        panel = self._panel()
+        layout = _make_layout()
+        panel.layout = layout
+
+        ctx = _make_context()
+        mock_prefs = MagicMock()
+        ctx.preferences.addons.get.return_value = mock_prefs
+
+        panel.draw(ctx)
+
+        layout.prop.assert_any_call(mock_prefs.preferences, "auto_generate_previews")
+
+    def test_auto_generate_previews_checkbox_not_drawn_when_prefs_absent(self):
+        panel = self._panel()
+        layout = _make_layout()
+        panel.layout = layout
+
+        ctx = _make_context()
+        ctx.preferences.addons.get.return_value = None
+
+        panel.draw(ctx)
+
+        prop_calls = [c for c in layout.prop.call_args_list if "auto_generate_previews" in c[0]]
+        assert len(prop_calls) == 0

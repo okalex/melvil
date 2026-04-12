@@ -16,3 +16,8 @@ def test_has_library_root():
 def test_has_db_path():
     """Must declare a db_path annotation."""
     assert "db_path" in MelvilPreferences.__annotations__
+
+
+def test_has_auto_generate_previews():
+    """Must declare an auto_generate_previews annotation."""
+    assert "auto_generate_previews" in MelvilPreferences.__annotations__
