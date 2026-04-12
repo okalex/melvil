@@ -74,15 +74,31 @@ def _bounding_sphere(obj) -> tuple:
     """
     Return ``(center, radius)`` of *obj*'s bounding sphere in world space.
 
-    Uses ``obj.bound_box`` (8 corners in local space) transformed by
-    ``obj.matrix_world``.  The radius is clamped to at least ``0.001`` to
-    avoid divide-by-zero on empty or degenerate meshes.
+    Computes bounds directly from the object's mesh vertex positions
+    (transformed by ``obj.matrix_world``) rather than the cached
+    ``bound_box`` property, which can be stale for freshly-created mesh
+    objects that have not yet been evaluated by Blender's dependency graph.
+
+    The radius is clamped to at least ``0.001`` to avoid divide-by-zero on
+    empty or degenerate meshes.
     """
     import mathutils  # noqa: PLC0415
 
-    corners = [obj.matrix_world @ mathutils.Vector(c) for c in obj.bound_box]
-    center = sum(corners, mathutils.Vector((0.0, 0.0, 0.0))) / 8
-    radius = max((c - center).length for c in corners)
+    vertices = obj.data.vertices
+    if not vertices:
+        return mathutils.Vector((0.0, 0.0, 0.0)), 0.001
+
+    mat = obj.matrix_world
+    world_verts = [mat @ v.co for v in vertices]
+    xs = [v.x for v in world_verts]
+    ys = [v.y for v in world_verts]
+    zs = [v.z for v in world_verts]
+    center = mathutils.Vector((
+        (max(xs) + min(xs)) / 2,
+        (max(ys) + min(ys)) / 2,
+        (max(zs) + min(zs)) / 2,
+    ))
+    radius = max((v - center).length for v in world_verts)
     return center, max(radius, 0.001)
 
 
@@ -111,18 +127,28 @@ def _set_isometric_camera(camera_obj, center, radius: float) -> None:
 
     Used as a fallback when the save operator is invoked outside a 3D viewport
     (e.g. from the Properties panel) and no ``region_3d`` view matrix is
-    available.
+    available, and also for all material previews.
+
+    Computes the camera position analytically from the Euler rotation rather
+    than reading back ``matrix_world`` after assignment.  Reading
+    ``matrix_world`` immediately after writing it is unreliable for objects
+    that have not yet been evaluated by Blender's dependency graph (unlinked
+    objects), which caused the camera to be placed at the wrong distance,
+    producing a tiny preview.
     """
     import mathutils  # noqa: PLC0415
 
     euler = mathutils.Euler((math.radians(60), 0.0, math.radians(45)), "XYZ")
+    # Camera looks down its local -Z axis; transform (0, 0, -1) into world
+    # space using the rotation matrix derived directly from the Euler angles.
+    cam_forward = euler.to_matrix() @ mathutils.Vector((0.0, 0.0, -1.0))
+
+    half_fov = camera_obj.data.angle / 2.0
+    distance = (radius / math.tan(half_fov)) * _PADDING_FACTOR
+
+    # Set location and rotation_euler directly — no matrix_world round-trip.
+    camera_obj.location = center - cam_forward * distance
     camera_obj.rotation_euler = euler
-    camera_obj.matrix_world = mathutils.Matrix.LocRotScale(
-        mathutils.Vector((0.0, 0.0, 0.0)),
-        euler.to_quaternion(),
-        mathutils.Vector((1.0, 1.0, 1.0)),
-    )
-    _position_camera_zoom_to_fit(camera_obj, center, radius)
 
 
 def _do_render(scene) -> None:
@@ -272,6 +298,15 @@ def _add_user_mesh_asset(scene, blend_path: str, obj_name: str):
         return None
 
     obj = data_to.objects[0]
+    # Reset the world transform so the object is placed at the origin,
+    # matching the behaviour of all built-in primitive helpers.  The
+    # original position from the user's scene is irrelevant for a
+    # material preview and would otherwise cause the bounding-sphere
+    # calculation and camera placement to disagree with where Blender
+    # actually renders the object after depsgraph evaluation.
+    obj.location = (0.0, 0.0, 0.0)
+    obj.rotation_euler = (0.0, 0.0, 0.0)
+    obj.scale = (1.0, 1.0, 1.0)
     scene.collection.objects.link(obj)
     return obj
 
@@ -410,6 +445,7 @@ def generate_mesh_preview(
         cam_obj = bpy.data.objects.new("melvil_preview_cam", cam_data)
 
         center, radius = _bounding_sphere(obj)
+        cam_data.clip_start = max(radius * 1e-3, 1e-6)
 
         if view_matrix is not None:
             cam_obj.matrix_world = view_matrix.inverted()
@@ -499,15 +535,16 @@ def generate_material_preview(
         # --- Key light + ambient world ---
         light_obj, light_data, world = _make_material_preview_lighting(scene)
 
-        # --- Camera at a fixed 45°/30° preview angle, precisely aimed at sphere ---
-        _CAM_POS = (2.6, -2.6, 1.5)
+        # --- Camera zoomed to fit the preview mesh at the canonical 45°/30° angle ---
         cam_data = bpy.data.cameras.new("melvil_preview_cam")
         cam_data.type = "PERSP"
         cam_data.lens = 50
 
         cam_obj = bpy.data.objects.new("melvil_preview_cam", cam_data)
-        cam_obj.location = _CAM_POS
-        _aim_at_origin(cam_obj, _CAM_POS)
+
+        center, radius = _bounding_sphere(sphere_obj)
+        cam_data.clip_start = max(radius * 1e-3, 1e-6)
+        _set_isometric_camera(cam_obj, center, radius)
 
         scene.collection.objects.link(cam_obj)
         scene.camera = cam_obj
