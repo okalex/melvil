@@ -148,3 +148,60 @@ class TestExecute:
 
         # Texture file must still be present.
         assert shared_texture.exists()
+
+    def test_deletes_preview_file_when_present(self, conn, tmp_path):
+        assets_db.insert_asset(conn, **SAMPLE, preview_path="previews/abc.png")
+        preview_file = tmp_path / "previews" / "abc.png"
+        preview_file.parent.mkdir()
+        preview_file.write_bytes(b"PNG")
+
+        op = _make_op(asset_id=SAMPLE["id"])
+
+        with patch("melvil.ops.delete.resolve_library_root", return_value=tmp_path), \
+             patch("melvil.ops.delete.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ops.delete.open_db", _mock_open_db(conn)):
+            result = op.execute(MagicMock())
+
+        assert result == {"FINISHED"}
+        assert not preview_file.exists()
+
+    def test_succeeds_when_preview_file_already_missing(self, conn, tmp_path):
+        assets_db.insert_asset(conn, **SAMPLE, preview_path="previews/abc.png")
+        # Do NOT create the preview file — it's already gone.
+
+        op = _make_op(asset_id=SAMPLE["id"])
+
+        with patch("melvil.ops.delete.resolve_library_root", return_value=tmp_path), \
+             patch("melvil.ops.delete.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ops.delete.open_db", _mock_open_db(conn)):
+            result = op.execute(MagicMock())
+
+        assert result == {"FINISHED"}
+        assert assets_db.get_asset(conn, SAMPLE["id"]) is None
+
+    def test_succeeds_when_no_preview_path(self, conn, tmp_path):
+        """Assets with no preview_path should delete cleanly without touching previews dir."""
+        assets_db.insert_asset(conn, **SAMPLE)  # preview_path defaults to None
+
+        op = _make_op(asset_id=SAMPLE["id"])
+
+        with patch("melvil.ops.delete.resolve_library_root", return_value=tmp_path), \
+             patch("melvil.ops.delete.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ops.delete.open_db", _mock_open_db(conn)):
+            result = op.execute(MagicMock())
+
+        assert result == {"FINISHED"}
+
+    def test_oserror_during_preview_delete_is_non_fatal(self, conn, tmp_path):
+        assets_db.insert_asset(conn, **SAMPLE, preview_path="previews/abc.png")
+
+        op = _make_op(asset_id=SAMPLE["id"])
+
+        with patch("melvil.ops.delete.resolve_library_root", return_value=tmp_path), \
+             patch("melvil.ops.delete.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ops.delete.open_db", _mock_open_db(conn)), \
+             patch("pathlib.Path.unlink", side_effect=OSError("permission denied")):
+            result = op.execute(MagicMock())
+
+        assert result == {"FINISHED"}
+        assert assets_db.get_asset(conn, SAMPLE["id"]) is None

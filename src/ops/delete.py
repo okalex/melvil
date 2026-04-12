@@ -70,6 +70,7 @@ class MELVIL_OT_delete_asset(bpy.types.Operator):
 
                 asset_name = row["name"]
                 blend_path = library_root / row["blend_path"]
+                preview_path = row["preview_path"]
 
                 # Remove the managed .blend file if it still exists.
                 if blend_path.exists():
@@ -78,6 +79,14 @@ class MELVIL_OT_delete_asset(bpy.types.Operator):
                 # Remove the database record.
                 delete_asset(conn, self.asset_id.strip())
                 conn.commit()
+
+                # Remove the preview PNG if one was generated.
+                if preview_path:
+                    abs_preview = library_root / preview_path
+                    try:
+                        abs_preview.unlink(missing_ok=True)
+                    except OSError:
+                        pass  # non-fatal; orphaned preview files are harmless
 
         except Exception as exc:  # noqa: BLE001
             self.report({"ERROR"}, f"Melvil: delete failed — {exc}")
