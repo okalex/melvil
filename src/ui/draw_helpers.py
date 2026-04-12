@@ -17,6 +17,7 @@ from ..db import tags as tags_db
 from ..db.tags import (
     get_asset_tag_memberships as _get_asset_tag_memberships,
     get_asset_tag_names as _get_asset_tag_names,
+    list_tags as _list_tags,
     list_tags_for_asset_ids as _list_tags_for_asset_ids,
 )
 
@@ -220,6 +221,16 @@ def load_tags_for_asset_ids(asset_ids: list[str]):
         return []
     with open_db(resolve_db_path()) as conn:
         return _list_tags_for_asset_ids(conn, asset_ids)
+
+
+def load_all_tags():
+    """Return all tag rows (id, name) ordered by name, regardless of usage.
+
+    Raises on configuration or database errors — caller decides how to surface
+    the failure in the UI.
+    """
+    with open_db(resolve_db_path()) as conn:
+        return _list_tags(conn)
 
 
 def draw_tag_filter_pills(

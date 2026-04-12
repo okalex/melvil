@@ -29,11 +29,11 @@ def _mock_open_db(conn):
     return _cm
 
 
-def _make_op(name=""):
+def _make_op(names=""):
     from melvil.ops.tag_create import MELVIL_OT_tag_create
 
     op = MELVIL_OT_tag_create()
-    op.name = name
+    op.names = names
     return op
 
 
@@ -79,11 +79,11 @@ class TestInvoke:
         ctx.window_manager.invoke_props_dialog.assert_called_once_with(op)
         assert result == {"RUNNING_MODAL"}
 
-    def test_invoke_resets_name_to_empty(self):
-        op = _make_op(name="leftover")
+    def test_invoke_resets_names_to_empty(self):
+        op = _make_op(names="leftover")
         ctx = MagicMock()
         op.invoke(ctx, MagicMock())
-        assert op.name == ""
+        assert op.names == ""
 
 
 # ---------------------------------------------------------------------------
@@ -93,7 +93,7 @@ class TestInvoke:
 
 class TestExecute:
     def test_creates_new_tag(self, conn):
-        op = _make_op(name="metal")
+        op = _make_op(names="metal")
 
         with patch("melvil.ops.tag_create.resolve_db_path", return_value=":memory:"), \
              patch("melvil.ops.tag_create.open_db", _mock_open_db(conn)):
@@ -103,8 +103,21 @@ class TestExecute:
         row = tags_db.get_tag_by_name(conn, "metal")
         assert row is not None
 
+    def test_creates_multiple_tags_from_comma_separated_input(self, conn):
+        op = _make_op(names="metal, plastic, wood")
+
+        with patch("melvil.ops.tag_create.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ops.tag_create.open_db", _mock_open_db(conn)):
+            result = op.execute(MagicMock())
+
+        assert result == {"FINISHED"}
+        assert tags_db.get_tag_by_name(conn, "metal") is not None
+        assert tags_db.get_tag_by_name(conn, "plastic") is not None
+        assert tags_db.get_tag_by_name(conn, "wood") is not None
+        assert len(tags_db.list_tags(conn)) == 3
+
     def test_normalizes_tag_name(self, conn):
-        op = _make_op(name="  Hard Surface  ")
+        op = _make_op(names="  Hard Surface  ")
 
         with patch("melvil.ops.tag_create.resolve_db_path", return_value=":memory:"), \
              patch("melvil.ops.tag_create.open_db", _mock_open_db(conn)):
@@ -114,7 +127,7 @@ class TestExecute:
         assert row is not None
 
     def test_empty_name_returns_cancelled(self, conn):
-        op = _make_op(name="   ")
+        op = _make_op(names="   ")
 
         with patch("melvil.ops.tag_create.resolve_db_path", return_value=":memory:"), \
              patch("melvil.ops.tag_create.open_db", _mock_open_db(conn)):
@@ -126,7 +139,7 @@ class TestExecute:
     def test_existing_tag_name_is_idempotent(self, conn):
         tags_db.get_or_create_tag(conn, "metal")
         conn.commit()
-        op = _make_op(name="metal")
+        op = _make_op(names="metal")
 
         with patch("melvil.ops.tag_create.resolve_db_path", return_value=":memory:"), \
              patch("melvil.ops.tag_create.open_db", _mock_open_db(conn)):
@@ -138,7 +151,7 @@ class TestExecute:
     def test_returns_cancelled_on_library_not_configured(self):
         from melvil.core.library import LibraryNotConfiguredError
 
-        op = _make_op(name="metal")
+        op = _make_op(names="metal")
         with patch("melvil.ops.tag_create.resolve_db_path",
                    side_effect=LibraryNotConfiguredError("not set")):
             result = op.execute(MagicMock())
@@ -146,7 +159,7 @@ class TestExecute:
         assert result == {"CANCELLED"}
 
     def test_returns_cancelled_on_db_error(self):
-        op = _make_op(name="metal")
+        op = _make_op(names="metal")
         with patch("melvil.ops.tag_create.resolve_db_path", return_value=":memory:"), \
              patch("melvil.ops.tag_create.open_db", side_effect=Exception("boom")):
             result = op.execute(MagicMock())

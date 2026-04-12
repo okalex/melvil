@@ -34,6 +34,7 @@ from ..ui.draw_helpers import (
     draw_asset_section,
     draw_tag_management_section,
     filter_assets,
+    load_all_tags,
     load_asset,
     load_asset_tag_memberships,
     load_asset_tag_names,
@@ -181,10 +182,10 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
         layout.separator()
 
         # Three-column split: left filters | asset list | asset details.
-        outer_split = layout.split(factor=0.2)
+        outer_split = layout.split(factor=0.24)
         left = outer_split.column()
         rest_col = outer_split.column()
-        inner_split = rest_col.split(factor=0.4)
+        inner_split = rest_col.split(factor=0.5)
         middle = inner_split.column()
         right = inner_split.column()
 
@@ -229,7 +230,7 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
             # query, then use them for pill derivation and tag filtering.
             all_pre_ids = [a["id"] for assets in pre_tag.values() for a in assets]
             memberships = load_asset_tag_memberships(all_pre_ids)
-            visible_tags = load_tags_for_asset_ids(all_pre_ids)
+            visible_tags = load_all_tags()
 
             # Apply the active tag filter (AND semantics).
             if active_tag_ids:
@@ -292,6 +293,13 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
         # Tag filter list — shown below the kit selector.
         if visible_tags:
             left.separator()
+            tag_header = left.row(align=True)
+            tag_header.label(text="Tags")
+            rename_tag_sub = tag_header.row()
+            rename_tag_sub.enabled = bool(active_tag_ids)
+            rename_tag_op = rename_tag_sub.operator("melvil.tag_rename", text="", icon="GREASEPENCIL")
+            rename_tag_op.tag_id = active_tag_ids[0] if active_tag_ids else ""
+
             active_set = set(active_tag_ids)
             wm.melvil_filter_tags.clear()
             for _ftag in visible_tags:
@@ -304,12 +312,19 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
                 (i for i, t in enumerate(visible_tags) if t["id"] == active_id),
                 -1,
             )
-            left.template_list(
+            tag_list_row = left.row()
+            tag_list_row.template_list(
                 "MELVIL_UL_filter_tags", "",
                 wm, "melvil_filter_tags",
                 wm, "melvil_filter_tags_index",
                 rows=min(len(visible_tags), 8),
             )
+            tag_side_col = tag_list_row.column(align=True)
+            tag_side_col.operator("melvil.tag_create", text="", icon="ADD")
+            delete_col = tag_side_col.column()
+            delete_col.enabled = bool(active_tag_ids)
+            delete_op = delete_col.operator("melvil.tag_delete", text="", icon="REMOVE")
+            delete_op.tag_id = active_tag_ids[0] if active_tag_ids else ""
 
         left.separator()
 

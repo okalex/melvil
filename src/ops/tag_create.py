@@ -11,17 +11,16 @@ from ..db.tags import get_or_create_tag, normalize_tag
 
 
 class MELVIL_OT_tag_create(bpy.types.Operator):
-    """Create a new tag in the library"""
+    """Create one or more new tags in the library"""
 
     bl_idname = "melvil.tag_create"
     bl_label = "New Tag"
     bl_options = {"REGISTER"}
 
-    name: StringProperty(
-        name="Name",
-        description="Name for the new tag",
+    names: StringProperty(
+        name="Tags",
+        description="Comma-separated tag names to create",
         default="",
-        maxlen=128,
     )
 
     @classmethod
@@ -29,21 +28,25 @@ class MELVIL_OT_tag_create(bpy.types.Operator):
         return True
 
     def invoke(self, context, event):
-        self.name = ""
+        self.names = ""
         return context.window_manager.invoke_props_dialog(self)
 
     def draw(self, context):
-        self.layout.prop(self, "name")
+        self.layout.prop(self, "names")
 
     def execute(self, context):
-        normalized = normalize_tag(self.name)
+        raw_names = [t for t in (n.strip() for n in self.names.split(",")) if t]
+        normalized = [normalize_tag(n) for n in raw_names]
+        normalized = [n for n in normalized if n]
+
         if not normalized:
             self.report({"ERROR"}, "Melvil: tag name cannot be empty.")
             return {"CANCELLED"}
 
         try:
             with open_db(resolve_db_path()) as conn:
-                get_or_create_tag(conn, normalized)
+                for name in normalized:
+                    get_or_create_tag(conn, name)
                 conn.commit()
         except LibraryNotConfiguredError as exc:
             self.report({"ERROR"}, str(exc))
@@ -52,5 +55,5 @@ class MELVIL_OT_tag_create(bpy.types.Operator):
             self.report({"ERROR"}, f"Melvil: could not create tag — {exc}")
             return {"CANCELLED"}
 
-        self.report({"INFO"}, f"Melvil: tag '{normalized}' created.")
+        self.report({"INFO"}, f"Melvil: created {len(normalized)} tag(s).")
         return {"FINISHED"}
