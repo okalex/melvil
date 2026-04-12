@@ -520,7 +520,7 @@ class TestDrawTagFilterPills:
             "melvil.ops.open_browser.load_tags_for_asset_ids": tags if tags is not None else [],
         }
 
-    def test_pills_not_rendered_when_no_visible_tags(self):
+    def test_tag_list_not_rendered_when_no_visible_tags(self):
         op, left_col, _mid, _right = self._make_op_with_layout()
         ctx = self._make_ctx()
 
@@ -528,13 +528,12 @@ class TestDrawTagFilterPills:
              patch("melvil.ops.open_browser.load_kits", return_value=[]), \
              patch("melvil.ops.open_browser.load_asset_tag_memberships", return_value={}), \
              patch("melvil.ops.open_browser.load_tags_for_asset_ids", return_value=[]), \
-             patch("melvil.ops.open_browser.draw_asset_section"), \
-             patch("melvil.ops.open_browser.draw_tag_filter_pills") as mock_pills:
+             patch("melvil.ops.open_browser.draw_asset_section"):
             op.draw(ctx)
 
-        mock_pills.assert_not_called()
+        left_col.template_list.assert_not_called()
 
-    def test_pills_rendered_when_visible_tags_exist(self):
+    def test_tag_list_rendered_when_visible_tags_exist(self):
         op, left_col, _mid, _right = self._make_op_with_layout()
         op.type_filter = "MATERIAL"
         ctx = self._make_ctx()
@@ -546,15 +545,12 @@ class TestDrawTagFilterPills:
              patch("melvil.ops.open_browser.load_asset_tag_memberships", return_value={}), \
              patch("melvil.ops.open_browser.load_tags_for_asset_ids",
                    return_value=[_TAG_METAL]), \
-             patch("melvil.ops.open_browser.draw_asset_section"), \
-             patch("melvil.ops.open_browser.draw_tag_filter_pills") as mock_pills:
+             patch("melvil.ops.open_browser.draw_asset_section"):
             op.draw(ctx)
 
-        mock_pills.assert_called_once()
-        _layout_arg, tags_arg, active_arg = mock_pills.call_args[0]
-        assert tags_arg == [_TAG_METAL]
+        left_col.template_list.assert_called_once()
 
-    def test_pills_receive_active_filters_from_wm(self):
+    def test_filter_tags_collection_populated_from_wm_filters(self):
         op, left_col, _mid, _right = self._make_op_with_layout()
         op.type_filter = "MATERIAL"
         ctx = self._make_ctx(active_filters="aaaa-0001")
@@ -563,12 +559,10 @@ class TestDrawTagFilterPills:
              patch("melvil.ops.open_browser.load_kits", return_value=[]), \
              patch("melvil.ops.open_browser.load_asset_tag_memberships", return_value={}), \
              patch("melvil.ops.open_browser.load_tags_for_asset_ids", return_value=[_TAG_METAL]), \
-             patch("melvil.ops.open_browser.draw_asset_section"), \
-             patch("melvil.ops.open_browser.draw_tag_filter_pills") as mock_pills:
+             patch("melvil.ops.open_browser.draw_asset_section"):
             op.draw(ctx)
 
-        _layout_arg, _tags_arg, active_arg = mock_pills.call_args[0]
-        assert "aaaa-0001" in active_arg
+        ctx.window_manager.melvil_filter_tags.clear.assert_called_once()
 
     def test_tag_filter_applied_to_sections(self):
         """Assets without active tags should be excluded from the drawn sections."""
@@ -587,8 +581,7 @@ class TestDrawTagFilterPills:
              patch("melvil.ops.open_browser.load_asset_tag_memberships",
                    return_value=memberships), \
              patch("melvil.ops.open_browser.load_tags_for_asset_ids", return_value=[_TAG_METAL]), \
-             patch("melvil.ops.open_browser.draw_asset_section") as mock_draw, \
-             patch("melvil.ops.open_browser.draw_tag_filter_pills"):
+             patch("melvil.ops.open_browser.draw_asset_section") as mock_draw:
             op.draw(ctx)
 
         drawn_assets = mock_draw.call_args[0][3]
@@ -607,8 +600,7 @@ class TestDrawTagFilterPills:
              patch("melvil.ops.open_browser.load_kits", return_value=[]), \
              patch("melvil.ops.open_browser.load_asset_tag_memberships", return_value={}), \
              patch("melvil.ops.open_browser.load_tags_for_asset_ids", return_value=[]), \
-             patch("melvil.ops.open_browser.draw_asset_section") as mock_draw, \
-             patch("melvil.ops.open_browser.draw_tag_filter_pills"):
+             patch("melvil.ops.open_browser.draw_asset_section") as mock_draw:
             op.draw(ctx)
 
         drawn_assets = mock_draw.call_args[0][3]
@@ -626,8 +618,7 @@ class TestDrawTagFilterPills:
              patch("melvil.ops.open_browser.load_asset_tag_memberships", return_value={}), \
              patch("melvil.ops.open_browser.load_tags_for_asset_ids",
                    return_value=[]) as mock_load_tags, \
-             patch("melvil.ops.open_browser.draw_asset_section"), \
-             patch("melvil.ops.open_browser.draw_tag_filter_pills"):
+             patch("melvil.ops.open_browser.draw_asset_section"):
             op.draw(ctx)
 
         mock_load_tags.assert_called_once_with(["unique-id-123"])
@@ -644,8 +635,7 @@ class TestDrawTagFilterPills:
              patch("melvil.ops.open_browser.load_asset_tag_memberships", return_value={}), \
              patch("melvil.ops.open_browser.load_tags_for_asset_ids",
                    return_value=[_TAG_METAL]), \
-             patch("melvil.ops.open_browser.draw_asset_section"), \
-             patch("melvil.ops.open_browser.draw_tag_filter_pills"):
+             patch("melvil.ops.open_browser.draw_asset_section"):
             op.draw(ctx)
 
         left_col.separator.assert_called()
@@ -695,8 +685,7 @@ class TestTagNameSearch:
                    return_value={}) as mock_names, \
              patch("melvil.ops.open_browser.load_asset_tag_memberships", return_value={}), \
              patch("melvil.ops.open_browser.load_tags_for_asset_ids", return_value=[]), \
-             patch("melvil.ops.open_browser.draw_asset_section"), \
-             patch("melvil.ops.open_browser.draw_tag_filter_pills"):
+             patch("melvil.ops.open_browser.draw_asset_section"):
             op.draw(ctx)
 
         mock_names.assert_called_once_with(["a1"])
@@ -709,8 +698,7 @@ class TestTagNameSearch:
         with patch("melvil.ops.open_browser.load_assets", return_value=[]), \
              patch("melvil.ops.open_browser.load_kits", return_value=[]), \
              patch("melvil.ops.open_browser.load_asset_tag_names") as mock_names, \
-             patch("melvil.ops.open_browser.draw_asset_section"), \
-             patch("melvil.ops.open_browser.draw_tag_filter_pills"):
+             patch("melvil.ops.open_browser.draw_asset_section"):
             op.draw(ctx)
 
         mock_names.assert_not_called()
@@ -729,8 +717,7 @@ class TestTagNameSearch:
                    return_value={"a1": ["metal"]}), \
              patch("melvil.ops.open_browser.load_asset_tag_memberships", return_value={}), \
              patch("melvil.ops.open_browser.load_tags_for_asset_ids", return_value=[]), \
-             patch("melvil.ops.open_browser.draw_asset_section") as mock_draw, \
-             patch("melvil.ops.open_browser.draw_tag_filter_pills"):
+             patch("melvil.ops.open_browser.draw_asset_section") as mock_draw:
             op.draw(ctx)
 
         drawn_assets = mock_draw.call_args[0][3]
@@ -749,8 +736,7 @@ class TestTagNameSearch:
                    return_value={"a1": ["transparent"]}), \
              patch("melvil.ops.open_browser.load_asset_tag_memberships", return_value={}), \
              patch("melvil.ops.open_browser.load_tags_for_asset_ids", return_value=[]), \
-             patch("melvil.ops.open_browser.draw_asset_section") as mock_draw, \
-             patch("melvil.ops.open_browser.draw_tag_filter_pills"):
+             patch("melvil.ops.open_browser.draw_asset_section") as mock_draw:
             op.draw(ctx)
 
         drawn_assets = mock_draw.call_args[0][3]

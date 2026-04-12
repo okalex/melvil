@@ -25,8 +25,24 @@ melvil_active_tag_filters : str
 from __future__ import annotations
 
 import bpy
-from bpy.props import CollectionProperty, IntProperty, StringProperty
+from bpy.props import BoolProperty, CollectionProperty, IntProperty, StringProperty
 from bpy.types import PropertyGroup
+
+
+class MelvilFilterTagItem(PropertyGroup):
+    """A single filter-tag entry for the browser left-column tag list."""
+    tag_id: StringProperty(
+        name="Tag ID",
+        description="UUID of the tag",
+        default="",
+        options={"HIDDEN"},
+    )
+    is_active: BoolProperty(
+        name="Active",
+        description="Whether this tag is currently used as a filter",
+        default=False,
+        options={"HIDDEN"},
+    )
 
 
 class MelvilTagItem(PropertyGroup):
@@ -41,6 +57,7 @@ class MelvilTagItem(PropertyGroup):
 
 
 def register() -> None:
+    bpy.utils.register_class(MelvilFilterTagItem)
     bpy.utils.register_class(MelvilTagItem)
     bpy.types.Scene.melvil_active_kit_id = StringProperty(
         name="Active Kit",
@@ -82,6 +99,18 @@ def register() -> None:
         default=0,
         options={"HIDDEN", "SKIP_SAVE"},
     )
+    bpy.types.WindowManager.melvil_filter_tags = CollectionProperty(
+        name="Filter Tags",
+        description="Visible tags shown in the browser left-column filter list",
+        type=MelvilFilterTagItem,
+        options={"HIDDEN", "SKIP_SAVE"},
+    )
+    bpy.types.WindowManager.melvil_filter_tags_index = IntProperty(
+        name="Filter Tags Index",
+        default=-1,
+        min=-1,
+        options={"HIDDEN", "SKIP_SAVE"},
+    )
 
 
 def unregister() -> None:
@@ -92,4 +121,7 @@ def unregister() -> None:
     del bpy.types.WindowManager.melvil_selected_asset_id
     del bpy.types.WindowManager.melvil_asset_tags
     del bpy.types.WindowManager.melvil_asset_tags_index
+    del bpy.types.WindowManager.melvil_filter_tags
+    del bpy.types.WindowManager.melvil_filter_tags_index
     bpy.utils.unregister_class(MelvilTagItem)
+    bpy.utils.unregister_class(MelvilFilterTagItem)

@@ -32,7 +32,6 @@ from .tag_filter_toggle import get_active_tag_filters
 from ..ui.draw_helpers import (
     draw_asset_details,
     draw_asset_section,
-    draw_tag_filter_pills,
     draw_tag_management_section,
     filter_assets,
     load_asset,
@@ -290,10 +289,27 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
 
         left.prop(self, "kit_filter", expand=True)
 
-        # Tag filter pills — shown below the kit selector.
+        # Tag filter list — shown below the kit selector.
         if visible_tags:
             left.separator()
-            draw_tag_filter_pills(left, visible_tags, active_tag_ids)
+            active_set = set(active_tag_ids)
+            wm.melvil_filter_tags.clear()
+            for _ftag in visible_tags:
+                _item = wm.melvil_filter_tags.add()
+                _item.name = _ftag["name"]
+                _item.tag_id = _ftag["id"]
+                _item.is_active = _ftag["id"] in active_set
+            active_id = active_tag_ids[0] if active_tag_ids else ""
+            wm.melvil_filter_tags_index = next(
+                (i for i, t in enumerate(visible_tags) if t["id"] == active_id),
+                -1,
+            )
+            left.template_list(
+                "MELVIL_UL_filter_tags", "",
+                wm, "melvil_filter_tags",
+                wm, "melvil_filter_tags_index",
+                rows=min(len(visible_tags), 8),
+            )
 
         left.separator()
 

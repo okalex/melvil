@@ -31,6 +31,24 @@ class MELVIL_UL_asset_tags(bpy.types.UIList):
             layout.label(text="", icon="TAG")
 
 
+class MELVIL_UL_filter_tags(bpy.types.UIList):
+    """UIList for the browser left-column tag filter list.
+
+    Each item is rendered as a clickable toggle button so clicking
+    a tag row invokes ``melvil.tag_filter_toggle`` for that tag.
+    """
+
+    def draw_item(self, context, layout, data, item, icon, active_data, active_property):
+        if self.layout_type in {"DEFAULT", "COMPACT"}:
+            layout.alignment = "LEFT"
+            op = layout.operator(
+                "melvil.tag_filter_set",
+                text=item.name,
+                emboss=False,
+            )
+            op.tag_id = item.tag_id
+
+
 _TYPE_LABELS: dict[str, str] = {
     "MATERIAL": "Material",
     "MESH": "Mesh",
