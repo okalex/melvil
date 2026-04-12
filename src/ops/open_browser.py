@@ -182,10 +182,10 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
         layout.separator()
 
         # Three-column split: left filters | asset list | asset details.
-        outer_split = layout.split(factor=0.22)
+        outer_split = layout.split(factor=0.2)
         left = outer_split.column()
         rest_col = outer_split.column()
-        inner_split = rest_col.split(factor=0.48)
+        inner_split = rest_col.split(factor=0.4)
         middle = inner_split.column()
         right = inner_split.column()
 
@@ -334,17 +334,18 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
         # Right column — asset detail panel
         # ------------------------------------------------------------------
 
+        right_box = right.box()
         if selected_asset is not None:
             draw_asset_details(
-                right,
+                right_box,
                 selected_asset,
                 selected_tags,
                 selected_kit_name,
                 active_tag_ids,
             )
         else:
-            right.label(text="Select an asset", icon="INFO")
-            right.label(text="to view its details.")
+            right_box.label(text="Select an asset", icon="INFO")
+            right_box.label(text="to view its details.")
 
 
 # ---------------------------------------------------------------------------

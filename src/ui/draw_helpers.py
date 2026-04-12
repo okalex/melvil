@@ -70,6 +70,7 @@ def draw_asset_section(
 
     if not assets:
         box.label(text=f"No {title.lower()} saved yet")
+        layout.separator()
         return
 
     for asset in assets:
@@ -313,20 +314,26 @@ def draw_asset_details(
     active_tag_ids:
         UUIDs of tags currently active as filters (renders pills depressed).
     """
-    layout.label(text=asset["name"], icon="INFO")
+    name_row = layout.row(align=True)
+    name_row.label(text=asset["name"], icon="INFO")
+    rename_op = name_row.operator("melvil.asset_rename", text="", icon="GREASEPENCIL")
+    rename_op.asset_id = asset["id"]
     layout.separator()
 
     col = layout.column(align=False)
 
     # Type
-    type_row = col.row()
-    type_row.label(text="Type:")
-    type_row.label(text=_TYPE_LABELS.get(asset["type"], asset["type"]))
+    type_split = col.row().split(factor=0.15)
+    type_split.label(text="Type:")
+    type_split.label(text=_TYPE_LABELS.get(asset["type"], asset["type"]))
 
     # Kit
-    kit_row = col.row()
-    kit_row.label(text="Kit:")
-    kit_row.label(text=kit_name)
+    kit_row = col.row(align=True)
+    kit_split = kit_row.split(factor=0.15)
+    kit_split.label(text="Kit:")
+    kit_split.label(text=kit_name)
+    kit_op = kit_row.operator("melvil.asset_set_kit", text="", icon="GREASEPENCIL")
+    kit_op.asset_id = asset["id"]
 
     col.separator()
 
@@ -350,15 +357,9 @@ def draw_asset_details(
     col.separator()
 
     # Action buttons
-    rename_op = col.operator("melvil.asset_rename", text="Rename", icon="GREASEPENCIL")
-    rename_op.asset_id = asset["id"]
-
     edit_tags_op = col.operator("melvil.asset_edit_tags", text="Edit Tags", icon="TAG")
     edit_tags_op.asset_id = asset["id"]
     edit_tags_op.asset_name = asset["name"]
-
-    kit_op = col.operator("melvil.asset_set_kit", text="Move to Kit", icon="FOLDER_REDIRECT")
-    kit_op.asset_id = asset["id"]
 
     col.separator()
 
