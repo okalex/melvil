@@ -18,7 +18,6 @@ def _make_op():
     op.type_filter = "ALL"
     op.kit_filter = "ALL_KITS"
     op.search_query = ""
-    op.show_manage_tags = False
     return op
 
 
@@ -132,13 +131,6 @@ class TestInvoke:
         op.invoke(ctx, MagicMock())
         assert op.search_query == ""
 
-    def test_invoke_resets_show_manage_tags_to_false(self):
-        op = _make_op()
-        op.show_manage_tags = True
-        ctx = _make_invoke_ctx()
-        op.invoke(ctx, MagicMock())
-        assert op.show_manage_tags is False
-
     def test_invoke_warps_cursor_to_viewport_top_left(self):
         op = _make_op()
         # tools: x=35, width=45, margin=5 → popup_x=85
@@ -195,7 +187,6 @@ class TestDraw:
     def _make_ctx(self):
         ctx = MagicMock()
         ctx.window_manager.melvil_active_tag_filters = ""
-        ctx.window_manager.melvil_tag_sort = "NAME"
         ctx.window_manager.melvil_selected_asset_id = ""
         return ctx
 
@@ -367,119 +358,6 @@ class TestDraw:
 
 
 # ---------------------------------------------------------------------------
-# draw() — tag management section
-# ---------------------------------------------------------------------------
-
-
-class TestDrawTagManagement:
-    def _make_ctx(self):
-        ctx = MagicMock()
-        ctx.window_manager.melvil_active_tag_filters = ""
-        ctx.window_manager.melvil_tag_sort = "NAME"
-        ctx.window_manager.melvil_selected_asset_id = ""
-        return ctx
-
-    def _make_op_with_layout(self):
-        op = _make_op()
-        op.show_manage_tags = False
-        layout = MagicMock()
-        left_col = MagicMock()
-        rest_col = MagicMock()
-        middle_col = MagicMock()
-        right_col = MagicMock()
-        outer_split = MagicMock()
-        inner_split = MagicMock()
-        outer_split.column.side_effect = [left_col, rest_col]
-        inner_split.column.side_effect = [middle_col, right_col]
-        rest_col.split.return_value = inner_split
-        layout.split.return_value = outer_split
-        op.layout = layout
-        return op, left_col, middle_col, right_col
-
-    def test_show_manage_tags_prop_exists(self):
-        """BoolProperty annotation should be declared on the class."""
-        from melvil.ops.open_browser import MELVIL_OT_open_browser
-
-        assert "show_manage_tags" in MELVIL_OT_open_browser.__annotations__
-
-    def test_manage_tags_toggle_rendered_on_left_column(self):
-        op, left_col, _mid, _right = self._make_op_with_layout()
-        ctx = self._make_ctx()
-
-        with patch("melvil.ops.open_browser.load_assets", return_value=[]), \
-             patch("melvil.ops.open_browser.load_kits", return_value=[]), \
-             patch("melvil.ops.open_browser.draw_asset_section"):
-            op.draw(ctx)
-
-        prop_calls = [c for c in left_col.prop.call_args_list
-                      if len(c[0]) > 1 and c[0][1] == "show_manage_tags"]
-        assert prop_calls, "Expected left_col.prop(op, 'show_manage_tags', ...) call"
-
-    def test_tag_section_hidden_when_show_manage_tags_false(self):
-        op, left_col, _mid, _right = self._make_op_with_layout()
-        op.show_manage_tags = False
-        ctx = self._make_ctx()
-
-        with patch("melvil.ops.open_browser.load_assets", return_value=[]), \
-             patch("melvil.ops.open_browser.load_kits", return_value=[]), \
-             patch("melvil.ops.open_browser.draw_asset_section"), \
-             patch("melvil.ops.open_browser.draw_tag_management_section") as mock_dts:
-            op.draw(ctx)
-
-        mock_dts.assert_not_called()
-
-    def test_tag_section_drawn_when_show_manage_tags_true(self):
-        op, left_col, _mid, _right = self._make_op_with_layout()
-        op.show_manage_tags = True
-        ctx = self._make_ctx()
-
-        fake_tags = [{"id": "t1", "name": "metal", "usage_count": 1}]
-
-        with patch("melvil.ops.open_browser.load_assets", return_value=[]), \
-             patch("melvil.ops.open_browser.load_kits", return_value=[]), \
-             patch("melvil.ops.open_browser.load_tags_with_usage", return_value=fake_tags), \
-             patch("melvil.ops.open_browser.draw_asset_section"), \
-             patch("melvil.ops.open_browser.draw_tag_management_section") as mock_dts:
-            op.draw(ctx)
-
-        mock_dts.assert_called_once()
-        call_layout, call_tags, call_sort = mock_dts.call_args[0]
-        assert call_tags == fake_tags
-
-    def test_tag_section_passes_sort_from_wm(self):
-        op, left_col, _mid, _right = self._make_op_with_layout()
-        op.show_manage_tags = True
-        ctx = self._make_ctx()
-        ctx.window_manager.melvil_tag_sort = "USAGE"
-
-        with patch("melvil.ops.open_browser.load_assets", return_value=[]), \
-             patch("melvil.ops.open_browser.load_kits", return_value=[]), \
-             patch("melvil.ops.open_browser.load_tags_with_usage", return_value=[]), \
-             patch("melvil.ops.open_browser.draw_asset_section"), \
-             patch("melvil.ops.open_browser.draw_tag_management_section") as mock_dts:
-            op.draw(ctx)
-
-        _layout, _tags, sort_by = mock_dts.call_args[0]
-        assert sort_by == "USAGE"
-
-    def test_tag_section_shows_error_on_load_failure(self):
-        op, left_col, _mid, _right = self._make_op_with_layout()
-        op.show_manage_tags = True
-        ctx = self._make_ctx()
-
-        with patch("melvil.ops.open_browser.load_assets", return_value=[]), \
-             patch("melvil.ops.open_browser.load_kits", return_value=[]), \
-             patch("melvil.ops.open_browser.load_tags_with_usage",
-                   side_effect=Exception("db error")), \
-             patch("melvil.ops.open_browser.draw_asset_section"):
-            op.draw(ctx)
-
-        error_calls = [c for c in left_col.label.call_args_list
-                       if c[1].get("icon") == "ERROR"]
-        assert error_calls
-
-
-# ---------------------------------------------------------------------------
 # draw() — tag filter pills
 # ---------------------------------------------------------------------------
 
@@ -491,7 +369,6 @@ class TestDrawTagFilterPills:
     def _make_ctx(self, active_filters=""):
         ctx = MagicMock()
         ctx.window_manager.melvil_active_tag_filters = active_filters
-        ctx.window_manager.melvil_tag_sort = "NAME"
         ctx.window_manager.melvil_selected_asset_id = ""
         return ctx
 
@@ -652,7 +529,6 @@ class TestTagNameSearch:
     def _make_ctx(self, query=""):
         ctx = MagicMock()
         ctx.window_manager.melvil_active_tag_filters = ""
-        ctx.window_manager.melvil_tag_sort = "NAME"
         ctx.window_manager.melvil_selected_asset_id = ""
         return ctx
 

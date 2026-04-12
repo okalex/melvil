@@ -177,16 +177,6 @@ def filter_assets(assets, query: str, asset_tag_names: dict | None = None):
     return result
 
 
-def load_tags_with_usage():
-    """Return all tags with usage counts from the configured library DB.
-
-    Raises on configuration or database errors — callers decide how to surface
-    the failure in the UI.
-    """
-    with open_db(resolve_db_path()) as conn:
-        return tags_db.list_tags_with_usage(conn)
-
-
 def load_asset_tag_memberships(asset_ids: list[str]) -> dict[str, set]:
     """Return ``{asset_id: {tag_id, ...}}`` for *asset_ids*.
 
@@ -231,107 +221,6 @@ def load_all_tags():
     """
     with open_db(resolve_db_path()) as conn:
         return _list_tags(conn)
-
-
-def draw_tag_filter_pills(
-    layout,
-    visible_tags,
-    active_tag_ids: list[str],
-) -> None:
-    """Draw the tag filter pill row and, when filters are active, a clear button.
-
-    Parameters
-    ----------
-    layout:
-        The ``bpy.types.UILayout`` to draw into.
-    visible_tags:
-        Sequence of tag rows with ``"id"`` and ``"name"`` keys — only the tags
-        present on assets currently visible in the browser.
-    active_tag_ids:
-        UUIDs of tags currently used as filters (rendered depressed).
-    """
-    if not visible_tags:
-        return
-
-    row = layout.row(align=True)
-    active_set = set(active_tag_ids)
-    for tag in visible_tags:  # already sorted by name from DB query
-        btn = row.operator(
-            "melvil.tag_filter_toggle",
-            text=tag["name"],
-            depress=(tag["id"] in active_set),
-        )
-        btn.tag_id = tag["id"]
-
-    if active_tag_ids:
-        layout.operator("melvil.tag_filter_clear", text="Clear filters", icon="X")
-
-
-def draw_tag_management_section(layout, tags_with_usage, sort_by: str = "NAME") -> None:
-    """Draw the tag management inline section.
-
-    Parameters
-    ----------
-    layout:
-        The ``bpy.types.UILayout`` to draw into.
-    tags_with_usage:
-        Sequence of tag rows, each with ``"id"``, ``"name"``, and
-        ``"usage_count"`` keys.
-    sort_by:
-        ``"NAME"`` (alphabetical) or ``"USAGE"`` (descending usage count,
-        then alphabetical).
-    """
-    # Header row: sort toggles on the left, New Tag button on the right.
-    header_row = layout.row(align=False)
-    sort_row = header_row.row(align=True)
-    sort_row.label(text="Sort:")
-    name_btn = sort_row.operator(
-        "melvil.tag_sort_toggle",
-        text="Name",
-        depress=(sort_by == "NAME"),
-    )
-    name_btn.sort_by = "NAME"
-    usage_btn = sort_row.operator(
-        "melvil.tag_sort_toggle",
-        text="Usage",
-        depress=(sort_by == "USAGE"),
-    )
-    usage_btn.sort_by = "USAGE"
-    header_row.operator("melvil.tag_create", text="", icon="ADD")
-
-    # Sort the tags.
-    if sort_by == "USAGE":
-        sorted_tags = sorted(tags_with_usage, key=lambda t: (-t["usage_count"], t["name"]))
-    else:
-        sorted_tags = sorted(tags_with_usage, key=lambda t: t["name"])
-
-    box = layout.box()
-    if not sorted_tags:
-        box.label(text="No tags in library")
-    else:
-        for tag in sorted_tags:
-            row = box.row(align=True)
-
-            # Name column — visually muted (disabled) when usage is zero.
-            name_col = row.column()
-            name_col.enabled = tag["usage_count"] > 0
-            name_col.label(text=tag["name"])
-
-            row.label(text=f"({tag['usage_count']})")
-
-            rename_op = row.operator("melvil.tag_rename", text="", icon="GREASEPENCIL")
-            rename_op.tag_id = tag["id"]
-
-            del_op = row.operator("melvil.tag_delete", text="", icon="TRASH")
-            del_op.tag_id = tag["id"]
-
-    # "Delete Unused Tags" button — only shown when at least one unused tag exists.
-    if any(t["usage_count"] == 0 for t in tags_with_usage):
-        layout.operator(
-            "melvil.tag_delete_unused",
-            text="Delete Unused Tags",
-            icon="CANCEL",
-        )
 
 
 def draw_asset_details(

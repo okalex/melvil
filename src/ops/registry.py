@@ -30,7 +30,6 @@ from .tag_delete_unused import MELVIL_OT_tag_delete_unused
 from .tag_filter_clear import MELVIL_OT_tag_filter_clear
 from .tag_filter_set import MELVIL_OT_tag_filter_set
 from .tag_filter_toggle import MELVIL_OT_tag_filter_toggle
-from .tag_sort_toggle import MELVIL_OT_tag_sort_toggle
 from .tag_remove import MELVIL_OT_tag_remove
 from .tag_rename import MELVIL_OT_tag_rename
 from .toggle_sidebar import MELVIL_OT_toggle_sidebar
@@ -59,7 +58,6 @@ _classes = (
     MELVIL_OT_tag_filter_clear,
     MELVIL_OT_tag_filter_set,
     MELVIL_OT_tag_filter_toggle,
-    MELVIL_OT_tag_sort_toggle,
     MELVIL_OT_toggle_sidebar,
 )
 

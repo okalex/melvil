@@ -76,12 +76,6 @@ def register() -> None:
         default="",
         options={"HIDDEN", "SKIP_SAVE"},
     )
-    bpy.types.WindowManager.melvil_tag_sort = StringProperty(
-        name="Tag Sort Order",
-        description="Current sort order for the tag management section: 'NAME' or 'USAGE'",
-        default="NAME",
-        options={"HIDDEN", "SKIP_SAVE"},
-    )
     bpy.types.WindowManager.melvil_selected_asset_id = StringProperty(
         name="Selected Asset",
         description="UUID of the asset currently selected for detail view in the browser",
@@ -117,7 +111,6 @@ def unregister() -> None:
     del bpy.types.Scene.melvil_active_kit_id
     del bpy.types.Scene.melvil_mru_kit_id
     del bpy.types.WindowManager.melvil_active_tag_filters
-    del bpy.types.WindowManager.melvil_tag_sort
     del bpy.types.WindowManager.melvil_selected_asset_id
     del bpy.types.WindowManager.melvil_asset_tags
     del bpy.types.WindowManager.melvil_asset_tags_index
