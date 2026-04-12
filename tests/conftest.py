@@ -157,6 +157,11 @@ def _make_bpy_mock() -> types.ModuleType:
     bpy_utils.unregister_class = MagicMock()
     bpy_utils.extension_path_user = MagicMock(return_value="/tmp/melvil_test_data")
     bpy_utils.user_resource = MagicMock(return_value="/tmp/melvil_test_config")
+    bpy_utils_previews = types.ModuleType("bpy.utils.previews")
+    bpy_utils_previews.new = MagicMock(return_value=MagicMock())
+    bpy_utils_previews.remove = MagicMock()
+    bpy_utils.previews = bpy_utils_previews
+    sys.modules["bpy.utils.previews"] = bpy_utils_previews
     bpy.utils = bpy_utils
     sys.modules["bpy.utils"] = bpy_utils
 

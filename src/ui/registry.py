@@ -5,7 +5,7 @@ Central registry for all Melvil panels and UI classes.
 import bpy
 
 from ..utils import register_class as _safe_register
-from . import keymaps, menu_items, menus, menus_add, menus_material, menus_node_add, menus_node_editor, scene_props
+from . import keymaps, menu_items, menus, menus_add, menus_material, menus_node_add, menus_node_editor, previews_collection, scene_props
 from .draw_helpers import MELVIL_UL_asset_tags, MELVIL_UL_filter_tags
 from .panel import MELVIL_PT_main
 
@@ -17,6 +17,7 @@ _classes = (
 
 
 def register():
+    previews_collection.register()
     scene_props.register()
     for cls in _classes:
         _safe_register(cls)
@@ -40,3 +41,4 @@ def unregister():
     for cls in reversed(_classes):
         bpy.utils.unregister_class(cls)
     scene_props.unregister()
+    previews_collection.unregister()
