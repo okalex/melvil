@@ -29,6 +29,33 @@ from bpy.props import BoolProperty, CollectionProperty, IntProperty, StringPrope
 from bpy.types import PropertyGroup
 
 
+# Guard flag: set True while draw() rebuilds melvil_filter_tags so that the
+# is_active update callback does not fire during that reconstruction.
+_rebuilding_filter_tags: bool = False
+
+
+def _update_filter_tags_index(self, context) -> None:
+    """Toggle the tag filter when the user clicks a row in the filter tag list.
+
+    ``self`` is the WindowManager instance.  After toggling, the index is
+    reset to -1 so that clicking the same row a second time fires the
+    callback again (enabling click-to-deselect).
+    """
+    if _rebuilding_filter_tags:
+        return
+    idx = self.melvil_filter_tags_index
+    if idx < 0 or idx >= len(self.melvil_filter_tags):
+        return
+    tag_id = self.melvil_filter_tags[idx].tag_id
+    active = [t for t in self.melvil_active_tag_filters.split(",") if t]
+    if active == [tag_id]:
+        self.melvil_active_tag_filters = ""
+    else:
+        self.melvil_active_tag_filters = tag_id
+    # Reset so clicking the same row again fires this callback.
+    self.melvil_filter_tags_index = -1
+
+
 class MelvilFilterTagItem(PropertyGroup):
     """A single filter-tag entry for the browser left-column tag list."""
     tag_id: StringProperty(
@@ -104,6 +131,7 @@ def register() -> None:
         default=-1,
         min=-1,
         options={"HIDDEN", "SKIP_SAVE"},
+        update=_update_filter_tags_index,
     )
 
 

@@ -39,15 +39,21 @@ class MELVIL_UL_filter_tags(bpy.types.UIList):
     a tag row invokes ``melvil.tag_filter_toggle`` for that tag.
     """
 
-    def draw_item(self, context, layout, data, item, icon, active_data, active_property):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_property, index=0, flt_flag=0):
         if self.layout_type in {"DEFAULT", "COMPACT"}:
-            layout.alignment = "LEFT"
-            op = layout.operator(
-                "melvil.tag_filter_set",
+            row = layout.row(align=True)
+            row.label(
                 text=item.name,
-                emboss=False,
+                icon="RADIOBUT_ON" if item.is_active else "RADIOBUT_OFF",
             )
-            op.tag_id = item.tag_id
+            if item.is_active:
+                rename_op = row.operator(
+                    "melvil.tag_rename",
+                    text="",
+                    icon="GREASEPENCIL",
+                    emboss=False,
+                )
+                rename_op.tag_id = item.tag_id
 
 
 _TYPE_LABELS: dict[str, str] = {

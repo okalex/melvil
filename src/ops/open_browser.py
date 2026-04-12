@@ -29,6 +29,7 @@ from ..core.library import resolve_db_path
 from ..db import open_db
 from ..db.kits import list_kits
 from .tag_filter_toggle import get_active_tag_filters
+from ..ui import scene_props as _scene_props
 from ..ui.draw_helpers import (
     draw_asset_details,
     draw_asset_section,
@@ -287,23 +288,19 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
             left.separator()
             tag_header = left.row(align=True)
             tag_header.label(text="Tags", icon="TAG")
-            rename_tag_sub = tag_header.row()
-            rename_tag_sub.enabled = bool(active_tag_ids)
-            rename_tag_op = rename_tag_sub.operator("melvil.tag_rename", text="", icon="GREASEPENCIL")
-            rename_tag_op.tag_id = active_tag_ids[0] if active_tag_ids else ""
 
             active_set = set(active_tag_ids)
-            wm.melvil_filter_tags.clear()
-            for _ftag in visible_tags:
-                _item = wm.melvil_filter_tags.add()
-                _item.name = _ftag["name"]
-                _item.tag_id = _ftag["id"]
-                _item.is_active = _ftag["id"] in active_set
-            active_id = active_tag_ids[0] if active_tag_ids else ""
-            wm.melvil_filter_tags_index = next(
-                (i for i, t in enumerate(visible_tags) if t["id"] == active_id),
-                -1,
-            )
+            _scene_props._rebuilding_filter_tags = True
+            try:
+                wm.melvil_filter_tags.clear()
+                for _ftag in visible_tags:
+                    _item = wm.melvil_filter_tags.add()
+                    _item.name = _ftag["name"]
+                    _item.tag_id = _ftag["id"]
+                    _item.is_active = _ftag["id"] in active_set
+                wm.melvil_filter_tags_index = -1
+            finally:
+                _scene_props._rebuilding_filter_tags = False
             tag_list_row = left.row()
             tag_list_row.template_list(
                 "MELVIL_UL_filter_tags", "",
