@@ -317,7 +317,7 @@ class TestDraw:
              patch("melvil.ops.open_browser.draw_asset_section"):
             op.draw(ctx)
 
-        left_col.prop.assert_any_call(op, "search_query", text="", icon="VIEWZOOM")
+        left_col.prop.assert_any_call(op, "search_query", text="")
 
     def test_draw_search_filters_assets_passed_to_draw_section(self):
         op, left_col, middle_col, _right = self._make_op_with_layout()

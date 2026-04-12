@@ -114,7 +114,7 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
 
     # Free-text search query applied on top of the type and kit filters.
     search_query: StringProperty(
-        name="Search",
+        name="Asset name",
         default="",
         # TEXTEDIT_UPDATE causes check() to fire on every keypress so the
         # asset list filters in real time without requiring Enter.
@@ -264,7 +264,8 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
         # Left column — category + kit selectors + tag pills + manage tags
         # ------------------------------------------------------------------
 
-        left.prop(self, "search_query", text="", icon="VIEWZOOM")
+        left.label(text="Search by name/tag", icon="VIEWZOOM")
+        left.prop(self, "search_query", text="")
         left.separator()
 
         left.label(text="Asset type")
