@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 from pathlib import Path
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import ANY, MagicMock, call, patch
 
 import pytest
 
@@ -41,16 +41,20 @@ def _make_mat() -> MagicMock:
 
 
 class TestConfigureScene:
-    def _call(self, tmp_path):
+    def _call(self, tmp_path, engine="BLENDER_WORKBENCH"):
         from melvil.core.preview import _configure_scene
 
         scene = MagicMock()
-        _configure_scene(scene, tmp_path / "out.png")
+        _configure_scene(scene, tmp_path / "out.png", engine=engine)
         return scene
 
-    def test_sets_workbench_engine(self, tmp_path):
+    def test_workbench_engine_is_default(self, tmp_path):
         scene = self._call(tmp_path)
         assert scene.render.engine == "BLENDER_WORKBENCH"
+
+    def test_eevee_engine_accepted(self, tmp_path):
+        scene = self._call(tmp_path, engine="BLENDER_EEVEE")
+        assert scene.render.engine == "BLENDER_EEVEE"
 
     def test_sets_transparent_background(self, tmp_path):
         scene = self._call(tmp_path)
@@ -78,11 +82,20 @@ class TestConfigureScene:
         assert scene.render.image_settings.file_format == "PNG"
         assert scene.render.image_settings.color_mode == "RGBA"
 
-    def test_sets_material_shading(self, tmp_path):
-        scene = self._call(tmp_path)
+    def test_workbench_sets_solid_shading(self, tmp_path):
+        scene = self._call(tmp_path, engine="BLENDER_WORKBENCH")
         assert scene.display.shading.type == "SOLID"
         assert scene.display.shading.light == "MATCAP"
         assert scene.display.shading.color_type == "MATERIAL"
+
+    def test_eevee_does_not_set_workbench_shading(self, tmp_path):
+        from melvil.core.preview import _configure_scene
+
+        scene = MagicMock()
+        _configure_scene(scene, tmp_path / "out.png", engine="BLENDER_EEVEE")
+        scene.display.shading.type.__set__ = MagicMock()  # type: ignore[assignment]
+        # display.shading should not have been written to for Eevee
+        scene.display.shading.type.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -341,6 +354,109 @@ class TestGenerateMeshPreviewCleanup:
 
 
 # ---------------------------------------------------------------------------
+# _aim_at_origin / _make_material_preview_lighting helpers
+# ---------------------------------------------------------------------------
+
+_LIGHT_MOCKS = (MagicMock(), MagicMock(), MagicMock())
+_LIGHTING_PATCH = patch(
+    "melvil.core.preview._make_material_preview_lighting",
+    return_value=_LIGHT_MOCKS,
+)
+_AIM_PATCH = patch("melvil.core.preview._aim_at_origin")
+
+
+class TestAimAtOrigin:
+    def test_sets_rotation_euler_on_cam_obj(self):
+        import sys
+        from melvil.core.preview import _aim_at_origin
+
+        cam_obj = MagicMock()
+        with patch.dict(sys.modules, {"mathutils": MagicMock()}):
+            _aim_at_origin(cam_obj, (2.6, -2.6, 1.5))
+
+        # rotation_euler is set; the exact value comes from to_track_quat.
+        assert cam_obj.rotation_euler is not None
+
+    def test_direction_to_track_quat_called(self):
+        import sys
+        from melvil.core.preview import _aim_at_origin
+
+        cam_obj = MagicMock()
+        mathutils_mock = MagicMock()
+        with patch.dict(sys.modules, {"mathutils": mathutils_mock}):
+            _aim_at_origin(cam_obj, (2.6, -2.6, 1.5))
+
+        # Vector must have been constructed with the origin and with the location.
+        calls = [c.args[0] for c in mathutils_mock.Vector.call_args_list]
+        assert (0.0, 0.0, 0.0) in calls
+        assert (2.6, -2.6, 1.5) in calls
+
+
+class TestMakeMaterialPreviewLighting:
+    def test_creates_sun_light(self, tmp_path):
+        import bpy
+        import sys
+        from melvil.core.preview import _make_material_preview_lighting
+
+        scene = MagicMock()
+        with patch.dict(sys.modules, {"mathutils": MagicMock()}):
+            _make_material_preview_lighting(scene)
+
+        bpy.data.lights.new.assert_called_with("melvil_preview_key", type="SUN")
+
+    def test_creates_world_ambient(self, tmp_path):
+        import bpy
+        import sys
+        from melvil.core.preview import _make_material_preview_lighting
+
+        scene = MagicMock()
+        world = MagicMock()
+        bpy.data.worlds.new.return_value = world
+
+        with patch.dict(sys.modules, {"mathutils": MagicMock()}):
+            _make_material_preview_lighting(scene)
+
+        assert scene.world is world
+        assert world.use_nodes is False
+
+    def test_links_light_to_scene(self, tmp_path):
+        import bpy
+        import sys
+        from melvil.core.preview import _make_material_preview_lighting
+
+        scene = MagicMock()
+        light_obj = MagicMock()
+        bpy.data.objects.new.return_value = light_obj
+
+        with patch.dict(sys.modules, {"mathutils": MagicMock()}):
+            _make_material_preview_lighting(scene)
+
+        scene.collection.objects.link.assert_called_with(light_obj)
+
+    def test_returns_light_obj_data_world(self, tmp_path):
+        import bpy
+        import sys
+        from melvil.core.preview import _make_material_preview_lighting
+
+        scene = MagicMock()
+        light_obj = MagicMock()
+        light_data = MagicMock()
+        world = MagicMock()
+        bpy.data.objects.new.return_value = light_obj
+        bpy.data.lights.new.return_value = light_data
+        bpy.data.worlds.new.return_value = world
+
+        with patch.dict(sys.modules, {"mathutils": MagicMock()}):
+            result_light_obj, result_light_data, result_world = (
+                _make_material_preview_lighting(scene)
+            )
+
+        assert result_light_obj is light_obj
+        assert result_light_data is light_data
+        assert result_world is world
+
+
+# ---------------------------------------------------------------------------
 # generate_material_preview — success paths
 # ---------------------------------------------------------------------------
 
@@ -352,6 +468,7 @@ class TestGenerateMaterialPreviewSuccess:
         previews_dir = tmp_path / "previews"
 
         with patch("melvil.core.preview._add_uv_sphere", return_value=MagicMock()), \
+             _LIGHTING_PATCH, _AIM_PATCH, \
              patch("melvil.core.preview._do_render"):
 
             result = generate_material_preview(MagicMock(), _make_mat(), ASSET_ID, previews_dir)
@@ -365,6 +482,7 @@ class TestGenerateMaterialPreviewSuccess:
         assert not previews_dir.exists()
 
         with patch("melvil.core.preview._add_uv_sphere", return_value=MagicMock()), \
+             _LIGHTING_PATCH, _AIM_PATCH, \
              patch("melvil.core.preview._do_render"):
 
             generate_material_preview(MagicMock(), _make_mat(), ASSET_ID, previews_dir)
@@ -380,6 +498,7 @@ class TestGenerateMaterialPreviewSuccess:
         bpy.data.scenes.new.return_value = scene
 
         with patch("melvil.core.preview._add_uv_sphere", return_value=MagicMock()) as mock_sphere, \
+             _LIGHTING_PATCH, _AIM_PATCH, \
              patch("melvil.core.preview._do_render"):
 
             generate_material_preview(MagicMock(), _make_mat(), ASSET_ID, previews_dir)
@@ -394,11 +513,30 @@ class TestGenerateMaterialPreviewSuccess:
         sphere_obj = MagicMock()
 
         with patch("melvil.core.preview._add_uv_sphere", return_value=sphere_obj), \
+             _LIGHTING_PATCH, _AIM_PATCH, \
              patch("melvil.core.preview._do_render"):
 
             generate_material_preview(MagicMock(), mat, ASSET_ID, previews_dir)
 
         sphere_obj.data.materials.append.assert_called_once_with(mat)
+
+    def test_creates_lighting_for_scene(self, tmp_path):
+        import bpy
+        from melvil.core.preview import generate_material_preview
+
+        previews_dir = tmp_path / "previews"
+        scene = MagicMock()
+        bpy.data.scenes.new.return_value = scene
+
+        with patch("melvil.core.preview._add_uv_sphere", return_value=MagicMock()), \
+             patch("melvil.core.preview._make_material_preview_lighting",
+                   return_value=_LIGHT_MOCKS) as mock_lighting, \
+             _AIM_PATCH, \
+             patch("melvil.core.preview._do_render"):
+
+            generate_material_preview(MagicMock(), _make_mat(), ASSET_ID, previews_dir)
+
+        mock_lighting.assert_called_once_with(scene)
 
     def test_camera_at_fixed_location(self, tmp_path):
         import bpy
@@ -409,27 +547,26 @@ class TestGenerateMaterialPreviewSuccess:
         bpy.data.objects.new.return_value = cam_obj
 
         with patch("melvil.core.preview._add_uv_sphere", return_value=MagicMock()), \
+             _LIGHTING_PATCH, _AIM_PATCH, \
              patch("melvil.core.preview._do_render"):
 
             generate_material_preview(MagicMock(), _make_mat(), ASSET_ID, previews_dir)
 
         assert cam_obj.location == (2.6, -2.6, 1.5)
 
-    def test_camera_at_fixed_rotation(self, tmp_path):
-        import bpy
+    def test_aims_camera_at_origin(self, tmp_path):
         from melvil.core.preview import generate_material_preview
 
         previews_dir = tmp_path / "previews"
-        cam_obj = MagicMock()
-        bpy.data.objects.new.return_value = cam_obj
 
         with patch("melvil.core.preview._add_uv_sphere", return_value=MagicMock()), \
+             _LIGHTING_PATCH, \
+             patch("melvil.core.preview._aim_at_origin") as mock_aim, \
              patch("melvil.core.preview._do_render"):
 
             generate_material_preview(MagicMock(), _make_mat(), ASSET_ID, previews_dir)
 
-        expected = (math.radians(75), 0.0, math.radians(45))
-        assert cam_obj.rotation_euler == expected
+        mock_aim.assert_called_once_with(ANY, (2.6, -2.6, 1.5))
 
     def test_sets_scene_camera(self, tmp_path):
         import bpy
@@ -442,6 +579,7 @@ class TestGenerateMaterialPreviewSuccess:
         bpy.data.objects.new.return_value = cam_obj
 
         with patch("melvil.core.preview._add_uv_sphere", return_value=MagicMock()), \
+             _LIGHTING_PATCH, _AIM_PATCH, \
              patch("melvil.core.preview._do_render"):
 
             generate_material_preview(MagicMock(), _make_mat(), ASSET_ID, previews_dir)
@@ -457,6 +595,7 @@ class TestGenerateMaterialPreviewSuccess:
         bpy.data.scenes.new.return_value = scene
 
         with patch("melvil.core.preview._add_uv_sphere", return_value=MagicMock()), \
+             _LIGHTING_PATCH, _AIM_PATCH, \
              patch("melvil.core.preview._do_render") as mock_render:
 
             generate_material_preview(MagicMock(), _make_mat(), ASSET_ID, previews_dir)
@@ -472,11 +611,12 @@ class TestGenerateMaterialPreviewSuccess:
         bpy.data.scenes.new.return_value = scene
 
         with patch("melvil.core.preview._add_uv_sphere", return_value=MagicMock()), \
+             _LIGHTING_PATCH, _AIM_PATCH, \
              patch("melvil.core.preview._do_render"):
 
             generate_material_preview(MagicMock(), _make_mat(), ASSET_ID, previews_dir)
 
-        assert scene.render.engine == "BLENDER_WORKBENCH"
+        assert scene.render.engine == "BLENDER_EEVEE"
         assert scene.render.film_transparent is True
 
 
@@ -492,6 +632,7 @@ class TestGenerateMaterialPreviewCleanup:
         previews_dir = tmp_path / "previews"
 
         with patch("melvil.core.preview._add_uv_sphere", return_value=MagicMock()), \
+             _LIGHTING_PATCH, _AIM_PATCH, \
              patch("melvil.core.preview._do_render", side_effect=RuntimeError("GPU unavailable")):
 
             result = generate_material_preview(MagicMock(), _make_mat(), ASSET_ID, previews_dir)
@@ -507,6 +648,7 @@ class TestGenerateMaterialPreviewCleanup:
         bpy.data.scenes.new.return_value = scene
 
         with patch("melvil.core.preview._add_uv_sphere", return_value=MagicMock()), \
+             _LIGHTING_PATCH, _AIM_PATCH, \
              patch("melvil.core.preview._do_render"):
 
             generate_material_preview(MagicMock(), _make_mat(), ASSET_ID, previews_dir)
@@ -522,6 +664,7 @@ class TestGenerateMaterialPreviewCleanup:
         bpy.data.scenes.new.return_value = scene
 
         with patch("melvil.core.preview._add_uv_sphere", return_value=MagicMock()), \
+             _LIGHTING_PATCH, _AIM_PATCH, \
              patch("melvil.core.preview._do_render", side_effect=RuntimeError("failed")):
 
             generate_material_preview(MagicMock(), _make_mat(), ASSET_ID, previews_dir)
@@ -538,6 +681,7 @@ class TestGenerateMaterialPreviewCleanup:
         sphere_obj.data = sphere_mesh
 
         with patch("melvil.core.preview._add_uv_sphere", return_value=sphere_obj), \
+             _LIGHTING_PATCH, _AIM_PATCH, \
              patch("melvil.core.preview._do_render", side_effect=RuntimeError("failed")):
 
             generate_material_preview(MagicMock(), _make_mat(), ASSET_ID, previews_dir)
@@ -545,12 +689,55 @@ class TestGenerateMaterialPreviewCleanup:
         bpy.data.objects.remove.assert_any_call(sphere_obj, do_unlink=True)
         bpy.data.meshes.remove.assert_any_call(sphere_mesh)
 
+    def test_light_and_world_removed_on_success(self, tmp_path):
+        import bpy
+        from melvil.core.preview import generate_material_preview
+
+        previews_dir = tmp_path / "previews"
+        light_obj = MagicMock()
+        light_data = MagicMock()
+        world = MagicMock()
+
+        with patch("melvil.core.preview._add_uv_sphere", return_value=MagicMock()), \
+             patch("melvil.core.preview._make_material_preview_lighting",
+                   return_value=(light_obj, light_data, world)), \
+             _AIM_PATCH, \
+             patch("melvil.core.preview._do_render"):
+
+            generate_material_preview(MagicMock(), _make_mat(), ASSET_ID, previews_dir)
+
+        bpy.data.objects.remove.assert_any_call(light_obj, do_unlink=True)
+        bpy.data.lights.remove.assert_called_with(light_data)
+        bpy.data.worlds.remove.assert_called_with(world)
+
+    def test_light_and_world_removed_on_failure(self, tmp_path):
+        import bpy
+        from melvil.core.preview import generate_material_preview
+
+        previews_dir = tmp_path / "previews"
+        light_obj = MagicMock()
+        light_data = MagicMock()
+        world = MagicMock()
+
+        with patch("melvil.core.preview._add_uv_sphere", return_value=MagicMock()), \
+             patch("melvil.core.preview._make_material_preview_lighting",
+                   return_value=(light_obj, light_data, world)), \
+             _AIM_PATCH, \
+             patch("melvil.core.preview._do_render", side_effect=RuntimeError("failed")):
+
+            generate_material_preview(MagicMock(), _make_mat(), ASSET_ID, previews_dir)
+
+        bpy.data.objects.remove.assert_any_call(light_obj, do_unlink=True)
+        bpy.data.lights.remove.assert_called_with(light_data)
+        bpy.data.worlds.remove.assert_called_with(world)
+
     def test_returns_none_on_sphere_creation_failure(self, tmp_path):
         from melvil.core.preview import generate_material_preview
 
         previews_dir = tmp_path / "previews"
 
         with patch("melvil.core.preview._add_uv_sphere", side_effect=RuntimeError("ops failed")), \
+             _LIGHTING_PATCH, _AIM_PATCH, \
              patch("melvil.core.preview._do_render"):
 
             result = generate_material_preview(MagicMock(), _make_mat(), ASSET_ID, previews_dir)

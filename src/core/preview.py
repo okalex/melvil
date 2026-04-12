@@ -44,9 +44,19 @@ _PADDING_FACTOR = 1.05  # 5 % margin around the bounding sphere
 # ---------------------------------------------------------------------------
 
 
-def _configure_scene(scene, output_path: Path) -> None:
-    """Apply shared Workbench render settings to *scene*."""
-    scene.render.engine = "BLENDER_WORKBENCH"
+def _configure_scene(
+    scene,
+    output_path: Path,
+    engine: str = "BLENDER_WORKBENCH",
+) -> None:
+    """Apply shared render settings to *scene*.
+
+    *engine* should be ``"BLENDER_WORKBENCH"`` (mesh previews) or
+    ``"BLENDER_EEVEE_NEXT"`` (material previews).  The Workbench-specific
+    display shading block is skipped for Eevee, which uses the material's
+    own shader instead.
+    """
+    scene.render.engine = engine
     scene.render.film_transparent = True
     scene.render.resolution_x = _PREVIEW_SIZE
     scene.render.resolution_y = _PREVIEW_SIZE
@@ -54,9 +64,10 @@ def _configure_scene(scene, output_path: Path) -> None:
     scene.render.filepath = str(output_path)
     scene.render.image_settings.file_format = "PNG"
     scene.render.image_settings.color_mode = "RGBA"
-    scene.display.shading.type = "SOLID"
-    scene.display.shading.light = "MATCAP"
-    scene.display.shading.color_type = "MATERIAL"
+    if engine == "BLENDER_WORKBENCH":
+        scene.display.shading.type = "SOLID"
+        scene.display.shading.light = "MATCAP"
+        scene.display.shading.color_type = "MATERIAL"
 
 
 def _bounding_sphere(obj) -> tuple:
@@ -128,17 +139,80 @@ def _do_render(scene) -> None:
 
 def _add_uv_sphere(scene):
     """
-    Add a UV sphere (radius 1, 64 segments, 32 rings) to *scene* and return
-    the created object.
+    Create a UV sphere (radius 1, 64 longitudinal segments, 32 latitudinal
+    rings) and link it to *scene*'s root collection.  Returns the created
+    object.
 
-    Uses ``bpy.context.temp_override`` so the operator runs in *scene* rather
-    than the user's active scene.  Isolated for monkeypatching in tests.
+    Uses ``bmesh.ops.create_uvsphere`` rather than a context-dependent
+    operator so the sphere is reliably placed in *scene* regardless of the
+    user's active context.  Isolated for monkeypatching in tests.
     """
+    import bmesh as _bmesh  # noqa: PLC0415
     import bpy  # noqa: PLC0415
 
-    with bpy.context.temp_override(scene=scene):
-        bpy.ops.mesh.primitive_uv_sphere_add(radius=1.0, segments=64, ring_count=32)
-        return bpy.context.active_object
+    mesh = bpy.data.meshes.new("melvil_sphere_mesh")
+    bm = _bmesh.new()
+    _bmesh.ops.create_uvsphere(bm, u_segments=64, v_segments=32, radius=1.0)
+    bm.to_mesh(mesh)
+    bm.free()
+
+    # Enable smooth shading on every polygon.
+    for poly in mesh.polygons:
+        poly.use_smooth = True
+
+    sphere_obj = bpy.data.objects.new("melvil_sphere", mesh)
+    scene.collection.objects.link(sphere_obj)
+    return sphere_obj
+
+
+def _make_material_preview_lighting(scene):
+    """
+    Add a key sun light and a dim ambient world to *scene* for Eevee material
+    previews.
+
+    The sun is oriented so its rays come from the upper-right of the camera's
+    view (camera is positioned at (2.6, -2.6, 1.5) looking at the origin).
+    Returns *(light_obj, light_data, world)*; callers are responsible for
+    cleaning up all three datablocks in a ``finally`` block.
+
+    Isolated for monkeypatching in tests.
+    """
+    import bpy  # noqa: PLC0415
+    import mathutils  # noqa: PLC0415
+
+    light_data = bpy.data.lights.new("melvil_preview_key", type="SUN")
+    light_data.energy = 3.0
+    light_obj = bpy.data.objects.new("melvil_preview_key", light_data)
+    # Upper-right of the camera's view with a slight forward (-Y) lean so
+    # the light grazes the front-facing side without being head-on.
+    # X > 0 = right, Z > 0 = up, Y < 0 = toward camera.
+    light_dir = mathutils.Vector((2.0, -0.3, 2.0))
+    light_obj.rotation_euler = light_dir.to_track_quat("Z", "Y").to_euler()
+    scene.collection.objects.link(light_obj)
+
+    # Dim ambient fill so shadowed areas are not pure black.
+    world = bpy.data.worlds.new("melvil_preview_world")
+    world.use_nodes = False
+    world.color = (0.05, 0.05, 0.05)
+    scene.world = world
+
+    return light_obj, light_data, world
+
+
+def _aim_at_origin(cam_obj, location) -> None:
+    """
+    Rotate *cam_obj* so its local -Z axis (camera look direction) points at
+    the world origin from *location*.
+
+    *location* is accepted as a 3-tuple rather than reading ``cam_obj.location``
+    directly so the value is always well-typed and the function is easy to test.
+
+    Isolated for monkeypatching in tests.
+    """
+    import mathutils  # noqa: PLC0415
+
+    direction = mathutils.Vector((0.0, 0.0, 0.0)) - mathutils.Vector(location)
+    cam_obj.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
 
 
 # ---------------------------------------------------------------------------
@@ -268,26 +342,29 @@ def generate_material_preview(
     cam_data = None
     cam_obj = None
     sphere_obj = None
+    light_obj = None
+    light_data = None
+    world = None
     try:
         scene = bpy.data.scenes.new("melvil_preview_temp")
-        _configure_scene(scene, output_path)
+        _configure_scene(scene, output_path, engine="BLENDER_EEVEE")
 
         # --- UV sphere with material applied ---
         sphere_obj = _add_uv_sphere(scene)
         sphere_obj.data.materials.append(mat)
 
-        # --- Camera at a fixed classic 45°/30° preview angle ---
+        # --- Key light + ambient world ---
+        light_obj, light_data, world = _make_material_preview_lighting(scene)
+
+        # --- Camera at a fixed 45°/30° preview angle, precisely aimed at sphere ---
+        _CAM_POS = (2.6, -2.6, 1.5)
         cam_data = bpy.data.cameras.new("melvil_preview_cam")
         cam_data.type = "PERSP"
         cam_data.lens = 50
 
         cam_obj = bpy.data.objects.new("melvil_preview_cam", cam_data)
-        cam_obj.location = (2.6, -2.6, 1.5)
-        cam_obj.rotation_euler = (
-            math.radians(75),
-            0.0,
-            math.radians(45),
-        )
+        cam_obj.location = _CAM_POS
+        _aim_at_origin(cam_obj, _CAM_POS)
 
         scene.collection.objects.link(cam_obj)
         scene.camera = cam_obj
@@ -303,6 +380,12 @@ def generate_material_preview(
         return None
 
     finally:
+        if light_obj is not None:
+            bpy.data.objects.remove(light_obj, do_unlink=True)
+        if light_data is not None:
+            bpy.data.lights.remove(light_data)
+        if world is not None:
+            bpy.data.worlds.remove(world)
         if sphere_obj is not None:
             sphere_mesh = getattr(sphere_obj, "data", None)
             bpy.data.objects.remove(sphere_obj, do_unlink=True)
