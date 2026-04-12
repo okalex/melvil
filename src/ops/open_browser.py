@@ -174,7 +174,7 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
         outer_split = layout.split(factor=0.24)
         left = outer_split.column()
         rest_col = outer_split.column()
-        inner_split = rest_col.split(factor=0.5)
+        inner_split = rest_col.split(factor=0.45)
         middle = inner_split.column()
         right = inner_split.column()
 
@@ -286,7 +286,7 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
         if visible_tags:
             left.separator()
             tag_header = left.row(align=True)
-            tag_header.label(text="Tags")
+            tag_header.label(text="Tags", icon="TAG")
             rename_tag_sub = tag_header.row()
             rename_tag_sub.enabled = bool(active_tag_ids)
             rename_tag_op = rename_tag_sub.operator("melvil.tag_rename", text="", icon="GREASEPENCIL")

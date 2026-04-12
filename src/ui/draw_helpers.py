@@ -26,7 +26,7 @@ class MELVIL_UL_asset_tags(bpy.types.UIList):
 
     def draw_item(self, context, layout, data, item, icon, active_data, active_property):
         if self.layout_type in {"DEFAULT", "COMPACT"}:
-            layout.label(text=item.name, icon="TAG")
+            layout.label(text=item.name)
         elif self.layout_type == "GRID":
             layout.alignment = "CENTER"
             layout.label(text="", icon="TAG")
@@ -244,10 +244,9 @@ def draw_asset_details(
         Human-readable name of the kit this asset belongs to.
     """
     name_row = layout.row(align=True)
-    name_row.label(text=asset["name"], icon="INFO")
+    name_row.label(text=asset["name"])
     rename_op = name_row.operator("melvil.asset_rename", text="", icon="GREASEPENCIL")
     rename_op.asset_id = asset["id"]
-    layout.separator()
 
     col = layout.column(align=False)
 
@@ -267,7 +266,7 @@ def draw_asset_details(
     col.separator()
 
     # Tags
-    col.label(text="Tags:")
+    col.label(text="Tags:", icon="TAG")
     if wm is not None:
         list_row = col.row()
         list_row.template_list(
@@ -299,8 +298,13 @@ def draw_asset_details(
 
     col.separator()
 
-    del_op = col.operator("melvil.delete_asset", text="Delete", icon="TRASH")
+    del_row = col.row()
+    del_row.alignment = "LEFT"
+    del_row.alert = True
+    del_op = del_row.operator("melvil.delete_asset", text="Delete Asset", icon="TRASH")
     del_op.asset_id = asset["id"]
+
+    col.separator()
 
 
 def load_asset(asset_id: str):
