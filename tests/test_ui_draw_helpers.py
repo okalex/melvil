@@ -100,6 +100,138 @@ class TestDrawAssetSection:
 
 
 # ---------------------------------------------------------------------------
+# draw_unified_asset_section()
+# ---------------------------------------------------------------------------
+
+
+class TestDrawUnifiedAssetSection:
+    def test_empty_shows_placeholder(self):
+        from melvil.ui.draw_helpers import draw_unified_asset_section
+
+        layout = MagicMock()
+        box = MagicMock()
+        layout.box.return_value = box
+
+        draw_unified_asset_section(layout, [])
+
+        box.label.assert_any_call(text="No assets saved yet")
+
+    def test_header_label_is_assets(self):
+        from melvil.ui.draw_helpers import draw_unified_asset_section
+
+        layout = MagicMock()
+        box = MagicMock()
+        layout.box.return_value = box
+        box.row.return_value = MagicMock()
+
+        draw_unified_asset_section(layout, [_make_asset("1", "Cube", "MESH")])
+
+        layout.label.assert_any_call(text="Assets", icon="ASSET_MANAGER")
+
+    def test_each_asset_row_has_type_icon(self):
+        from melvil.ui.draw_helpers import draw_unified_asset_section
+
+        layout = MagicMock()
+        box = MagicMock()
+        layout.box.return_value = box
+        row = MagicMock()
+        box.row.return_value = row
+
+        draw_unified_asset_section(layout, [_make_asset("1", "Cube", "MESH")])
+
+        row.label.assert_called_once_with(text="Cube", icon="MESH_DATA")
+
+    def test_material_uses_material_icon(self):
+        from melvil.ui.draw_helpers import draw_unified_asset_section
+
+        layout = MagicMock()
+        box = MagicMock()
+        layout.box.return_value = box
+        row = MagicMock()
+        box.row.return_value = row
+
+        draw_unified_asset_section(layout, [_make_asset("1", "Red", "MATERIAL")])
+
+        row.label.assert_called_once_with(text="Red", icon="MATERIAL")
+
+    def test_node_group_uses_nodetree_icon(self):
+        from melvil.ui.draw_helpers import draw_unified_asset_section
+
+        layout = MagicMock()
+        box = MagicMock()
+        layout.box.return_value = box
+        row = MagicMock()
+        box.row.return_value = row
+
+        draw_unified_asset_section(layout, [_make_asset("1", "MyGroup", "NODE_GROUP")])
+
+        row.label.assert_called_once_with(text="MyGroup", icon="NODETREE")
+
+    def test_mesh_and_material_show_load_button(self):
+        from melvil.ui.draw_helpers import draw_unified_asset_section
+
+        for asset_type in ("MESH", "MATERIAL"):
+            layout = MagicMock()
+            box = MagicMock()
+            layout.box.return_value = box
+            row = MagicMock()
+            box.row.return_value = row
+
+            draw_unified_asset_section(layout, [_make_asset("1", "Asset", asset_type)])
+
+            ops = [c[0][0] for c in row.operator.call_args_list]
+            assert "melvil.load_asset" in ops, f"Expected load button for {asset_type}"
+
+    def test_node_group_omits_load_button(self):
+        from melvil.ui.draw_helpers import draw_unified_asset_section
+
+        layout = MagicMock()
+        box = MagicMock()
+        layout.box.return_value = box
+        row = MagicMock()
+        box.row.return_value = row
+
+        draw_unified_asset_section(layout, [_make_asset("1", "MyGroup", "NODE_GROUP")])
+
+        ops = [c[0][0] for c in row.operator.call_args_list]
+        assert "melvil.load_asset" not in ops
+        assert "melvil.asset_select" in ops
+
+    def test_selected_asset_detail_button_is_depressed(self):
+        from melvil.ui.draw_helpers import draw_unified_asset_section
+
+        layout = MagicMock()
+        box = MagicMock()
+        layout.box.return_value = box
+        row = MagicMock()
+        box.row.return_value = row
+        load_op = MagicMock()
+        detail_op = MagicMock()
+        row.operator.side_effect = [load_op, detail_op]
+
+        draw_unified_asset_section(layout, [_make_asset("abc", "Cube", "MESH")], selected_asset_id="abc")
+
+        detail_call_kwargs = [c[1] for c in row.operator.call_args_list if c[0][0] == "melvil.asset_select"]
+        assert any(kw.get("depress") is True for kw in detail_call_kwargs)
+
+    def test_multiple_assets_each_get_a_row(self):
+        from melvil.ui.draw_helpers import draw_unified_asset_section
+
+        layout = MagicMock()
+        box = MagicMock()
+        layout.box.return_value = box
+
+        assets = [
+            _make_asset("1", "Cube", "MESH"),
+            _make_asset("2", "Red", "MATERIAL"),
+            _make_asset("3", "Group", "NODE_GROUP"),
+        ]
+        draw_unified_asset_section(layout, assets)
+
+        assert box.row.call_count == 3
+
+
+# ---------------------------------------------------------------------------
 # load_assets()
 # ---------------------------------------------------------------------------
 

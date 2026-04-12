@@ -5,11 +5,11 @@ Invoked by ``Ctrl+Shift+A`` or the "Browse Library" button in the N-panel.
 Uses ``window_manager.invoke_popup()`` to open a clean floating window
 containing the full Melvil asset list — no Blender editor chrome.
 
-The popup is split into two columns:
-- Left: a plain column of toggle buttons for selecting the asset category
-  (All, Materials, Meshes, Node Groups).
-- Right: the filtered asset list for the selected category, drawn using
-  the shared ``draw_asset_section`` helper.
+The popup is split into three columns:
+- Left: filters — category, kit, and tag selectors.
+- Middle: a single "Assets" list showing all filtered assets with per-type
+  icons, drawn using ``draw_unified_asset_section``.
+- Right: asset detail panel for the selected asset.
 
 The active category lives on the operator as ``type_filter`` (EnumProperty)
 so that button-click events trigger ``check()`` and redraw the right column.
@@ -32,7 +32,7 @@ from .tag_filter_toggle import get_active_tag_filters
 from ..ui import scene_props as _scene_props
 from ..ui.draw_helpers import (
     draw_asset_details,
-    draw_asset_section,
+    draw_unified_asset_section,
     filter_assets,
     load_all_tags,
     load_asset,
@@ -325,19 +325,11 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
             middle.label(text="Could not open library database", icon="ERROR")
             return
 
-        _SECTION_SPECS = {
-            "MATERIAL":   ("Materials",   "MATERIAL",  True),
-            "MESH":        ("Meshes",       "MESH_DATA", True),
-            "NODE_GROUP": ("Node Groups",  "NODETREE",  False),
-        }
-        for type_key in visible_types:
-            title, icon, show_load = _SECTION_SPECS[type_key]
-            draw_asset_section(
-                middle, title, icon,
-                section_assets.get(type_key, []),
-                show_load=show_load,
-                selected_asset_id=selected_id,
-            )
+        all_visible = sorted(
+            (a for assets in section_assets.values() for a in assets),
+            key=lambda a: a["name"].lower(),
+        )
+        draw_unified_asset_section(middle, all_visible, selected_asset_id=selected_id)
 
         # ------------------------------------------------------------------
         # Right column — asset detail panel

@@ -215,7 +215,7 @@ class TestDraw:
 
         with patch("melvil.ops.open_browser.load_assets", return_value=[]), \
              patch("melvil.ops.open_browser.load_kits", return_value=[]), \
-             patch("melvil.ops.open_browser.draw_asset_section"):
+             patch("melvil.ops.open_browser.draw_unified_asset_section"):
             op.draw(ctx)
 
         left_col.prop.assert_any_call(op, "type_filter", expand=True)
@@ -227,7 +227,7 @@ class TestDraw:
 
         with patch("melvil.ops.open_browser.load_assets", return_value=[]), \
              patch("melvil.ops.open_browser.load_kits", return_value=[]), \
-             patch("melvil.ops.open_browser.draw_asset_section"):
+             patch("melvil.ops.open_browser.draw_unified_asset_section"):
             op.draw(ctx)
 
         left_col.prop.assert_any_call(op, "kit_filter", expand=True)
@@ -245,53 +245,58 @@ class TestDraw:
 
         with patch("melvil.ops.open_browser.load_assets", side_effect=[materials, meshes, node_groups]), \
              patch("melvil.ops.open_browser.load_kits", return_value=[]), \
-             patch("melvil.ops.open_browser.draw_asset_section") as mock_draw:
+             patch("melvil.ops.open_browser.draw_unified_asset_section") as mock_draw:
             op.draw(ctx)
 
-        assert mock_draw.call_count == 3
-        titles = [c[0][1] for c in mock_draw.call_args_list]
-        assert "Materials" in titles
-        assert "Meshes" in titles
-        assert "Node Groups" in titles
+        assert mock_draw.call_count == 1
+        passed_assets = mock_draw.call_args[0][1]
+        asset_ids = {a["id"] for a in passed_assets}
+        assert asset_ids == {"m1", "b1", "n1"}
 
     def test_draw_material_filter_shows_only_materials(self):
         op, left_col, middle_col, _right = self._make_op_with_layout()
         op.type_filter = "MATERIAL"
         ctx = self._make_ctx()
+        materials = [_make_asset("m1", "Red", "MATERIAL")]
 
-        with patch("melvil.ops.open_browser.load_assets", return_value=[]), \
+        with patch("melvil.ops.open_browser.load_assets", return_value=materials), \
              patch("melvil.ops.open_browser.load_kits", return_value=[]), \
-             patch("melvil.ops.open_browser.draw_asset_section") as mock_draw:
+             patch("melvil.ops.open_browser.draw_unified_asset_section") as mock_draw:
             op.draw(ctx)
 
         assert mock_draw.call_count == 1
-        assert mock_draw.call_args[0][1] == "Materials"
+        passed_assets = mock_draw.call_args[0][1]
+        assert all(a["type"] == "MATERIAL" for a in passed_assets)
 
     def test_draw_mesh_filter_shows_only_meshes(self):
         op, left_col, middle_col, _right = self._make_op_with_layout()
         op.type_filter = "MESH"
         ctx = self._make_ctx()
+        meshes = [_make_asset("b1", "Rock", "MESH")]
 
-        with patch("melvil.ops.open_browser.load_assets", return_value=[]), \
+        with patch("melvil.ops.open_browser.load_assets", return_value=meshes), \
              patch("melvil.ops.open_browser.load_kits", return_value=[]), \
-             patch("melvil.ops.open_browser.draw_asset_section") as mock_draw:
+             patch("melvil.ops.open_browser.draw_unified_asset_section") as mock_draw:
             op.draw(ctx)
 
         assert mock_draw.call_count == 1
-        assert mock_draw.call_args[0][1] == "Meshes"
+        passed_assets = mock_draw.call_args[0][1]
+        assert all(a["type"] == "MESH" for a in passed_assets)
 
     def test_draw_node_group_filter_shows_only_node_groups(self):
         op, left_col, middle_col, _right = self._make_op_with_layout()
         op.type_filter = "NODE_GROUP"
         ctx = self._make_ctx()
+        node_groups = [_make_asset("n1", "MyGroup", "NODE_GROUP")]
 
-        with patch("melvil.ops.open_browser.load_assets", return_value=[]), \
+        with patch("melvil.ops.open_browser.load_assets", return_value=node_groups), \
              patch("melvil.ops.open_browser.load_kits", return_value=[]), \
-             patch("melvil.ops.open_browser.draw_asset_section") as mock_draw:
+             patch("melvil.ops.open_browser.draw_unified_asset_section") as mock_draw:
             op.draw(ctx)
 
         assert mock_draw.call_count == 1
-        assert mock_draw.call_args[0][1] == "Node Groups"
+        passed_assets = mock_draw.call_args[0][1]
+        assert all(a["type"] == "NODE_GROUP" for a in passed_assets)
 
     def test_db_error_shows_error_label_on_right_column(self):
         op, left_col, middle_col, _right = self._make_op_with_layout()
@@ -314,7 +319,7 @@ class TestDraw:
 
         with patch("melvil.ops.open_browser.load_assets", return_value=[]), \
              patch("melvil.ops.open_browser.load_kits", return_value=[]), \
-             patch("melvil.ops.open_browser.draw_asset_section"):
+             patch("melvil.ops.open_browser.draw_unified_asset_section"):
             op.draw(ctx)
 
         left_col.prop.assert_any_call(op, "search_query", text="")
@@ -333,10 +338,10 @@ class TestDraw:
 
         with patch("melvil.ops.open_browser.load_assets", return_value=all_materials), \
              patch("melvil.ops.open_browser.load_kits", return_value=[]), \
-             patch("melvil.ops.open_browser.draw_asset_section") as mock_draw:
+             patch("melvil.ops.open_browser.draw_unified_asset_section") as mock_draw:
             op.draw(ctx)
 
-        passed_assets = mock_draw.call_args[0][3]
+        passed_assets = mock_draw.call_args[0][1]
         assert len(passed_assets) == 2
         assert {a["name"] for a in passed_assets} == {"Plastic", "Plaster"}
 
@@ -350,10 +355,10 @@ class TestDraw:
 
         with patch("melvil.ops.open_browser.load_assets", return_value=meshes), \
              patch("melvil.ops.open_browser.load_kits", return_value=[]), \
-             patch("melvil.ops.open_browser.draw_asset_section") as mock_draw:
+             patch("melvil.ops.open_browser.draw_unified_asset_section") as mock_draw:
             op.draw(ctx)
 
-        passed_assets = mock_draw.call_args[0][3]
+        passed_assets = mock_draw.call_args[0][1]
         assert len(passed_assets) == 4
 
 
@@ -405,7 +410,7 @@ class TestDrawTagFilterPills:
              patch("melvil.ops.open_browser.load_kits", return_value=[]), \
              patch("melvil.ops.open_browser.load_asset_tag_memberships", return_value={}), \
              patch("melvil.ops.open_browser.load_all_tags", return_value=[]), \
-             patch("melvil.ops.open_browser.draw_asset_section"):
+             patch("melvil.ops.open_browser.draw_unified_asset_section"):
             op.draw(ctx)
 
         left_col.template_list.assert_not_called()
@@ -422,7 +427,7 @@ class TestDrawTagFilterPills:
              patch("melvil.ops.open_browser.load_asset_tag_memberships", return_value={}), \
              patch("melvil.ops.open_browser.load_all_tags",
                    return_value=[_TAG_METAL]), \
-             patch("melvil.ops.open_browser.draw_asset_section"):
+             patch("melvil.ops.open_browser.draw_unified_asset_section"):
             op.draw(ctx)
 
         left_col.row.return_value.template_list.assert_called_once()
@@ -436,7 +441,7 @@ class TestDrawTagFilterPills:
              patch("melvil.ops.open_browser.load_kits", return_value=[]), \
              patch("melvil.ops.open_browser.load_asset_tag_memberships", return_value={}), \
              patch("melvil.ops.open_browser.load_all_tags", return_value=[_TAG_METAL]), \
-             patch("melvil.ops.open_browser.draw_asset_section"):
+             patch("melvil.ops.open_browser.draw_unified_asset_section"):
             op.draw(ctx)
 
         ctx.window_manager.melvil_filter_tags.clear.assert_called_once()
@@ -458,10 +463,10 @@ class TestDrawTagFilterPills:
              patch("melvil.ops.open_browser.load_asset_tag_memberships",
                    return_value=memberships), \
              patch("melvil.ops.open_browser.load_all_tags", return_value=[_TAG_METAL]), \
-             patch("melvil.ops.open_browser.draw_asset_section") as mock_draw:
+             patch("melvil.ops.open_browser.draw_unified_asset_section") as mock_draw:
             op.draw(ctx)
 
-        drawn_assets = mock_draw.call_args[0][3]
+        drawn_assets = mock_draw.call_args[0][1]
         assert len(drawn_assets) == 1
         assert drawn_assets[0]["id"] == "a1"
 
@@ -477,10 +482,10 @@ class TestDrawTagFilterPills:
              patch("melvil.ops.open_browser.load_kits", return_value=[]), \
              patch("melvil.ops.open_browser.load_asset_tag_memberships", return_value={}), \
              patch("melvil.ops.open_browser.load_all_tags", return_value=[]), \
-             patch("melvil.ops.open_browser.draw_asset_section") as mock_draw:
+             patch("melvil.ops.open_browser.draw_unified_asset_section") as mock_draw:
             op.draw(ctx)
 
-        drawn_assets = mock_draw.call_args[0][3]
+        drawn_assets = mock_draw.call_args[0][1]
         assert len(drawn_assets) == 2
 
     def test_load_all_tags_called(self):
@@ -495,7 +500,7 @@ class TestDrawTagFilterPills:
              patch("melvil.ops.open_browser.load_asset_tag_memberships", return_value={}), \
              patch("melvil.ops.open_browser.load_all_tags",
                    return_value=[]) as mock_load_all_tags, \
-             patch("melvil.ops.open_browser.draw_asset_section"):
+             patch("melvil.ops.open_browser.draw_unified_asset_section"):
             op.draw(ctx)
 
         mock_load_all_tags.assert_called_once()
@@ -512,7 +517,7 @@ class TestDrawTagFilterPills:
              patch("melvil.ops.open_browser.load_asset_tag_memberships", return_value={}), \
              patch("melvil.ops.open_browser.load_all_tags",
                    return_value=[_TAG_METAL]), \
-             patch("melvil.ops.open_browser.draw_asset_section"):
+             patch("melvil.ops.open_browser.draw_unified_asset_section"):
             op.draw(ctx)
 
         left_col.separator.assert_called()
@@ -561,7 +566,7 @@ class TestTagNameSearch:
                    return_value={}) as mock_names, \
              patch("melvil.ops.open_browser.load_asset_tag_memberships", return_value={}), \
              patch("melvil.ops.open_browser.load_all_tags", return_value=[]), \
-             patch("melvil.ops.open_browser.draw_asset_section"):
+             patch("melvil.ops.open_browser.draw_unified_asset_section"):
             op.draw(ctx)
 
         mock_names.assert_called_once_with(["a1"])
@@ -574,7 +579,7 @@ class TestTagNameSearch:
         with patch("melvil.ops.open_browser.load_assets", return_value=[]), \
              patch("melvil.ops.open_browser.load_kits", return_value=[]), \
              patch("melvil.ops.open_browser.load_asset_tag_names") as mock_names, \
-             patch("melvil.ops.open_browser.draw_asset_section"):
+             patch("melvil.ops.open_browser.draw_unified_asset_section"):
             op.draw(ctx)
 
         mock_names.assert_not_called()
@@ -593,10 +598,10 @@ class TestTagNameSearch:
                    return_value={"a1": ["metal"]}), \
              patch("melvil.ops.open_browser.load_asset_tag_memberships", return_value={}), \
              patch("melvil.ops.open_browser.load_all_tags", return_value=[]), \
-             patch("melvil.ops.open_browser.draw_asset_section") as mock_draw:
+             patch("melvil.ops.open_browser.draw_unified_asset_section") as mock_draw:
             op.draw(ctx)
 
-        drawn_assets = mock_draw.call_args[0][3]
+        drawn_assets = mock_draw.call_args[0][1]
         assert len(drawn_assets) == 1
         assert drawn_assets[0]["id"] == "a1"
 
@@ -612,10 +617,10 @@ class TestTagNameSearch:
                    return_value={"a1": ["transparent"]}), \
              patch("melvil.ops.open_browser.load_asset_tag_memberships", return_value={}), \
              patch("melvil.ops.open_browser.load_all_tags", return_value=[]), \
-             patch("melvil.ops.open_browser.draw_asset_section") as mock_draw:
+             patch("melvil.ops.open_browser.draw_unified_asset_section") as mock_draw:
             op.draw(ctx)
 
-        drawn_assets = mock_draw.call_args[0][3]
+        drawn_assets = mock_draw.call_args[0][1]
         assert len(drawn_assets) == 0
 
 

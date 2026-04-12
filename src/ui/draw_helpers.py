@@ -65,6 +65,19 @@ _TYPE_LABELS: dict[str, str] = {
     "NODE_GROUP": "Node Group",
 }
 
+_TYPE_ICONS: dict[str, str] = {
+    "MATERIAL": "MATERIAL",
+    "MESH": "MESH_DATA",
+    "NODE_GROUP": "NODETREE",
+}
+
+# Whether the Load button is shown for each asset type.
+_SHOW_LOAD_FOR_TYPE: dict[str, bool] = {
+    "MATERIAL": True,
+    "MESH": True,
+    "NODE_GROUP": False,
+}
+
 
 def draw_asset_section(
     layout,
@@ -131,6 +144,54 @@ def draw_asset_section(
         detail_op.asset_id = asset["id"]
 
     layout.separator()
+
+
+def draw_unified_asset_section(
+    layout,
+    assets,
+    *,
+    selected_asset_id: str = "",
+) -> None:
+    """Draw a single "Assets" box listing all *assets* with a per-type icon.
+
+    Each row shows the asset's type icon, name, and action buttons.  The Load
+    button is omitted for asset types that must be loaded from a specific editor
+    context (e.g. Node Groups).
+
+    Parameters
+    ----------
+    layout:
+        The ``bpy.types.UILayout`` to draw into.
+    assets:
+        Sequence of DB rows with at least ``"id"``, ``"name"``, and ``"type"``
+        keys.  Should already be sorted by the caller.
+    selected_asset_id:
+        UUID of the currently selected asset; its Details button is shown
+        depressed.
+    """
+    layout.label(text="Assets", icon="ASSET_MANAGER")
+    box = layout.box()
+
+    if not assets:
+        box.label(text="No assets saved yet")
+        return
+
+    for asset in assets:
+        row = box.row(align=True)
+        asset_type = asset["type"]
+        row.label(text=asset["name"], icon=_TYPE_ICONS.get(asset_type, "OBJECT_DATA"))
+
+        if _SHOW_LOAD_FOR_TYPE.get(asset_type, True):
+            load_op = row.operator("melvil.load_asset", text="", icon="IMPORT")
+            load_op.asset_id = asset["id"]
+
+        detail_op = row.operator(
+            "melvil.asset_select",
+            text="",
+            icon="PROPERTIES",
+            depress=(asset["id"] == selected_asset_id),
+        )
+        detail_op.asset_id = asset["id"]
 
 
 def load_assets(asset_type=None, kit_id=None):
