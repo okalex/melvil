@@ -20,6 +20,15 @@ Properties on WindowManager
 melvil_active_tag_filters : str
     Comma-separated list of tag UUIDs currently active as browser filters.
     Non-persistent — reset each Blender session.
+
+melvil_pending_name : str
+    Draft name value shown in the inline name editor in the asset detail panel.
+    Reset to the saved asset name when the selected asset changes.
+
+melvil_pending_name_asset_id : str
+    UUID of the asset whose name is currently loaded into ``melvil_pending_name``.
+    When this differs from the selected asset's ID, ``draw_asset_details`` re-syncs
+    the draft name from the database.
 """
 
 from __future__ import annotations
@@ -32,6 +41,16 @@ from bpy.types import PropertyGroup
 # Guard flag: set True while draw() rebuilds melvil_filter_tags so that the
 # is_active update callback does not fire during that reconstruction.
 _rebuilding_filter_tags: bool = False
+
+
+def _update_pending_name(self, context) -> None:
+    """Tag the current area for redraw so the confirm button's enabled state
+    updates on every keystroke while the name field is being edited.
+
+    ``self`` is the WindowManager instance.
+    """
+    if context.area is not None:
+        context.area.tag_redraw()
 
 
 def _update_filter_tags_index(self, context) -> None:
@@ -133,6 +152,19 @@ def register() -> None:
         options={"HIDDEN", "SKIP_SAVE"},
         update=_update_filter_tags_index,
     )
+    bpy.types.WindowManager.melvil_pending_name = StringProperty(
+        name="Pending Name",
+        description="Draft asset name in the inline name editor",
+        default="",
+        options={"HIDDEN", "SKIP_SAVE", "TEXTEDIT_UPDATE"},
+        update=_update_pending_name,
+    )
+    bpy.types.WindowManager.melvil_pending_name_asset_id = StringProperty(
+        name="Pending Name Asset ID",
+        description="UUID of the asset whose name is loaded into melvil_pending_name",
+        default="",
+        options={"HIDDEN", "SKIP_SAVE"},
+    )
 
 
 def unregister() -> None:
@@ -144,5 +176,7 @@ def unregister() -> None:
     del bpy.types.WindowManager.melvil_asset_tags_index
     del bpy.types.WindowManager.melvil_filter_tags
     del bpy.types.WindowManager.melvil_filter_tags_index
+    del bpy.types.WindowManager.melvil_pending_name
+    del bpy.types.WindowManager.melvil_pending_name_asset_id
     bpy.utils.unregister_class(MelvilTagItem)
     bpy.utils.unregister_class(MelvilFilterTagItem)

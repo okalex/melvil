@@ -7,7 +7,7 @@ import bpy
 from ..utils import register_class as _safe_register
 from .add_node_group import MELVIL_OT_add_node_group
 from .asset_edit_tags import MELVIL_OT_asset_edit_tags
-from .asset_rename import MELVIL_OT_asset_rename
+from .asset_rename import MELVIL_OT_asset_name_confirm
 from .asset_select import MELVIL_OT_asset_select
 from .asset_set_kit import MELVIL_OT_asset_set_kit
 from .delete import MELVIL_OT_delete_asset
@@ -37,7 +37,7 @@ from .toggle_sidebar import MELVIL_OT_toggle_sidebar
 _classes = (
     MELVIL_OT_add_node_group,
     MELVIL_OT_asset_edit_tags,
-    MELVIL_OT_asset_rename,
+    MELVIL_OT_asset_name_confirm,
     MELVIL_OT_asset_select,
     MELVIL_OT_asset_set_kit,
     MELVIL_OT_kit_create,

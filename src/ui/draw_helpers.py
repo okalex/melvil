@@ -138,7 +138,7 @@ def draw_asset_section(
         detail_op = row.operator(
             "melvil.asset_select",
             text="",
-            icon="PROPERTIES",
+            icon="FORWARD",
             depress=(asset["id"] == selected_asset_id),
         )
         detail_op.asset_id = asset["id"]
@@ -188,7 +188,7 @@ def draw_unified_asset_section(
         detail_op = row.operator(
             "melvil.asset_select",
             text="",
-            icon="PROPERTIES",
+            icon="DISCLOSURE_TRI_RIGHT",
             depress=(asset["id"] == selected_asset_id),
         )
         detail_op.asset_id = asset["id"]
@@ -298,7 +298,7 @@ def draw_asset_details(
     asset,
     tags: list,
     kit_name: str,
-    wm=None,
+    wm,
 ) -> None:
     """Draw the asset detail panel with metadata and action buttons.
 
@@ -312,33 +312,49 @@ def draw_asset_details(
         List of tag rows with ``"id"`` and ``"name"`` keys for this asset.
     kit_name:
         Human-readable name of the kit this asset belongs to.
+    wm:
+        The ``bpy.types.WindowManager`` instance; used for the inline name
+        editor's draft state.
     """
+    # Sync the draft name whenever the selected asset changes so that
+    # switching assets always shows the current saved name.
+    if wm.melvil_pending_name_asset_id != asset["id"]:
+        wm.melvil_pending_name = asset["name"]
+        wm.melvil_pending_name_asset_id = asset["id"]
+
     name_row = layout.row(align=True)
-    name_row.label(text=asset["name"])
-    rename_op = name_row.operator("melvil.asset_rename", text="", icon="GREASEPENCIL")
-    rename_op.asset_id = asset["id"]
-
-    col = layout.column(align=False)
-
-    # Type
-    type_split = col.row().split(factor=0.15)
-    type_split.label(text="Type:")
-    type_split.label(text=_TYPE_LABELS.get(asset["type"], asset["type"]))
+    name_split = name_row.split(factor=0.15)
+    name_split.label(text="Name:")
+    name_split.prop(wm, "melvil_pending_name", text="")
+    confirm_col = name_row.column()
+    confirm_col.enabled = (
+        wm.melvil_pending_name.strip() != asset["name"]
+        and bool(wm.melvil_pending_name.strip())
+    )
+    confirm_op = confirm_col.operator(
+        "melvil.asset_name_confirm", text="", icon="CHECKMARK"
+    )
+    confirm_op.asset_id = asset["id"]
 
     # Kit
-    kit_row = col.row(align=True)
+    kit_row = layout.row(align=True)
     kit_split = kit_row.split(factor=0.15)
     kit_split.label(text="Kit:")
     kit_split.label(text=kit_name)
     kit_op = kit_row.operator("melvil.asset_set_kit", text="", icon="GREASEPENCIL")
     kit_op.asset_id = asset["id"]
 
-    col.separator()
+    # Type
+    type_split = layout.row().split(factor=0.15)
+    type_split.label(text="Type:")
+    type_split.label(text=_TYPE_LABELS.get(asset["type"], asset["type"]))
+
+    layout.separator()
 
     # Tags
-    col.label(text="Tags:", icon="TAG")
+    layout.label(text="Tags", icon="TAG")
     if wm is not None:
-        list_row = col.row()
+        list_row = layout.row()
         list_row.template_list(
             "MELVIL_UL_asset_tags", "",
             wm, "melvil_asset_tags",
@@ -358,23 +374,23 @@ def draw_asset_details(
         remove_op.asset_id = asset["id"]
         remove_op.tag_id = tag_items[idx].tag_id if remove_col.enabled else ""
     elif tags:
-        grid = col.grid_flow(row_major=True, columns=0, even_columns=True, align=True)
+        grid = layout.grid_flow(row_major=True, columns=0, even_columns=True, align=True)
         for tag in tags:
             grid.label(text=tag["name"])
     else:
-        sub = col.row()
+        sub = layout.row()
         sub.enabled = False
         sub.label(text="No tags")
 
-    col.separator()
+    layout.separator()
 
-    del_row = col.row()
+    del_row = layout.row()
     del_row.alignment = "LEFT"
     del_row.alert = True
     del_op = del_row.operator("melvil.delete_asset", text="Delete Asset", icon="TRASH")
     del_op.asset_id = asset["id"]
 
-    col.separator()
+    layout.separator()
 
 
 def load_asset(asset_id: str):

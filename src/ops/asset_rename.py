@@ -1,8 +1,9 @@
-"""MELVIL_OT_asset_rename — rename an asset in the Melvil library.
+"""asset_rename — asset name editing for Melvil.
 
-Presents a ``invoke_props_dialog`` with a single Name field pre-filled with
-the current asset name.  On confirmation it writes the new name to the
-database via ``update_asset``.
+Contains ``MELVIL_OT_asset_name_confirm``, the operator invoked by the
+inline checkmark button in the browser detail panel.  It reads the draft
+name from ``context.window_manager.melvil_pending_name`` and writes it to
+the database via ``update_asset``.
 """
 
 from __future__ import annotations
@@ -99,9 +100,65 @@ class MELVIL_OT_asset_rename(bpy.types.Operator):
         return {"FINISHED"}
 
 
+# ---------------------------------------------------------------------------
+# Inline confirm operator
+# ---------------------------------------------------------------------------
+
+
+class MELVIL_OT_asset_name_confirm(bpy.types.Operator):
+    """Confirm the inline asset name edit in the browser detail panel"""
+
+    bl_idname = "melvil.asset_name_confirm"
+    bl_label = "Confirm Name"
+    bl_options = {"REGISTER"}
+
+    asset_id: StringProperty(
+        name="Asset ID",
+        description="UUID of the asset to rename",
+        default="",
+        options={"HIDDEN"},
+    )
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def execute(self, context):
+        asset_id = self.asset_id.strip()
+        name = context.window_manager.melvil_pending_name.strip()
+
+        if not asset_id:
+            self.report({"ERROR"}, "Melvil: no asset ID provided.")
+            return {"CANCELLED"}
+
+        if not name:
+            self.report({"ERROR"}, "Melvil: asset name cannot be empty.")
+            return {"CANCELLED"}
+
+        try:
+            with open_db(resolve_db_path()) as conn:
+                if get_asset(conn, asset_id) is None:
+                    self.report({"ERROR"}, f"Melvil: asset '{asset_id}' not found.")
+                    return {"CANCELLED"}
+                update_asset(conn, asset_id, name=name)
+                conn.commit()
+        except LibraryNotConfiguredError as exc:
+            self.report({"ERROR"}, str(exc))
+            return {"CANCELLED"}
+        except Exception as exc:  # noqa: BLE001
+            self.report({"ERROR"}, f"Melvil: could not rename asset — {exc}")
+            return {"CANCELLED"}
+
+        # Reset so draw_asset_details re-syncs the pending name from the DB
+        # on the next draw, showing the newly saved name with the button grey.
+        context.window_manager.melvil_pending_name_asset_id = ""
+        self.report({"INFO"}, f"Melvil: asset renamed to '{name}'.")
+        return {"FINISHED"}
+
+
 def register() -> None:
-    bpy.utils.register_class(MELVIL_OT_asset_rename)
+    bpy.utils.register_class(MELVIL_OT_asset_name_confirm)
 
 
 def unregister() -> None:
-    bpy.utils.unregister_class(MELVIL_OT_asset_rename)
+    bpy.utils.unregister_class(MELVIL_OT_asset_name_confirm)

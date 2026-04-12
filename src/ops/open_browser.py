@@ -342,6 +342,7 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
             item.name = _tag["name"]
             item.tag_id = _tag["id"]
 
+        right.label(text="Asset details", icon="PROPERTIES")
         right_box = right.box()
         if selected_asset is not None:
             draw_asset_details(
@@ -352,8 +353,7 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
                 wm=wm,
             )
         else:
-            right_box.label(text="Select an asset", icon="INFO")
-            right_box.label(text="to view its details.")
+            right_box.label(text="No asset selected", icon="INFO")
 
 
 # ---------------------------------------------------------------------------

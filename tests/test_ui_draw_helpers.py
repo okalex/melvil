@@ -570,3 +570,145 @@ class TestFilterAssetsTagNames:
         tag_names = {"0": ["metal"]}
 
         assert filter_assets(assets, "", tag_names) == assets
+
+
+# ---------------------------------------------------------------------------
+# draw_asset_details() — name row
+# ---------------------------------------------------------------------------
+
+
+def _make_details_asset(id="asset-1", name="My Cube", type="MESH"):
+    return {"id": id, "name": name, "type": type, "kit_id": "default"}
+
+
+def _make_wm(pending_name="", pending_name_asset_id=""):
+    wm = MagicMock()
+    wm.melvil_pending_name = pending_name
+    wm.melvil_pending_name_asset_id = pending_name_asset_id
+    wm.melvil_asset_tags = []
+    wm.melvil_asset_tags_index = 0
+    return wm
+
+
+class TestDrawAssetDetailsNameRow:
+    def _draw(self, asset, wm):
+        from melvil.ui.draw_helpers import draw_asset_details
+
+        layout = MagicMock()
+        split = MagicMock()
+        row = MagicMock()
+        row.split.return_value = split
+        layout.row.return_value = row
+        col = MagicMock()
+        row.column.return_value = col
+        col.operator.return_value = MagicMock()
+        draw_asset_details(layout, asset, [], "General", wm=wm)
+        return layout, row, split, col
+
+    def test_shows_pending_name_prop(self):
+        from melvil.ui.draw_helpers import draw_asset_details
+
+        layout = MagicMock()
+        split = MagicMock()
+        row = MagicMock()
+        row.split.return_value = split
+        layout.row.return_value = row
+        col = MagicMock()
+        row.column.return_value = col
+        col.operator.return_value = MagicMock()
+        wm = _make_wm(pending_name="My Cube", pending_name_asset_id="asset-1")
+
+        draw_asset_details(layout, _make_details_asset(id="asset-1", name="My Cube"), [], "General", wm=wm)
+
+        split.prop.assert_any_call(wm, "melvil_pending_name", text="")
+
+    def test_confirm_button_disabled_when_name_unchanged(self):
+        from melvil.ui.draw_helpers import draw_asset_details
+
+        layout = MagicMock()
+        split = MagicMock()
+        row = MagicMock()
+        row.split.return_value = split
+        layout.row.return_value = row
+        col = MagicMock()
+        row.column.return_value = col
+        col.operator.return_value = MagicMock()
+        wm = _make_wm(pending_name="My Cube", pending_name_asset_id="asset-1")
+
+        draw_asset_details(layout, _make_details_asset(id="asset-1", name="My Cube"), [], "General", wm=wm)
+
+        assert col.enabled is False
+
+    def test_confirm_button_enabled_when_name_changed(self):
+        from melvil.ui.draw_helpers import draw_asset_details
+
+        layout = MagicMock()
+        split = MagicMock()
+        row = MagicMock()
+        row.split.return_value = split
+        layout.row.return_value = row
+        col = MagicMock()
+        row.column.return_value = col
+        col.operator.return_value = MagicMock()
+        wm = _make_wm(pending_name="New Name", pending_name_asset_id="asset-1")
+
+        draw_asset_details(layout, _make_details_asset(id="asset-1", name="My Cube"), [], "General", wm=wm)
+
+        assert col.enabled is True
+
+    def test_confirm_button_disabled_when_name_empty(self):
+        from melvil.ui.draw_helpers import draw_asset_details
+
+        layout = MagicMock()
+        split = MagicMock()
+        row = MagicMock()
+        row.split.return_value = split
+        layout.row.return_value = row
+        col = MagicMock()
+        row.column.return_value = col
+        col.operator.return_value = MagicMock()
+        wm = _make_wm(pending_name="", pending_name_asset_id="asset-1")
+
+        draw_asset_details(layout, _make_details_asset(id="asset-1", name="My Cube"), [], "General", wm=wm)
+
+        assert col.enabled is False
+
+    def test_confirm_button_uses_checkmark_icon(self):
+        from melvil.ui.draw_helpers import draw_asset_details
+
+        layout = MagicMock()
+        split = MagicMock()
+        row = MagicMock()
+        row.split.return_value = split
+        layout.row.return_value = row
+        col = MagicMock()
+        row.column.return_value = col
+        col.operator.return_value = MagicMock()
+        wm = _make_wm(pending_name="My Cube", pending_name_asset_id="asset-1")
+
+        draw_asset_details(layout, _make_details_asset(id="asset-1", name="My Cube"), [], "General", wm=wm)
+
+        op_calls = col.operator.call_args_list
+        assert any(
+            c[0][0] == "melvil.asset_name_confirm" and c[1].get("icon") == "CHECKMARK"
+            for c in op_calls
+        )
+
+    def test_syncs_pending_name_when_asset_changes(self):
+        from melvil.ui.draw_helpers import draw_asset_details
+
+        layout = MagicMock()
+        split = MagicMock()
+        row = MagicMock()
+        row.split.return_value = split
+        layout.row.return_value = row
+        col = MagicMock()
+        row.column.return_value = col
+        col.operator.return_value = MagicMock()
+        # pending_name_asset_id is "" (different from "asset-1") → sync expected
+        wm = _make_wm(pending_name="stale draft", pending_name_asset_id="")
+
+        draw_asset_details(layout, _make_details_asset(id="asset-1", name="My Cube"), [], "General", wm=wm)
+
+        assert wm.melvil_pending_name == "My Cube"
+        assert wm.melvil_pending_name_asset_id == "asset-1"
