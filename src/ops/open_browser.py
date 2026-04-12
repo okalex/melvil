@@ -195,8 +195,9 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
         selected = self.type_filter
         kit_id = self.kit_filter if self.kit_filter != "ALL_KITS" else None
         query = self.search_query
-        active_tag_ids = get_active_tag_filters(context.window_manager)
-        selected_id = getattr(context.window_manager, "melvil_selected_asset_id", "")
+        wm = context.window_manager
+        active_tag_ids = get_active_tag_filters(wm)
+        selected_id = getattr(wm, "melvil_selected_asset_id", "")
 
         # Determine which type sections are visible (respects type_filter).
         visible_types = [
@@ -334,6 +335,13 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
         # Right column — asset detail panel
         # ------------------------------------------------------------------
 
+        # Populate the WM tag collection so template_list has data to display.
+        wm.melvil_asset_tags.clear()
+        for _tag in selected_tags:
+            item = wm.melvil_asset_tags.add()
+            item.name = _tag["name"]
+            item.tag_id = _tag["id"]
+
         right_box = right.box()
         if selected_asset is not None:
             draw_asset_details(
@@ -341,7 +349,7 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
                 selected_asset,
                 selected_tags,
                 selected_kit_name,
-                active_tag_ids,
+                wm=wm,
             )
         else:
             right_box.label(text="Select an asset", icon="INFO")

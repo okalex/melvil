@@ -34,6 +34,13 @@ class MELVIL_OT_tag_add(bpy.types.Operator):
     def poll(cls, context):
         return True
 
+    def invoke(self, context, event):
+        self.tags = ""
+        return context.window_manager.invoke_props_dialog(self)
+
+    def draw(self, context):
+        self.layout.prop(self, "tags", text="Tags")
+
     def execute(self, context):
         asset_id = self.asset_id.strip()
         if not asset_id:

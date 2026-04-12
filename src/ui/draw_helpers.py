@@ -7,6 +7,8 @@ Any panel or popup that needs to render an asset list imports
 
 from __future__ import annotations
 
+import bpy
+
 from ..core.library import resolve_db_path
 from ..db import open_db
 from ..db.assets import get_asset as _get_asset, list_assets
@@ -17,6 +19,17 @@ from ..db.tags import (
     get_asset_tag_names as _get_asset_tag_names,
     list_tags_for_asset_ids as _list_tags_for_asset_ids,
 )
+
+class MELVIL_UL_asset_tags(bpy.types.UIList):
+    """UIList for displaying asset tags in the browser detail panel."""
+
+    def draw_item(self, context, layout, data, item, icon, active_data, active_property):
+        if self.layout_type in {"DEFAULT", "COMPACT"}:
+            layout.label(text=item.name, icon="TAG")
+        elif self.layout_type == "GRID":
+            layout.alignment = "CENTER"
+            layout.label(text="", icon="TAG")
+
 
 _TYPE_LABELS: dict[str, str] = {
     "MATERIAL": "Material",
@@ -297,7 +310,7 @@ def draw_asset_details(
     asset,
     tags: list,
     kit_name: str,
-    active_tag_ids=(),
+    wm=None,
 ) -> None:
     """Draw the asset detail panel with metadata and action buttons.
 
@@ -311,8 +324,6 @@ def draw_asset_details(
         List of tag rows with ``"id"`` and ``"name"`` keys for this asset.
     kit_name:
         Human-readable name of the kit this asset belongs to.
-    active_tag_ids:
-        UUIDs of tags currently active as filters (renders pills depressed).
     """
     name_row = layout.row(align=True)
     name_row.label(text=asset["name"], icon="INFO")
@@ -339,27 +350,34 @@ def draw_asset_details(
 
     # Tags
     col.label(text="Tags:")
-    if tags:
-        active_set = set(active_tag_ids)
-        tag_row = col.row(align=True)
+    if wm is not None:
+        list_row = col.row()
+        list_row.template_list(
+            "MELVIL_UL_asset_tags", "",
+            wm, "melvil_asset_tags",
+            wm, "melvil_asset_tags_index",
+            rows=3,
+        )
+        side_col = list_row.column(align=True)
+
+        add_op = side_col.operator("melvil.tag_add", text="", icon="ADD")
+        add_op.asset_id = asset["id"]
+
+        idx = wm.melvil_asset_tags_index
+        tag_items = wm.melvil_asset_tags
+        remove_col = side_col.column()
+        remove_col.enabled = bool(tag_items) and 0 <= idx < len(tag_items)
+        remove_op = remove_col.operator("melvil.tag_remove", text="", icon="REMOVE")
+        remove_op.asset_id = asset["id"]
+        remove_op.tag_id = tag_items[idx].tag_id if remove_col.enabled else ""
+    elif tags:
+        grid = col.grid_flow(row_major=True, columns=0, even_columns=True, align=True)
         for tag in tags:
-            pill = tag_row.operator(
-                "melvil.tag_filter_toggle",
-                text=tag["name"],
-                depress=(tag["id"] in active_set),
-            )
-            pill.tag_id = tag["id"]
+            grid.label(text=tag["name"])
     else:
         sub = col.row()
         sub.enabled = False
         sub.label(text="No tags")
-
-    col.separator()
-
-    # Action buttons
-    edit_tags_op = col.operator("melvil.asset_edit_tags", text="Edit Tags", icon="TAG")
-    edit_tags_op.asset_id = asset["id"]
-    edit_tags_op.asset_name = asset["name"]
 
     col.separator()
 

@@ -25,10 +25,23 @@ melvil_active_tag_filters : str
 from __future__ import annotations
 
 import bpy
-from bpy.props import StringProperty
+from bpy.props import CollectionProperty, IntProperty, StringProperty
+from bpy.types import PropertyGroup
+
+
+class MelvilTagItem(PropertyGroup):
+    """A single tag name, used to populate the asset detail tag list."""
+    # ``name`` is inherited from PropertyGroup — no extra annotations needed.
+    tag_id: StringProperty(
+        name="Tag ID",
+        description="UUID of the tag",
+        default="",
+        options={"HIDDEN"},
+    )
 
 
 def register() -> None:
+    bpy.utils.register_class(MelvilTagItem)
     bpy.types.Scene.melvil_active_kit_id = StringProperty(
         name="Active Kit",
         description="Kit used to filter Melvil items in the Add menus",
@@ -58,6 +71,17 @@ def register() -> None:
         default="",
         options={"HIDDEN", "SKIP_SAVE"},
     )
+    bpy.types.WindowManager.melvil_asset_tags = CollectionProperty(
+        name="Asset Tags",
+        description="Tags for the currently selected asset in the browser detail panel",
+        type=MelvilTagItem,
+        options={"HIDDEN", "SKIP_SAVE"},
+    )
+    bpy.types.WindowManager.melvil_asset_tags_index = IntProperty(
+        name="Asset Tags Index",
+        default=0,
+        options={"HIDDEN", "SKIP_SAVE"},
+    )
 
 
 def unregister() -> None:
@@ -66,3 +90,6 @@ def unregister() -> None:
     del bpy.types.WindowManager.melvil_active_tag_filters
     del bpy.types.WindowManager.melvil_tag_sort
     del bpy.types.WindowManager.melvil_selected_asset_id
+    del bpy.types.WindowManager.melvil_asset_tags
+    del bpy.types.WindowManager.melvil_asset_tags_index
+    bpy.utils.unregister_class(MelvilTagItem)

@@ -6,9 +6,11 @@ import bpy
 
 from ..utils import register_class as _safe_register
 from . import keymaps, menu_items, menus, menus_add, menus_material, menus_node_add, menus_node_editor, scene_props
+from .draw_helpers import MELVIL_UL_asset_tags
 from .panel import MELVIL_PT_main
 
 _classes = (
+    MELVIL_UL_asset_tags,
     MELVIL_PT_main,
 )
 
