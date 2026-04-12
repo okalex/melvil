@@ -71,32 +71,6 @@ def test_poll_always_true():
 
 
 # ---------------------------------------------------------------------------
-# invoke()
-# ---------------------------------------------------------------------------
-
-
-def test_invoke_no_asset_id_returns_cancelled():
-    op = _make_op(asset_id="")
-    result = op.invoke(_make_ctx(), MagicMock())
-    assert result == {"CANCELLED"}
-
-
-def test_invoke_calls_dialog():
-    op = _make_op(asset_id=_ASSET_ID)
-    ctx = _make_ctx()
-    op.invoke(ctx, MagicMock())
-    ctx.window_manager.invoke_props_dialog.assert_called_once_with(op)
-
-
-def test_invoke_returns_dialog_result():
-    op = _make_op(asset_id=_ASSET_ID)
-    ctx = _make_ctx()
-    ctx.window_manager.invoke_props_dialog.return_value = {"RUNNING_MODAL"}
-    result = op.invoke(ctx, MagicMock())
-    assert result == {"RUNNING_MODAL"}
-
-
-# ---------------------------------------------------------------------------
 # execute() — validation
 # ---------------------------------------------------------------------------
 

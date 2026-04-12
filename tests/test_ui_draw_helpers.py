@@ -712,3 +712,52 @@ class TestDrawAssetDetailsNameRow:
 
         assert wm.melvil_pending_name == "My Cube"
         assert wm.melvil_pending_name_asset_id == "asset-1"
+
+
+# ---------------------------------------------------------------------------
+# draw_asset_details — kit row
+# ---------------------------------------------------------------------------
+
+
+def _draw_for_kit(asset_id="asset-1", name="My Cube", kit_name="General"):
+    from melvil.ui.draw_helpers import draw_asset_details
+
+    layout = MagicMock()
+    split = MagicMock()
+    kit_op_props = MagicMock()
+    split.operator_menu_enum.return_value = kit_op_props
+    row = MagicMock()
+    row.split.return_value = split
+    col = MagicMock()
+    col.operator.return_value = MagicMock()
+    row.column.return_value = col
+    layout.row.return_value = row
+    wm = _make_wm(pending_name=name, pending_name_asset_id=asset_id)
+    asset = _make_details_asset(id=asset_id, name=name)
+    draw_asset_details(layout, asset, [], kit_name, wm=wm)
+    return split, kit_op_props
+
+
+class TestDrawAssetDetailsKitRow:
+    def test_uses_operator_menu_enum_for_set_kit(self):
+        split, _kit_op = _draw_for_kit()
+
+        calls = split.operator_menu_enum.call_args_list
+        assert any(c[0][0] == "melvil.asset_set_kit" for c in calls)
+
+    def test_passes_kit_id_property_name(self):
+        split, _kit_op = _draw_for_kit()
+
+        calls = split.operator_menu_enum.call_args_list
+        assert any(c[0][1] == "kit_id" for c in calls)
+
+    def test_uses_kit_name_as_button_label(self):
+        split, _kit_op = _draw_for_kit(kit_name="Game Assets")
+
+        calls = split.operator_menu_enum.call_args_list
+        assert any(c[1].get("text") == "Game Assets" for c in calls)
+
+    def test_sets_asset_id_on_operator_props(self):
+        _split, kit_op = _draw_for_kit(asset_id="my-asset-id")
+
+        assert kit_op.asset_id == "my-asset-id"

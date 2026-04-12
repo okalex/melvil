@@ -52,15 +52,6 @@ class MELVIL_OT_asset_set_kit(bpy.types.Operator):
     def poll(cls, context):
         return True
 
-    def invoke(self, context, event):
-        if not self.asset_id.strip():
-            self.report({"ERROR"}, "No asset ID provided.")
-            return {"CANCELLED"}
-        return context.window_manager.invoke_props_dialog(self)
-
-    def draw(self, context):
-        self.layout.prop(self, "kit_id")
-
     def execute(self, context):
         asset_id = self.asset_id.strip()
         kit_id = self.kit_id

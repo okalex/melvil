@@ -340,8 +340,7 @@ def draw_asset_details(
     kit_row = layout.row(align=True)
     kit_split = kit_row.split(factor=0.15)
     kit_split.label(text="Kit:")
-    kit_split.label(text=kit_name)
-    kit_op = kit_row.operator("melvil.asset_set_kit", text="", icon="GREASEPENCIL")
+    kit_op = kit_split.operator_menu_enum("melvil.asset_set_kit", "kit_id", text=kit_name)
     kit_op.asset_id = asset["id"]
 
     # Type
