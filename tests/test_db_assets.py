@@ -156,3 +156,35 @@ def test_duplicate_id_raises(conn):
     assets_db.insert_asset(conn, **SAMPLE)
     with pytest.raises(sqlite3.IntegrityError):
         assets_db.insert_asset(conn, **SAMPLE)
+
+
+# ---------------------------------------------------------------------------
+# preview_path support
+# ---------------------------------------------------------------------------
+
+
+def test_insert_without_preview_path_defaults_to_null(conn):
+    assets_db.insert_asset(conn, **SAMPLE)
+    row = assets_db.get_asset(conn, SAMPLE["id"])
+    assert row["preview_path"] is None
+
+
+def test_insert_with_preview_path(conn):
+    assets_db.insert_asset(conn, **SAMPLE, preview_path="previews/abc123.png")
+    row = assets_db.get_asset(conn, SAMPLE["id"])
+    assert row["preview_path"] == "previews/abc123.png"
+
+
+def test_update_asset_preview_path(conn):
+    assets_db.insert_asset(conn, **SAMPLE)
+    assets_db.update_asset(conn, SAMPLE["id"], preview_path="previews/abc123.png")
+    row = assets_db.get_asset(conn, SAMPLE["id"])
+    assert row["preview_path"] == "previews/abc123.png"
+
+
+def test_update_asset_preview_path_without_it_is_noop(conn):
+    assets_db.insert_asset(conn, **SAMPLE, preview_path="previews/existing.png")
+    assets_db.update_asset(conn, SAMPLE["id"], name="Gold Metal")
+    row = assets_db.get_asset(conn, SAMPLE["id"])
+    # preview_path should be unchanged when not passed to update_asset
+    assert row["preview_path"] == "previews/existing.png"

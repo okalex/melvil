@@ -25,14 +25,15 @@ def insert_asset(
     type: str,
     blend_path: str,
     kit_id: str = DEFAULT_KIT_ID,
+    preview_path: Optional[str] = None,
 ) -> None:
     now = _now()
     conn.execute(
         """
-        INSERT INTO assets (id, name, type, blend_path, kit_id, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO assets (id, name, type, blend_path, kit_id, preview_path, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (id, name, type, blend_path, kit_id, now, now),
+        (id, name, type, blend_path, kit_id, preview_path, now, now),
     )
 
 
@@ -72,6 +73,7 @@ def update_asset(
     name: Optional[str] = None,
     blend_path: Optional[str] = None,
     kit_id: Optional[str] = None,
+    preview_path: Optional[str] = None,
 ) -> None:
     fields: list[str] = []
     params: list[object] = []
@@ -84,6 +86,9 @@ def update_asset(
     if kit_id is not None:
         fields.append("kit_id = ?")
         params.append(kit_id)
+    if preview_path is not None:
+        fields.append("preview_path = ?")
+        params.append(preview_path)
     if not fields:
         return
     fields.append("updated_at = ?")
