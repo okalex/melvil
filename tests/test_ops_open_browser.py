@@ -306,7 +306,7 @@ class TestDraw:
 
     # --- search input ---
 
-    def test_draw_renders_search_prop_on_right_column(self):
+    def test_draw_renders_search_prop_on_left_column(self):
         op, left_col, middle_col, _right = self._make_op_with_layout()
         op.type_filter = "ALL"
         op.search_query = ""
@@ -317,7 +317,7 @@ class TestDraw:
              patch("melvil.ops.open_browser.draw_asset_section"):
             op.draw(ctx)
 
-        middle_col.prop.assert_any_call(op, "search_query", text="", icon="VIEWZOOM")
+        left_col.prop.assert_any_call(op, "search_query", text="", icon="VIEWZOOM")
 
     def test_draw_search_filters_assets_passed_to_draw_section(self):
         op, left_col, middle_col, _right = self._make_op_with_layout()

@@ -263,6 +263,9 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
         # Left column — category + kit selectors + tag pills + manage tags
         # ------------------------------------------------------------------
 
+        left.prop(self, "search_query", text="", icon="VIEWZOOM")
+        left.separator()
+
         left.label(text="Asset type")
         left.prop(self, "type_filter", expand=True)
 
@@ -320,9 +323,6 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
         # ------------------------------------------------------------------
         # Middle column — filtered asset list
         # ------------------------------------------------------------------
-        middle.prop(self, "search_query", text="", icon="VIEWZOOM")
-        middle.separator()
-
         if load_error is not None:
             middle.label(text="Could not open library database", icon="ERROR")
             return
