@@ -14,8 +14,28 @@ import bpy
 
 from ..core.library import resolve_db_path
 from ..db import open_db
+from ..db.assets import get_asset
 from ..db.kits import get_kit
 from ..preferences import MelvilPreferences
+
+_BUILTIN_PREVIEW_LABELS: dict[str, str] = {
+    "BUILTIN_CUBE": "Cube",
+    "BUILTIN_UV_SPHERE": "UV Sphere",
+    "BUILTIN_TORUS": "Torus",
+    "BUILTIN_MONKEY": "Monkey",
+}
+
+
+def _resolve_preview_object_label(mat_prev_id: str) -> str:
+    """Return the human-readable label for the current material_preview_object value."""
+    if mat_prev_id in _BUILTIN_PREVIEW_LABELS:
+        return _BUILTIN_PREVIEW_LABELS[mat_prev_id]
+    try:
+        with open_db(resolve_db_path()) as conn:
+            row = get_asset(conn, mat_prev_id)
+        return str(row["name"]) if row else "Unknown Asset"
+    except Exception:  # noqa: BLE001
+        return "Unknown Asset"
 
 
 class MELVIL_PT_main(bpy.types.Panel):
@@ -42,6 +62,15 @@ class MELVIL_PT_main(bpy.types.Panel):
         prefs = context.preferences.addons.get(MelvilPreferences.bl_idname)
         if prefs is not None:
             layout.prop(prefs.preferences, "auto_generate_previews")
+
+            layout.label(text="Material Preview Object")
+            preview_obj_id = prefs.preferences.material_preview_object
+            preview_obj_label = _resolve_preview_object_label(preview_obj_id)
+            layout.operator_menu_enum(
+                "melvil.set_preview_object",
+                "object_id",
+                text=preview_obj_label,
+            )
 
         layout.separator()
         # label reflects the current selection stored on the scene.

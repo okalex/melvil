@@ -165,6 +165,143 @@ def _add_uv_sphere(scene):
     return sphere_obj
 
 
+def _add_builtin_cube(scene):
+    """
+    Create a unit cube (side length 2) and link it to *scene*.
+    Returns the created object.  Isolated for monkeypatching in tests.
+    """
+    import bmesh as _bmesh  # noqa: PLC0415
+    import bpy  # noqa: PLC0415
+
+    mesh = bpy.data.meshes.new("melvil_cube_mesh")
+    bm = _bmesh.new()
+    _bmesh.ops.create_cube(bm, size=2.0)
+    bm.to_mesh(mesh)
+    bm.free()
+
+    for poly in mesh.polygons:
+        poly.use_smooth = True
+
+    cube_obj = bpy.data.objects.new("melvil_cube", mesh)
+    scene.collection.objects.link(cube_obj)
+    return cube_obj
+
+
+def _add_builtin_torus(scene):
+    """
+    Create a torus (major radius 1.0, minor radius 0.3, 48 × 12 segments)
+    and link it to *scene*.  Returns the created object.
+    Isolated for monkeypatching in tests.
+    """
+    import bpy  # noqa: PLC0415
+
+    major_r, minor_r = 1.0, 0.3
+    major_seg, minor_seg = 48, 12
+
+    mesh = bpy.data.meshes.new("melvil_torus_mesh")
+
+    import bmesh as _bmesh  # noqa: PLC0415
+    bm = _bmesh.new()
+
+    for i in range(major_seg):
+        theta = 2.0 * math.pi * i / major_seg
+        cos_t, sin_t = math.cos(theta), math.sin(theta)
+        for j in range(minor_seg):
+            phi = 2.0 * math.pi * j / minor_seg
+            r = major_r + minor_r * math.cos(phi)
+            bm.verts.new((r * cos_t, r * sin_t, minor_r * math.sin(phi)))
+
+    bm.verts.ensure_lookup_table()
+    for i in range(major_seg):
+        for j in range(minor_seg):
+            v00 = bm.verts[i * minor_seg + j]
+            v01 = bm.verts[i * minor_seg + (j + 1) % minor_seg]
+            v10 = bm.verts[((i + 1) % major_seg) * minor_seg + j]
+            v11 = bm.verts[((i + 1) % major_seg) * minor_seg + (j + 1) % minor_seg]
+            bm.faces.new((v00, v10, v11, v01))
+
+    bm.to_mesh(mesh)
+    bm.free()
+
+    for poly in mesh.polygons:
+        poly.use_smooth = True
+
+    torus_obj = bpy.data.objects.new("melvil_torus", mesh)
+    scene.collection.objects.link(torus_obj)
+    return torus_obj
+
+
+def _add_builtin_monkey(scene):
+    """
+    Create a Suzanne monkey head and link it to *scene*.
+    Returns the created object.  Isolated for monkeypatching in tests.
+    """
+    import bmesh as _bmesh  # noqa: PLC0415
+    import bpy  # noqa: PLC0415
+
+    mesh = bpy.data.meshes.new("melvil_monkey_mesh")
+    bm = _bmesh.new()
+    _bmesh.ops.create_monkey(bm)
+    bm.to_mesh(mesh)
+    bm.free()
+
+    for poly in mesh.polygons:
+        poly.use_smooth = True
+
+    monkey_obj = bpy.data.objects.new("melvil_monkey", mesh)
+    scene.collection.objects.link(monkey_obj)
+    return monkey_obj
+
+
+def _add_user_mesh_asset(scene, blend_path: str, obj_name: str):
+    """
+    Append a saved MESH asset from *blend_path* and link it into *scene*.
+    Returns the appended object, or ``None`` if it could not be loaded.
+
+    The appended object is a fresh copy owned by *bpy.data*; the caller is
+    responsible for removing it (and its mesh datablock) in the ``finally``
+    block.  Isolated for monkeypatching in tests.
+    """
+    import bpy  # noqa: PLC0415
+
+    with bpy.data.libraries.load(blend_path, link=False) as (data_from, data_to):
+        if obj_name in data_from.objects:
+            data_to.objects = [obj_name]
+
+    if not data_to.objects or data_to.objects[0] is None:
+        return None
+
+    obj = data_to.objects[0]
+    scene.collection.objects.link(obj)
+    return obj
+
+
+def _add_preview_mesh(scene, preview_mesh_id: str, blend_path=None, obj_name=None):
+    """
+    Create the preview mesh in *scene* based on *preview_mesh_id*.
+
+    Built-in primitives are generated via bmesh (no side effects on the
+    user's scene).  For user assets, *blend_path* and *obj_name* must be
+    provided; the object is appended from the .blend file.
+
+    Returns the created object, or ``None`` when a user asset cannot be
+    loaded.  Isolated so individual primitive helpers can still be
+    monkeypatched in tests.
+    """
+    if preview_mesh_id == "BUILTIN_CUBE":
+        return _add_builtin_cube(scene)
+    if preview_mesh_id == "BUILTIN_TORUS":
+        return _add_builtin_torus(scene)
+    if preview_mesh_id == "BUILTIN_MONKEY":
+        return _add_builtin_monkey(scene)
+    if preview_mesh_id == "BUILTIN_UV_SPHERE":
+        return _add_uv_sphere(scene)
+    # User asset — load from .blend.
+    if blend_path is not None and obj_name is not None:
+        return _add_user_mesh_asset(scene, blend_path, obj_name)
+    return None
+
+
 def _make_material_preview_lighting(scene):
     """
     Add a key sun light and a dim ambient world to *scene* for Eevee material
@@ -308,6 +445,10 @@ def generate_material_preview(
     mat,
     asset_id: str,
     previews_dir: Path,
+    *,
+    preview_mesh_id: str = "BUILTIN_UV_SPHERE",
+    preview_mesh_blend_path: Optional[str] = None,
+    preview_mesh_obj_name: Optional[str] = None,
 ) -> Optional[str]:
     """
     Render a 512×512 Workbench preview of *mat* applied to a UV sphere.
@@ -349,8 +490,10 @@ def generate_material_preview(
         scene = bpy.data.scenes.new("melvil_preview_temp")
         _configure_scene(scene, output_path, engine="BLENDER_EEVEE")
 
-        # --- UV sphere with material applied ---
-        sphere_obj = _add_uv_sphere(scene)
+        # --- Preview mesh with material applied ---
+        sphere_obj = _add_preview_mesh(
+            scene, preview_mesh_id, preview_mesh_blend_path, preview_mesh_obj_name
+        )
         sphere_obj.data.materials.append(mat)
 
         # --- Key light + ambient world ---

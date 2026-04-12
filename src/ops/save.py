@@ -28,7 +28,7 @@ from ..core.asset_writer import AssetWriter
 from ..core.library import LibraryNotConfiguredError, resolve_db_path, resolve_library_root
 from ..core.preview import generate_material_preview, generate_mesh_preview
 from ..db import open_db
-from ..db.assets import update_asset
+from ..db.assets import get_asset, update_asset
 from ..db.kits import DEFAULT_KIT_ID, list_kits
 from ..db.tags import add_asset_tag, normalize_tag
 from ..preferences import MelvilPreferences
@@ -290,7 +290,27 @@ class MELVIL_OT_save_asset(bpy.types.Operator):
                     if self.save_type == "MESH":
                         abs_preview = generate_mesh_preview(context, obj, asset_id, previews_dir)
                     else:
-                        abs_preview = generate_material_preview(context, mat, asset_id, previews_dir)
+                        _prev_mesh_id = (
+                            _prefs.preferences.material_preview_object
+                            if _prefs else "BUILTIN_UV_SPHERE"
+                        )
+                        if not isinstance(_prev_mesh_id, str) or not _prev_mesh_id:
+                            _prev_mesh_id = "BUILTIN_UV_SPHERE"
+                        _prev_blend_path = None
+                        _prev_obj_name = None
+                        if not _prev_mesh_id.startswith("BUILTIN_"):
+                            _prev_row = get_asset(conn, _prev_mesh_id)
+                            if _prev_row:
+                                _prev_blend_path = str(
+                                    Path(library_root) / _prev_row["blend_path"]
+                                )
+                                _prev_obj_name = str(_prev_row["name"])
+                        abs_preview = generate_material_preview(
+                            context, mat, asset_id, previews_dir,
+                            preview_mesh_id=_prev_mesh_id,
+                            preview_mesh_blend_path=_prev_blend_path,
+                            preview_mesh_obj_name=_prev_obj_name,
+                        )
 
                     if abs_preview is not None:
                         relative_preview = f"previews/{asset_id}.png"

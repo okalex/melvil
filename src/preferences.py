@@ -37,6 +37,12 @@ class MelvilPreferences(AddonPreferences):
         default=True,
     )
 
+    material_preview_object: StringProperty(
+        name="Material Preview Object",
+        description="Mesh used when generating material preview images",
+        default="BUILTIN_UV_SPHERE",
+    )
+
     def draw(self, context):
         from .core.library import _default_db_path, _default_library_root
 

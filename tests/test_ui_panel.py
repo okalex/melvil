@@ -74,7 +74,7 @@ class TestDraw:
 
         panel.draw(_make_context())
 
-        layout.operator_menu_enum.assert_called_once_with(
+        layout.operator_menu_enum.assert_any_call(
             "melvil.set_active_kit",
             "kit_id",
             text="All Kits",
@@ -152,3 +152,63 @@ class TestDraw:
 
         prop_calls = [c for c in layout.prop.call_args_list if "auto_generate_previews" in c[0]]
         assert len(prop_calls) == 0
+
+    def test_preview_object_dropdown_drawn_when_prefs_available(self):
+        from unittest.mock import patch
+
+        panel = self._panel()
+        layout = _make_layout()
+        panel.layout = layout
+
+        ctx = _make_context()
+        mock_prefs = MagicMock()
+        mock_prefs.preferences.material_preview_object = "BUILTIN_UV_SPHERE"
+        ctx.preferences.addons.get.return_value = mock_prefs
+
+        with patch("melvil.ui.panel.resolve_db_path"), \
+             patch("melvil.ui.panel.open_db"):
+            panel.draw(ctx)
+
+        layout.operator_menu_enum.assert_any_call(
+            "melvil.set_preview_object",
+            "object_id",
+            text="UV Sphere",
+        )
+
+    def test_preview_object_label_shown(self):
+        from unittest.mock import patch
+
+        panel = self._panel()
+        layout = _make_layout()
+        panel.layout = layout
+
+        ctx = _make_context()
+        mock_prefs = MagicMock()
+        mock_prefs.preferences.material_preview_object = "BUILTIN_MONKEY"
+        ctx.preferences.addons.get.return_value = mock_prefs
+
+        with patch("melvil.ui.panel.resolve_db_path"), \
+             patch("melvil.ui.panel.open_db"):
+            panel.draw(ctx)
+
+        layout.operator_menu_enum.assert_any_call(
+            "melvil.set_preview_object",
+            "object_id",
+            text="Monkey",
+        )
+
+    def test_preview_object_dropdown_not_drawn_when_prefs_absent(self):
+        panel = self._panel()
+        layout = _make_layout()
+        panel.layout = layout
+
+        ctx = _make_context()
+        ctx.preferences.addons.get.return_value = None
+
+        panel.draw(ctx)
+
+        calls = [
+            c for c in layout.operator_menu_enum.call_args_list
+            if c[0] and c[0][0] == "melvil.set_preview_object"
+        ]
+        assert len(calls) == 0

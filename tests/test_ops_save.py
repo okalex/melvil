@@ -968,6 +968,33 @@ class TestExecuteMaterialPreview:
         assert args[0][2] == _PREVIEW_ASSET_ID # asset_id
         assert args[0][3] == Path("/lib") / "previews"  # previews_dir
 
+    def test_material_preview_uses_builtin_sphere_by_default(self, conn):
+        """generate_material_preview must receive preview_mesh_id='BUILTIN_UV_SPHERE' by default."""
+        from unittest.mock import MagicMock
+
+        mat = _make_material()
+        obj = _make_mesh_object(material=mat)
+        op = self._make_op()
+        ctx = _make_context(obj=obj)
+        # Ensure preferences return a proper string so the validation falls back correctly.
+        mock_prefs = MagicMock()
+        mock_prefs.preferences.auto_generate_previews = True
+        mock_prefs.preferences.material_preview_object = "BUILTIN_UV_SPHERE"
+        ctx.preferences.addons.get.return_value = mock_prefs
+
+        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
+             patch("melvil.ops.save.AssetWriter") as MockWriter, \
+             patch("melvil.ops.save.generate_material_preview", return_value=None) as mock_gen:
+            MockWriter.return_value.write.return_value = _PREVIEW_ASSET_ID
+            op.execute(ctx)
+
+        kwargs = mock_gen.call_args[1]
+        assert kwargs["preview_mesh_id"] == "BUILTIN_UV_SPHERE"
+        assert kwargs["preview_mesh_blend_path"] is None
+        assert kwargs["preview_mesh_obj_name"] is None
+
     def test_material_save_succeeds_when_preview_returns_none(self, conn):
         """Failed preview must not abort the save."""
         mat = _make_material()
