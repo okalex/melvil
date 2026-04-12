@@ -24,6 +24,9 @@ from ..db.tags import (
 class MELVIL_UL_asset_tags(bpy.types.UIList):
     """UIList for displaying asset tags in the browser detail panel."""
 
+    def draw_filter(self, context, layout):
+        pass
+
     def draw_item(self, context, layout, data, item, icon, active_data, active_property):
         if self.layout_type in {"DEFAULT", "COMPACT"}:
             layout.label(text=item.name)
