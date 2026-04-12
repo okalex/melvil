@@ -80,9 +80,9 @@ class TestConfigureScene:
 
     def test_sets_material_shading(self, tmp_path):
         scene = self._call(tmp_path)
-        assert scene.display.shading.type == "MATERIAL"
-        assert scene.display.shading.use_scene_lights is True
-        assert scene.display.shading.use_scene_world is False
+        assert scene.display.shading.type == "SOLID"
+        assert scene.display.shading.light == "MATCAP"
+        assert scene.display.shading.color_type == "MATERIAL"
 
 
 # ---------------------------------------------------------------------------

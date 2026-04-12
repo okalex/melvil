@@ -19,13 +19,16 @@ No manual type selection is required from the user.
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
 import bpy
 from bpy.props import EnumProperty, StringProperty
 
 from ..core.asset_writer import AssetWriter
 from ..core.library import LibraryNotConfiguredError, resolve_db_path, resolve_library_root
+from ..core.preview import generate_material_preview, generate_mesh_preview
 from ..db import open_db
+from ..db.assets import update_asset
 from ..db.kits import DEFAULT_KIT_ID, list_kits
 from ..db.tags import add_asset_tag, normalize_tag
 
@@ -275,6 +278,25 @@ class MELVIL_OT_save_asset(bpy.types.Operator):
                     add_asset_tag(conn, asset_id, tag_name)
                 if tag_names:
                     conn.commit()
+
+                # Generate a preview image for MESH and MATERIAL assets.
+                # Node groups are skipped for now (out of scope).
+                if self.save_type in ("MESH", "MATERIAL"):
+                    previews_dir = Path(library_root) / "previews"
+                    if self.save_type == "MESH":
+                        abs_preview = generate_mesh_preview(context, obj, asset_id, previews_dir)
+                    else:
+                        abs_preview = generate_material_preview(context, mat, asset_id, previews_dir)
+
+                    if abs_preview is not None:
+                        relative_preview = f"previews/{asset_id}.png"
+                        update_asset(conn, asset_id, preview_path=relative_preview)
+                        conn.commit()
+                    else:
+                        self.report(
+                            {"WARNING"},
+                            "Melvil: preview generation failed, asset saved without preview.",
+                        )
 
         except Exception as exc:  # noqa: BLE001
             self.report({"ERROR"}, f"Melvil: save failed — {exc}")

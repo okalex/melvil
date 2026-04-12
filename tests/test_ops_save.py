@@ -755,3 +755,268 @@ class TestDrawSaveDialog:
         )
         assert tags_call[1].get("text") == "Tags"
 
+
+# ---------------------------------------------------------------------------
+# execute() — preview generation
+# ---------------------------------------------------------------------------
+
+_PREVIEW_ASSET_ID = "cccccccc-0000-4000-8000-000000000001"
+
+
+def _base_mesh_patches(conn):
+    """Return the common patch stack for mesh save tests that involve previews."""
+    return [
+        patch("melvil.ops.save.resolve_library_root", return_value="/lib"),
+        patch("melvil.ops.save.resolve_db_path", return_value=":memory:"),
+        patch("melvil.ops.save.open_db", _mock_open_db(conn)),
+    ]
+
+
+class TestExecuteMeshPreview:
+    def _make_op(self):
+        from melvil.ops.save import MELVIL_OT_save_asset
+
+        op = MELVIL_OT_save_asset()
+        op.save_type = "MESH"
+        op.mesh_name = "Cube"
+        op.material_name = ""
+        op.tags = ""
+        return op
+
+    def test_mesh_preview_generated_and_stored(self, conn):
+        """generate_mesh_preview is called and the path is written to the DB."""
+        from melvil.db import assets as assets_db
+
+        # Pre-insert the asset so update_asset has a real row to update.
+        assets_db.insert_asset(conn, id=_PREVIEW_ASSET_ID, name="Cube", type="MESH", blend_path="cube.blend")
+
+        op = self._make_op()
+        ctx = _make_context(obj=_make_mesh_object())
+        abs_preview = f"/lib/previews/{_PREVIEW_ASSET_ID}.png"
+
+        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
+             patch("melvil.ops.save.AssetWriter") as MockWriter, \
+             patch("melvil.ops.save.generate_mesh_preview", return_value=abs_preview) as mock_gen, \
+             patch("melvil.ops.save.generate_material_preview") as mock_mat_gen:
+            MockWriter.return_value.write.return_value = _PREVIEW_ASSET_ID
+            result = op.execute(ctx)
+
+        assert result == {"FINISHED"}
+        mock_gen.assert_called_once()
+        mock_mat_gen.assert_not_called()
+        row = assets_db.get_asset(conn, _PREVIEW_ASSET_ID)
+        assert row["preview_path"] == f"previews/{_PREVIEW_ASSET_ID}.png"
+
+    def test_mesh_preview_generator_receives_correct_args(self, conn):
+        """generate_mesh_preview must receive context, obj, asset_id, and previews_dir."""
+        from pathlib import Path
+
+        op = self._make_op()
+        obj = _make_mesh_object()
+        ctx = _make_context(obj=obj)
+
+        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
+             patch("melvil.ops.save.AssetWriter") as MockWriter, \
+             patch("melvil.ops.save.generate_mesh_preview", return_value=None) as mock_gen:
+            MockWriter.return_value.write.return_value = _PREVIEW_ASSET_ID
+            op.execute(ctx)
+
+        args = mock_gen.call_args
+        assert args[0][0] is ctx               # context
+        assert args[0][1] is obj               # obj
+        assert args[0][2] == _PREVIEW_ASSET_ID # asset_id
+        assert args[0][3] == Path("/lib") / "previews"  # previews_dir
+
+    def test_mesh_save_succeeds_when_preview_returns_none(self, conn):
+        """If preview generation fails, the save still returns FINISHED."""
+        op = self._make_op()
+        ctx = _make_context(obj=_make_mesh_object())
+
+        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
+             patch("melvil.ops.save.AssetWriter") as MockWriter, \
+             patch("melvil.ops.save.generate_mesh_preview", return_value=None):
+            MockWriter.return_value.write.return_value = _PREVIEW_ASSET_ID
+            result = op.execute(ctx)
+
+        assert result == {"FINISHED"}
+
+    def test_mesh_preview_path_absent_from_db_when_preview_fails(self, conn):
+        """preview_path must remain NULL when the generator returns None."""
+        from melvil.db import assets as assets_db
+
+        # Pre-insert the asset so get_asset can find a real row.
+        assets_db.insert_asset(conn, id=_PREVIEW_ASSET_ID, name="Cube", type="MESH", blend_path="cube.blend")
+
+        op = self._make_op()
+        ctx = _make_context(obj=_make_mesh_object())
+
+        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
+             patch("melvil.ops.save.AssetWriter") as MockWriter, \
+             patch("melvil.ops.save.generate_mesh_preview", return_value=None):
+            MockWriter.return_value.write.return_value = _PREVIEW_ASSET_ID
+            op.execute(ctx)
+
+        row = assets_db.get_asset(conn, _PREVIEW_ASSET_ID)
+        assert row["preview_path"] is None
+
+    def test_mesh_preview_failure_reports_warning(self, conn):
+        """A WARNING report is issued when preview generation fails."""
+        op = self._make_op()
+        ctx = _make_context(obj=_make_mesh_object())
+        reports: list[tuple] = []
+        op.report = lambda tp, msg: reports.append((tp, msg))
+
+        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
+             patch("melvil.ops.save.AssetWriter") as MockWriter, \
+             patch("melvil.ops.save.generate_mesh_preview", return_value=None):
+            MockWriter.return_value.write.return_value = _PREVIEW_ASSET_ID
+            op.execute(ctx)
+
+        warning_reports = [r for r in reports if r[0] == {"WARNING"}]
+        assert len(warning_reports) == 1
+        assert "preview" in warning_reports[0][1].lower()
+
+    def test_no_warning_when_mesh_preview_succeeds(self, conn):
+        """No WARNING must be emitted when a preview is generated successfully."""
+        op = self._make_op()
+        ctx = _make_context(obj=_make_mesh_object())
+        reports: list[tuple] = []
+        op.report = lambda tp, msg: reports.append((tp, msg))
+        abs_preview = f"/lib/previews/{_PREVIEW_ASSET_ID}.png"
+
+        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
+             patch("melvil.ops.save.AssetWriter") as MockWriter, \
+             patch("melvil.ops.save.generate_mesh_preview", return_value=abs_preview):
+            MockWriter.return_value.write.return_value = _PREVIEW_ASSET_ID
+            op.execute(ctx)
+
+        warning_reports = [r for r in reports if r[0] == {"WARNING"}]
+        assert len(warning_reports) == 0
+
+
+class TestExecuteMaterialPreview:
+    def _make_op(self):
+        from melvil.ops.save import MELVIL_OT_save_asset
+
+        op = MELVIL_OT_save_asset()
+        op.save_type = "MATERIAL"
+        op.mesh_name = ""
+        op.material_name = "Red Metal"
+        op.tags = ""
+        return op
+
+    def test_material_preview_generated_and_stored(self, conn):
+        """generate_material_preview is called and the path is written to the DB."""
+        from melvil.db import assets as assets_db
+
+        # Pre-insert the asset so update_asset has a real row to update.
+        assets_db.insert_asset(conn, id=_PREVIEW_ASSET_ID, name="Red Metal", type="MATERIAL", blend_path="mat.blend")
+
+        mat = _make_material()
+        obj = _make_mesh_object(material=mat)
+        op = self._make_op()
+        ctx = _make_context(obj=obj)
+        abs_preview = f"/lib/previews/{_PREVIEW_ASSET_ID}.png"
+
+        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
+             patch("melvil.ops.save.AssetWriter") as MockWriter, \
+             patch("melvil.ops.save.generate_material_preview", return_value=abs_preview) as mock_gen, \
+             patch("melvil.ops.save.generate_mesh_preview") as mock_mesh_gen:
+            MockWriter.return_value.write.return_value = _PREVIEW_ASSET_ID
+            result = op.execute(ctx)
+
+        assert result == {"FINISHED"}
+        mock_gen.assert_called_once()
+        mock_mesh_gen.assert_not_called()
+        row = assets_db.get_asset(conn, _PREVIEW_ASSET_ID)
+        assert row["preview_path"] == f"previews/{_PREVIEW_ASSET_ID}.png"
+
+    def test_material_preview_generator_receives_correct_args(self, conn):
+        """generate_material_preview must receive context, mat, asset_id, previews_dir."""
+        from pathlib import Path
+
+        mat = _make_material()
+        obj = _make_mesh_object(material=mat)
+        op = self._make_op()
+        ctx = _make_context(obj=obj)
+
+        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
+             patch("melvil.ops.save.AssetWriter") as MockWriter, \
+             patch("melvil.ops.save.generate_material_preview", return_value=None) as mock_gen:
+            MockWriter.return_value.write.return_value = _PREVIEW_ASSET_ID
+            op.execute(ctx)
+
+        args = mock_gen.call_args
+        assert args[0][0] is ctx               # context
+        assert args[0][1] is mat               # mat
+        assert args[0][2] == _PREVIEW_ASSET_ID # asset_id
+        assert args[0][3] == Path("/lib") / "previews"  # previews_dir
+
+    def test_material_save_succeeds_when_preview_returns_none(self, conn):
+        """Failed preview must not abort the save."""
+        mat = _make_material()
+        obj = _make_mesh_object(material=mat)
+        op = self._make_op()
+        ctx = _make_context(obj=obj)
+
+        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
+             patch("melvil.ops.save.AssetWriter") as MockWriter, \
+             patch("melvil.ops.save.generate_material_preview", return_value=None):
+            MockWriter.return_value.write.return_value = _PREVIEW_ASSET_ID
+            result = op.execute(ctx)
+
+        assert result == {"FINISHED"}
+
+
+class TestExecuteNodeGroupPreview:
+    def test_node_group_save_does_not_call_preview_generators(self, conn):
+        """Preview generation must be skipped entirely for NODE_GROUP assets."""
+        from melvil.ops.save import MELVIL_OT_save_asset
+
+        ng = MagicMock()
+        ng.name = "Noise Setup"
+        active_node = MagicMock()
+        active_node.type = "GROUP"
+        active_node.node_tree = ng
+
+        op = MELVIL_OT_save_asset()
+        op.save_type = "NODE_GROUP"
+        op.mesh_name = ""
+        op.material_name = ""
+        op.node_group_name = "Noise Setup"
+        op.tags = ""
+
+        ctx = _make_context(obj=_make_mesh_object(), area_type="NODE_EDITOR")
+        ctx.active_node = active_node
+
+        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
+             patch("melvil.ops.save.AssetWriter") as MockWriter, \
+             patch("melvil.ops.save.generate_mesh_preview") as mock_mesh, \
+             patch("melvil.ops.save.generate_material_preview") as mock_mat:
+            MockWriter.return_value.write.return_value = _PREVIEW_ASSET_ID
+            result = op.execute(ctx)
+
+        assert result == {"FINISHED"}
+        mock_mesh.assert_not_called()
+        mock_mat.assert_not_called()
+

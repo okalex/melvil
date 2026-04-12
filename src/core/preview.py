@@ -31,6 +31,7 @@ functions so they can be monkeypatched in unit tests without touching bpy.
 from __future__ import annotations
 
 import math
+import traceback
 from pathlib import Path
 from typing import Optional
 
@@ -53,9 +54,9 @@ def _configure_scene(scene, output_path: Path) -> None:
     scene.render.filepath = str(output_path)
     scene.render.image_settings.file_format = "PNG"
     scene.render.image_settings.color_mode = "RGBA"
-    scene.display.shading.type = "MATERIAL"
-    scene.display.shading.use_scene_lights = True
-    scene.display.shading.use_scene_world = False
+    scene.display.shading.type = "SOLID"
+    scene.display.shading.light = "MATCAP"
+    scene.display.shading.color_type = "MATERIAL"
 
 
 def _bounding_sphere(obj) -> tuple:
@@ -215,6 +216,8 @@ def generate_mesh_preview(
         return str(output_path)
 
     except Exception:  # noqa: BLE001
+        print("Melvil: mesh preview generation failed:")
+        traceback.print_exc()
         return None
 
     finally:
@@ -295,6 +298,8 @@ def generate_material_preview(
         return str(output_path)
 
     except Exception:  # noqa: BLE001
+        print("Melvil: material preview generation failed:")
+        traceback.print_exc()
         return None
 
     finally:
