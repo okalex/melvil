@@ -8,8 +8,10 @@ Any panel or popup that needs to render an asset list imports
 from __future__ import annotations
 
 import bpy
+from pathlib import Path
 
-from ..core.library import resolve_db_path
+from ..core.library import resolve_db_path, resolve_library_root
+from .previews_collection import get_icon_id
 from ..db import open_db
 from ..db.assets import get_asset as _get_asset, list_assets
 from ..db.kits import list_kits
@@ -179,7 +181,15 @@ def draw_unified_asset_section(
     for asset in assets:
         row = box.row(align=True)
         asset_type = asset["type"]
-        row.label(text=asset["name"], icon=_TYPE_ICONS.get(asset_type, "OBJECT_DATA"))
+
+        preview_path = asset["preview_path"]
+        abs_preview_path = str(Path(resolve_library_root()) / preview_path) if preview_path else None
+        icon_id = get_icon_id(asset["id"], abs_preview_path)
+        if icon_id is not None:
+            row.template_icon(icon_value=icon_id, scale=1.3)
+        else:
+            row.label(text="", icon=_TYPE_ICONS.get(asset_type, "OBJECT_DATA"))
+        row.label(text=asset["name"])
 
         if _SHOW_LOAD_FOR_TYPE.get(asset_type, True):
             load_op = row.operator("melvil.load_asset", text="", icon="IMPORT")
@@ -316,6 +326,15 @@ def draw_asset_details(
         The ``bpy.types.WindowManager`` instance; used for the inline name
         editor's draft state.
     """
+    # Preview image (if available)
+    preview_path = asset["preview_path"]
+    if preview_path:
+        abs_preview_path = str(Path(resolve_library_root()) / preview_path)
+        icon_id = get_icon_id(asset["id"], abs_preview_path)
+        if icon_id is not None:
+            box = layout.box()
+            box.template_icon(icon_value=icon_id, scale=8.0)
+
     # Sync the draft name whenever the selected asset changes so that
     # switching assets always shows the current saved name.
     if wm.melvil_pending_name_asset_id != asset["id"]:

@@ -13,7 +13,7 @@ from melvil.db import assets as assets_db
 
 
 def _make_asset(id: str, name: str, type: str) -> dict:
-    return {"id": id, "name": name, "type": type}
+    return {"id": id, "name": name, "type": type, "preview_path": None}
 
 
 class TestDrawAssetSection:
@@ -139,7 +139,8 @@ class TestDrawUnifiedAssetSection:
 
         draw_unified_asset_section(layout, [_make_asset("1", "Cube", "MESH")])
 
-        row.label.assert_called_once_with(text="Cube", icon="MESH_DATA")
+        row.label.assert_any_call(text="", icon="MESH_DATA")
+        row.label.assert_any_call(text="Cube")
 
     def test_material_uses_material_icon(self):
         from melvil.ui.draw_helpers import draw_unified_asset_section
@@ -152,7 +153,8 @@ class TestDrawUnifiedAssetSection:
 
         draw_unified_asset_section(layout, [_make_asset("1", "Red", "MATERIAL")])
 
-        row.label.assert_called_once_with(text="Red", icon="MATERIAL")
+        row.label.assert_any_call(text="", icon="MATERIAL")
+        row.label.assert_any_call(text="Red")
 
     def test_node_group_uses_nodetree_icon(self):
         from melvil.ui.draw_helpers import draw_unified_asset_section
@@ -165,7 +167,8 @@ class TestDrawUnifiedAssetSection:
 
         draw_unified_asset_section(layout, [_make_asset("1", "MyGroup", "NODE_GROUP")])
 
-        row.label.assert_called_once_with(text="MyGroup", icon="NODETREE")
+        row.label.assert_any_call(text="", icon="NODETREE")
+        row.label.assert_any_call(text="MyGroup")
 
     def test_mesh_and_material_show_load_button(self):
         from melvil.ui.draw_helpers import draw_unified_asset_section
@@ -229,6 +232,76 @@ class TestDrawUnifiedAssetSection:
         draw_unified_asset_section(layout, assets)
 
         assert box.row.call_count == 3
+
+    def test_thumbnail_shown_when_preview_available(self):
+        from melvil.ui.draw_helpers import draw_unified_asset_section
+
+        layout = MagicMock()
+        box = MagicMock()
+        layout.box.return_value = box
+        row = MagicMock()
+        box.row.return_value = row
+
+        asset = {**_make_asset("1", "Cube", "MESH"), "preview_path": "previews/1.png"}
+
+        with patch("melvil.ui.draw_helpers.resolve_library_root", return_value="/lib"), \
+             patch("melvil.ui.draw_helpers.get_icon_id", return_value=42) as mock_icon:
+            draw_unified_asset_section(layout, [asset])
+
+        mock_icon.assert_called_once_with("1", "/lib/previews/1.png")
+        row.template_icon.assert_called_once_with(icon_value=42, scale=1.3)
+
+    def test_thumbnail_uses_str_path(self):
+        """abs_preview_path passed to get_icon_id is a string, not a Path."""
+        from melvil.ui.draw_helpers import draw_unified_asset_section
+
+        layout = MagicMock()
+        box = MagicMock()
+        layout.box.return_value = box
+        row = MagicMock()
+        box.row.return_value = row
+
+        asset = {**_make_asset("1", "Cube", "MESH"), "preview_path": "previews/1.png"}
+
+        with patch("melvil.ui.draw_helpers.resolve_library_root", return_value="/lib"), \
+             patch("melvil.ui.draw_helpers.get_icon_id", return_value=42) as mock_icon:
+            draw_unified_asset_section(layout, [asset])
+
+        abs_path_arg = mock_icon.call_args[0][1]
+        assert isinstance(abs_path_arg, str)
+
+    def test_fallback_icon_shown_when_get_icon_id_returns_none(self):
+        from melvil.ui.draw_helpers import draw_unified_asset_section
+
+        layout = MagicMock()
+        box = MagicMock()
+        layout.box.return_value = box
+        row = MagicMock()
+        box.row.return_value = row
+
+        asset = {**_make_asset("1", "Cube", "MESH"), "preview_path": "previews/1.png"}
+
+        with patch("melvil.ui.draw_helpers.resolve_library_root", return_value="/lib"), \
+             patch("melvil.ui.draw_helpers.get_icon_id", return_value=None):
+            draw_unified_asset_section(layout, [asset])
+
+        row.template_icon.assert_not_called()
+        row.label.assert_any_call(text="", icon="MESH_DATA")
+
+    def test_thumbnail_not_shown_when_no_preview_path(self):
+        from melvil.ui.draw_helpers import draw_unified_asset_section
+
+        layout = MagicMock()
+        box = MagicMock()
+        layout.box.return_value = box
+        row = MagicMock()
+        box.row.return_value = row
+
+        with patch("melvil.ui.draw_helpers.get_icon_id", return_value=None) as mock_icon:
+            draw_unified_asset_section(layout, [_make_asset("1", "Cube", "MESH")])
+
+        mock_icon.assert_called_once_with("1", None)
+        row.template_icon.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -578,7 +651,7 @@ class TestFilterAssetsTagNames:
 
 
 def _make_details_asset(id="asset-1", name="My Cube", type="MESH"):
-    return {"id": id, "name": name, "type": type, "kit_id": "default"}
+    return {"id": id, "name": name, "type": type, "kit_id": "default", "preview_path": None}
 
 
 def _make_wm(pending_name="", pending_name_asset_id=""):
@@ -761,3 +834,77 @@ class TestDrawAssetDetailsKitRow:
         _split, kit_op = _draw_for_kit(asset_id="my-asset-id")
 
         assert kit_op.asset_id == "my-asset-id"
+
+
+# ---------------------------------------------------------------------------
+# draw_asset_details() — preview image block
+# ---------------------------------------------------------------------------
+
+
+def _draw_details_with_preview(asset, wm=None):
+    from melvil.ui.draw_helpers import draw_asset_details
+
+    layout = MagicMock()
+    box = MagicMock()
+    layout.box.return_value = box
+    split = MagicMock()
+    row = MagicMock()
+    row.split.return_value = split
+    layout.row.return_value = row
+    col = MagicMock()
+    row.column.return_value = col
+    col.operator.return_value = MagicMock()
+    if wm is None:
+        wm = _make_wm(pending_name=asset["name"], pending_name_asset_id=asset["id"])
+    return layout, box, draw_asset_details, wm
+
+
+class TestDrawAssetDetailsPreview:
+    def test_preview_block_shown_when_icon_id_available(self):
+        from melvil.ui.draw_helpers import draw_asset_details
+
+        asset = {**_make_details_asset(), "preview_path": "previews/abc.png"}
+        layout, box, _, wm = _draw_details_with_preview(asset)
+
+        with patch("melvil.ui.draw_helpers.resolve_library_root", return_value="/lib"), \
+             patch("melvil.ui.draw_helpers.get_icon_id", return_value=99):
+            draw_asset_details(layout, asset, [], "General", wm=wm)
+
+        layout.box.assert_called()
+        box.template_icon.assert_called_once_with(icon_value=99, scale=8.0)
+
+    def test_preview_block_omitted_when_no_preview_path(self):
+        from melvil.ui.draw_helpers import draw_asset_details
+
+        asset = _make_details_asset()  # no preview_path key
+        layout, box, _, wm = _draw_details_with_preview(asset)
+
+        with patch("melvil.ui.draw_helpers.get_icon_id", return_value=None):
+            draw_asset_details(layout, asset, [], "General", wm=wm)
+
+        box.template_icon.assert_not_called()
+
+    def test_preview_block_omitted_when_icon_id_none(self):
+        from melvil.ui.draw_helpers import draw_asset_details
+
+        asset = {**_make_details_asset(), "preview_path": "previews/abc.png"}
+        layout, box, _, wm = _draw_details_with_preview(asset)
+
+        with patch("melvil.ui.draw_helpers.resolve_library_root", return_value="/lib"), \
+             patch("melvil.ui.draw_helpers.get_icon_id", return_value=None):
+            draw_asset_details(layout, asset, [], "General", wm=wm)
+
+        box.template_icon.assert_not_called()
+
+    def test_get_icon_id_called_with_correct_args(self):
+        from melvil.ui.draw_helpers import draw_asset_details
+
+        asset = {**_make_details_asset(id="my-id"), "preview_path": "previews/my-id.png"}
+        layout, _box, _, wm = _draw_details_with_preview(asset)
+
+        with patch("melvil.ui.draw_helpers.resolve_library_root", return_value="/lib"), \
+             patch("melvil.ui.draw_helpers.get_icon_id", return_value=None) as mock_icon:
+            draw_asset_details(layout, asset, [], "General", wm=wm)
+
+        mock_icon.assert_called_once_with("my-id", "/lib/previews/my-id.png")
+
