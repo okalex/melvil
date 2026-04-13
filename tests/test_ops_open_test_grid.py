@@ -167,13 +167,149 @@ class TestModal:
 
         assert result == {"CANCELLED"}
 
+    def test_mousemove_updates_hovered_index(self):
+        from melvil.ops.open_test_grid import MELVIL_OT_open_test_grid
+        import melvil.ui.grid_list as grid_list
+
+        grid_list._card_rects = [(0, 0, 200, 200, "id-0")]
+
+        ctx = self._make_ctx()
+        op = MELVIL_OT_open_test_grid()
+        event = MagicMock()
+        event.type = "MOUSEMOVE"
+        event.mouse_x = 50
+        event.mouse_y = 50
+
+        result = op.modal(ctx, event)
+
+        assert result == {"PASS_THROUGH"}
+        assert ctx.window_manager.melvil_grid_scroll.hovered_index == 0
+
+    def test_mousemove_clears_hover_when_off_card(self):
+        from melvil.ops.open_test_grid import MELVIL_OT_open_test_grid
+        import melvil.ui.grid_list as grid_list
+
+        grid_list._card_rects = [(100, 100, 120, 80, "id-0")]
+
+        ctx = self._make_ctx()
+        ctx.window_manager.melvil_grid_scroll.hovered_index = 0
+        op = MELVIL_OT_open_test_grid()
+        event = MagicMock()
+        event.type = "MOUSEMOVE"
+        event.mouse_x = 5
+        event.mouse_y = 5
+
+        op.modal(ctx, event)
+
+        assert ctx.window_manager.melvil_grid_scroll.hovered_index == -1
+
+    def test_mousemove_redraws_on_hover_change(self):
+        from melvil.ops.open_test_grid import MELVIL_OT_open_test_grid
+        import melvil.ui.grid_list as grid_list
+
+        grid_list._card_rects = [(0, 0, 200, 200, "id-0")]
+
+        ctx = self._make_ctx()
+        op = MELVIL_OT_open_test_grid()
+        event = MagicMock()
+        event.type = "MOUSEMOVE"
+        event.mouse_x = 50
+        event.mouse_y = 50
+
+        ctx.area.tag_redraw.reset_mock()
+        op.modal(ctx, event)
+
+        ctx.area.tag_redraw.assert_called_once()
+
+    def test_mousemove_no_redraw_when_hover_unchanged(self):
+        from melvil.ops.open_test_grid import MELVIL_OT_open_test_grid
+        import melvil.ui.grid_list as grid_list
+
+        grid_list._card_rects = [(0, 0, 200, 200, "id-0")]
+
+        ctx = self._make_ctx()
+        ctx.window_manager.melvil_grid_scroll.hovered_index = 0
+        op = MELVIL_OT_open_test_grid()
+        event = MagicMock()
+        event.type = "MOUSEMOVE"
+        event.mouse_x = 50
+        event.mouse_y = 50
+
+        ctx.area.tag_redraw.reset_mock()
+        op.modal(ctx, event)
+
+        ctx.area.tag_redraw.assert_not_called()
+
+    def test_leftmouse_selects_card(self):
+        from melvil.ops.open_test_grid import MELVIL_OT_open_test_grid
+        import melvil.ui.grid_list as grid_list
+
+        grid_list._card_rects = [
+            (0, 0, 120, 80, "id-abc"),
+            (130, 0, 120, 80, "id-def"),
+        ]
+
+        ctx = self._make_ctx()
+        op = MELVIL_OT_open_test_grid()
+        event = MagicMock()
+        event.type = "LEFTMOUSE"
+        event.value = "PRESS"
+        event.mouse_x = 150
+        event.mouse_y = 40
+
+        result = op.modal(ctx, event)
+
+        assert result == {"RUNNING_MODAL"}
+        assert ctx.window_manager.melvil_grid_scroll.selected_id == "id-def"
+
+    def test_leftmouse_on_gap_does_not_change_selection(self):
+        from melvil.ops.open_test_grid import MELVIL_OT_open_test_grid
+        import melvil.ui.grid_list as grid_list
+
+        grid_list._card_rects = [
+            (0, 0, 120, 80, "id-abc"),
+            (130, 0, 120, 80, "id-def"),
+        ]
+
+        ctx = self._make_ctx()
+        ctx.window_manager.melvil_grid_scroll.selected_id = "id-abc"
+        op = MELVIL_OT_open_test_grid()
+        event = MagicMock()
+        event.type = "LEFTMOUSE"
+        event.value = "PRESS"
+        event.mouse_x = 122
+        event.mouse_y = 40
+
+        op.modal(ctx, event)
+
+        # Selection unchanged — click was in the gap.
+        assert ctx.window_manager.melvil_grid_scroll.selected_id == "id-abc"
+
+    def test_leftmouse_outside_grid_passes_through(self):
+        from melvil.ops.open_test_grid import MELVIL_OT_open_test_grid
+        import melvil.ui.grid_list as grid_list
+
+        grid_list._card_rects = []
+
+        ctx = self._make_ctx()
+        op = MELVIL_OT_open_test_grid()
+        event = MagicMock()
+        event.type = "LEFTMOUSE"
+        event.value = "PRESS"
+        event.mouse_x = 50
+        event.mouse_y = 50
+
+        result = op.modal(ctx, event)
+
+        assert result == {"PASS_THROUGH"}
+
     def test_other_events_pass_through(self):
         from melvil.ops.open_test_grid import MELVIL_OT_open_test_grid
 
         op = MELVIL_OT_open_test_grid()
         ctx = self._make_ctx()
         event = MagicMock()
-        event.type = "MOUSEMOVE"
+        event.type = "A"
         event.mouse_x = 0
         event.mouse_y = 0
 

@@ -18,7 +18,7 @@ import uuid
 
 import bpy
 
-from ..ui.grid_list import compute_max_offset, draw_grid, is_over_grid
+from ..ui.grid_list import compute_max_offset, draw_grid, hit_test, is_over_grid
 
 _GRID_COLS = 3
 _GRID_ROWS_VISIBLE = 4
@@ -81,6 +81,8 @@ def _draw_callback(state: dict) -> None:
         cols=state["cols"],
         rows_visible=state["rows_visible"],
         scroll_offset=scroll_props.scroll_offset,
+        selected_id=scroll_props.selected_id,
+        hovered_index=scroll_props.hovered_index,
         offset_x=offset_x,
         offset_y=offset_y,
     )
@@ -150,6 +152,25 @@ class MELVIL_OT_open_test_grid(bpy.types.Operator):
         my = event.mouse_y - region.y
 
         over = is_over_grid(mx, my)
+
+        # Hover tracking — update on every mouse move.
+        if event.type == 'MOUSEMOVE':
+            scroll_props = context.window_manager.melvil_grid_scroll
+            result = hit_test(mx, my)
+            new_hover = result[1] if result is not None else -1
+            if new_hover != scroll_props.hovered_index:
+                scroll_props.hovered_index = new_hover
+                context.area.tag_redraw()
+            return {"PASS_THROUGH"}
+
+        # Click selection — select the card under the cursor.
+        if over and event.type == 'LEFTMOUSE' and event.value == 'PRESS':
+            scroll_props = context.window_manager.melvil_grid_scroll
+            result = hit_test(mx, my)
+            if result is not None:
+                scroll_props.selected_id = result[0]
+                context.area.tag_redraw()
+            return {"RUNNING_MODAL"}
 
         if over and event.type == 'WHEELUPMOUSE':
             scroll_props = context.window_manager.melvil_grid_scroll

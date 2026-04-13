@@ -31,6 +31,8 @@ GRID_ORIGIN_X = 10
 GRID_ORIGIN_Y = 10
 
 COLOR_CARD_BG = (0.18, 0.18, 0.18, 1.0)
+COLOR_CARD_HOVER = (0.28, 0.28, 0.28, 1.0)
+COLOR_CARD_SELECTED = (0.20, 0.45, 0.75, 1.0)
 COLOR_CARD_BORDER = (0.35, 0.35, 0.35, 1.0)
 COLOR_GRID_BG = (0.12, 0.12, 0.12, 0.90)
 COLOR_TEXT_PRIMARY = (0.90, 0.90, 0.90, 1.0)
@@ -188,7 +190,12 @@ def draw_grid(
 
         _card_rects.append((x, y, cw, ch, item["id"]))
 
-        bg = COLOR_CARD_BG
+        if item["id"] == selected_id:
+            bg = COLOR_CARD_SELECTED
+        elif slot_idx == hovered_index:
+            bg = COLOR_CARD_HOVER
+        else:
+            bg = COLOR_CARD_BG
         draw_rect(x, y, cw, ch, bg)
         draw_rect_outline(x, y, cw, ch, COLOR_CARD_BORDER)
 

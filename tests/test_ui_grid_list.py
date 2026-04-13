@@ -433,3 +433,86 @@ class TestIsOverGrid:
         # Exactly on the boundary should be considered "over".
         assert is_over_grid(10, 100) is True
         assert is_over_grid(130, 180) is True
+
+
+# ---------------------------------------------------------------------------
+# draw_grid selection / hover color switching
+# ---------------------------------------------------------------------------
+
+
+class TestDrawGridSelectionAndHover:
+    def _get_draw_rect_colors(self):
+        """Return the list of *color* args passed to draw_rect calls."""
+        import gpu
+        shader_mock = gpu.shader.from_builtin.return_value
+        calls = shader_mock.uniform_float.call_args_list
+        return [c.args[1] for c in calls if c.args[0] == "color"]
+
+    def test_selected_card_uses_selected_color(self):
+        import gpu
+        from melvil.ui.grid_list import (
+            draw_grid, COLOR_CARD_SELECTED, COLOR_CARD_BG,
+        )
+
+        gpu.shader.from_builtin.return_value.uniform_float.reset_mock()
+
+        items = [
+            _make_item("id-sel", "Selected", "MESH"),
+            _make_item("id-other", "Other", "MESH"),
+        ]
+        draw_grid(_make_region(), items, cols=2, rows_visible=4, selected_id="id-sel")
+
+        colors = self._get_draw_rect_colors()
+        # First draw_rect call is the background panel; cards start from index 1.
+        # Card 0 (selected) should use COLOR_CARD_SELECTED.
+        assert colors[1] == COLOR_CARD_SELECTED
+        # Card 1 (not selected) should use COLOR_CARD_BG.
+        assert colors[3] == COLOR_CARD_BG
+
+    def test_hovered_card_uses_hover_color(self):
+        import gpu
+        from melvil.ui.grid_list import (
+            draw_grid, COLOR_CARD_HOVER, COLOR_CARD_BG,
+        )
+
+        gpu.shader.from_builtin.return_value.uniform_float.reset_mock()
+
+        items = [
+            _make_item("id-0", "First", "MESH"),
+            _make_item("id-1", "Second", "MESH"),
+        ]
+        draw_grid(_make_region(), items, cols=2, rows_visible=4, hovered_index=1)
+
+        colors = self._get_draw_rect_colors()
+        # Card 0 (not hovered) → COLOR_CARD_BG
+        assert colors[1] == COLOR_CARD_BG
+        # Card 1 (hovered) → COLOR_CARD_HOVER
+        assert colors[3] == COLOR_CARD_HOVER
+
+    def test_selected_takes_priority_over_hovered(self):
+        import gpu
+        from melvil.ui.grid_list import draw_grid, COLOR_CARD_SELECTED
+
+        gpu.shader.from_builtin.return_value.uniform_float.reset_mock()
+
+        items = [_make_item("id-both", "Both", "MESH")]
+        draw_grid(
+            _make_region(), items, cols=1, rows_visible=4,
+            selected_id="id-both", hovered_index=0,
+        )
+
+        colors = self._get_draw_rect_colors()
+        # The card is both selected and hovered — selected wins.
+        assert colors[1] == COLOR_CARD_SELECTED
+
+    def test_no_selection_or_hover_uses_default(self):
+        import gpu
+        from melvil.ui.grid_list import draw_grid, COLOR_CARD_BG
+
+        gpu.shader.from_builtin.return_value.uniform_float.reset_mock()
+
+        items = [_make_item("id-0", "Plain", "MESH")]
+        draw_grid(_make_region(), items, cols=1, rows_visible=4)
+
+        colors = self._get_draw_rect_colors()
+        assert colors[1] == COLOR_CARD_BG
