@@ -17,7 +17,7 @@ import gpu
 import blf
 from bpy.props import EnumProperty, IntProperty, StringProperty
 
-from .gpu_ui import (
+from .gpu import (
     ThemeColors,
     draw_rect,
     draw_rect_outline,

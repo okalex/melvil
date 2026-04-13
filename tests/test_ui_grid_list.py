@@ -211,7 +211,7 @@ class TestDrawGrid:
 
 class TestGetRegionOffsets:
     def test_tools_region_sets_offset_x(self):
-        from melvil.ui.gpu_ui import get_region_offsets
+        from melvil.ui.gpu import get_region_offsets
 
         tools = MagicMock()
         tools.type = "TOOLS"
@@ -226,7 +226,7 @@ class TestGetRegionOffsets:
         assert oy == 0
 
     def test_header_regions_set_offset_y(self):
-        from melvil.ui.gpu_ui import get_region_offsets
+        from melvil.ui.gpu import get_region_offsets
 
         header = MagicMock()
         header.type = "HEADER"
@@ -242,7 +242,7 @@ class TestGetRegionOffsets:
         assert oy == 56
 
     def test_combined_offsets(self):
-        from melvil.ui.gpu_ui import get_region_offsets
+        from melvil.ui.gpu import get_region_offsets
 
         tools = MagicMock()
         tools.type = "TOOLS"
@@ -528,7 +528,7 @@ class TestDrawGridSelectionAndHover:
 class TestDrawTexture:
     def test_calls_image_shader(self):
         import gpu
-        from melvil.ui.gpu_ui import _get_image_shader
+        from melvil.ui.gpu import _get_image_shader
         from melvil.ui.grid_list import draw_texture
 
         shader_mock = _get_image_shader()
@@ -572,7 +572,7 @@ class TestDrawGridPreviews:
             assert call_args.args[0] == items[i]
 
     def test_preview_texture_drawn_when_callback_returns_texture(self):
-        from melvil.ui.gpu_ui import _get_image_shader
+        from melvil.ui.gpu import _get_image_shader
         from melvil.ui.grid_list import draw_grid
 
         shader_mock = _get_image_shader()

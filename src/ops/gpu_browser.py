@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import bpy
 
-from ..ui.gpu_ui import GpuPanel, get_region_offsets
+from ..ui.gpu import GpuPanel, get_region_offsets
 
 _PANEL_MARGIN_X = 0
 _PANEL_MARGIN_Y = 18
@@ -62,11 +62,49 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
     def _build(self, layout):
         """Build the browser widget tree.
 
-        Widgets are added incrementally as each GPU UI phase lands.
+        Mirrors the three-column structure of open_browser.py using only
+        the elements implemented so far (labels, separators, containers).
         """
+        layout.label(text="Melvil Asset Library", icon="ASSET_MANAGER")
         layout.separator()
-        layout.separator()
-        layout.separator()
+
+        # Three-column split: left filters | asset list | asset details.
+        outer_split = layout.split(factor=0.24)
+        left = outer_split.column()
+        rest_col = outer_split.column()
+        inner_split = rest_col.split(factor=0.45)
+        middle = inner_split.column()
+        right = inner_split.column()
+
+        # -- Left column: filter placeholders --
+        left.label(text="Search by name/tag", icon="VIEWZOOM")
+        # search_query prop — not yet implemented
+        left.separator()
+
+        left.label(text="Asset type")
+        # type_filter prop (expand=True) — not yet implemented
+        left.separator()
+
+        kit_header = left.row(align=True)
+        kit_header.label(text="Kit")
+        # kit_create + kit_rename operators — not yet implemented
+
+        # kit_filter prop (expand=True) — not yet implemented
+        left.separator()
+
+        left.label(text="Tags", icon="TAG")
+        # tag template_list — not yet implemented
+        left.separator()
+
+        # -- Middle column: asset list --
+        middle.label(text="Assets", icon="ASSET_MANAGER")
+        # unified asset section — not yet implemented
+        middle.separator()
+
+        # -- Right column: asset details --
+        right.label(text="Asset details", icon="PROPERTIES")
+        right_box = right.box()
+        right_box.label(text="No asset selected", icon="INFO")
 
     def modal(self, context, event):
         if event.type in {"ESC", "RIGHTMOUSE"} and event.value == "PRESS":

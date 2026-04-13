@@ -1,4 +1,4 @@
-"""Tests for ui/gpu_ui.py — GPU UI toolkit foundation."""
+"""Tests for ui/gpu/ — GPU UI toolkit foundation."""
 
 from __future__ import annotations
 
@@ -17,13 +17,13 @@ import pytest
 
 class TestThemeColorsFallback:
     def test_returns_valid_instance(self):
-        from melvil.ui.gpu_ui import ThemeColors
+        from melvil.ui.gpu import ThemeColors
 
         tc = ThemeColors.fallback()
         assert tc is not None
 
     def test_all_fields_are_4_element_float_tuples(self):
-        from melvil.ui.gpu_ui import ThemeColors
+        from melvil.ui.gpu import ThemeColors
 
         tc = ThemeColors.fallback()
         for field_name in ThemeColors.__dataclass_fields__:
@@ -36,7 +36,7 @@ class TestThemeColorsFallback:
                 )
 
     def test_all_values_in_zero_one_range(self):
-        from melvil.ui.gpu_ui import ThemeColors
+        from melvil.ui.gpu import ThemeColors
 
         tc = ThemeColors.fallback()
         for field_name in ThemeColors.__dataclass_fields__:
@@ -47,14 +47,14 @@ class TestThemeColorsFallback:
                 )
 
     def test_text_secondary_is_primary_at_lower_alpha(self):
-        from melvil.ui.gpu_ui import ThemeColors
+        from melvil.ui.gpu import ThemeColors
 
         tc = ThemeColors.fallback()
         assert tc.text_secondary[:3] == tc.text_primary[:3]
         assert tc.text_secondary[3] < tc.text_primary[3]
 
     def test_text_disabled_is_primary_at_lower_alpha(self):
-        from melvil.ui.gpu_ui import ThemeColors
+        from melvil.ui.gpu import ThemeColors
 
         tc = ThemeColors.fallback()
         assert tc.text_disabled[:3] == tc.text_primary[:3]
@@ -88,7 +88,7 @@ class TestThemeColorsFromBlender:
 
     def test_produces_correct_rgba_tuples(self):
         import bpy
-        from melvil.ui.gpu_ui import ThemeColors
+        from melvil.ui.gpu import ThemeColors
 
         mock_ui = self._make_mock_ui()
         mock_theme = MagicMock()
@@ -112,7 +112,7 @@ class TestThemeColorsFromBlender:
 
     def test_all_fields_are_4_floats(self):
         import bpy
-        from melvil.ui.gpu_ui import ThemeColors
+        from melvil.ui.gpu import ThemeColors
 
         mock_ui = self._make_mock_ui()
         mock_theme = MagicMock()
@@ -129,7 +129,7 @@ class TestThemeColorsFromBlender:
 
     def test_panel_header_bg_has_boosted_alpha(self):
         import bpy
-        from melvil.ui.gpu_ui import ThemeColors
+        from melvil.ui.gpu import ThemeColors
 
         mock_ui = self._make_mock_ui()
         mock_theme = MagicMock()
@@ -151,7 +151,7 @@ class TestThemeColorsFromBlender:
 class TestGetUiScale:
     def test_returns_mocked_value(self):
         import bpy
-        from melvil.ui.gpu_ui import get_ui_scale
+        from melvil.ui.gpu import get_ui_scale
 
         bpy.context.preferences.system.ui_scale = 1.5
         assert get_ui_scale() == 1.5
@@ -159,7 +159,7 @@ class TestGetUiScale:
 
     def test_returns_1_on_exception(self):
         import bpy
-        from melvil.ui.gpu_ui import get_ui_scale
+        from melvil.ui.gpu import get_ui_scale
 
         original = bpy.context.preferences.system.ui_scale
         # Make the attribute access raise
@@ -174,17 +174,17 @@ class TestGetUiScale:
 
 class TestScaled:
     def test_multiplies_correctly(self):
-        from melvil.ui.gpu_ui import scaled
+        from melvil.ui.gpu import scaled
 
         assert scaled(20, 1.5) == 30.0
 
     def test_identity_at_scale_1(self):
-        from melvil.ui.gpu_ui import scaled
+        from melvil.ui.gpu import scaled
 
         assert scaled(42, 1.0) == 42.0
 
     def test_zero_px(self):
-        from melvil.ui.gpu_ui import scaled
+        from melvil.ui.gpu import scaled
 
         assert scaled(0, 2.0) == 0.0
 
@@ -196,13 +196,13 @@ class TestScaled:
 
 class TestDrawRect:
     def test_calls_shader_and_batch(self):
-        from melvil.ui.gpu_ui import draw_rect
+        from melvil.ui.gpu import draw_rect
 
         draw_rect(10, 20, 100, 50, (1.0, 0.0, 0.0, 1.0))
 
     def test_draws_with_given_color(self):
         import gpu
-        from melvil.ui.gpu_ui import draw_rect, _get_uniform_shader
+        from melvil.ui.gpu import draw_rect, _get_uniform_shader
 
         shader_mock = _get_uniform_shader()
         shader_mock.uniform_float.reset_mock()
@@ -215,12 +215,12 @@ class TestDrawRect:
 
 class TestDrawRectOutline:
     def test_calls_shader_and_batch(self):
-        from melvil.ui.gpu_ui import draw_rect_outline
+        from melvil.ui.gpu import draw_rect_outline
 
         draw_rect_outline(10, 20, 100, 50, (1.0, 1.0, 1.0, 1.0))
 
     def test_thickness_parameter_accepted(self):
-        from melvil.ui.gpu_ui import draw_rect_outline
+        from melvil.ui.gpu import draw_rect_outline
 
         draw_rect_outline(0, 0, 50, 50, (1.0, 1.0, 1.0, 1.0), thickness=2)
 
@@ -228,7 +228,7 @@ class TestDrawRectOutline:
 class TestDrawRectRounded:
     def test_zero_radius_falls_back_to_plain_rect(self):
         import gpu
-        from melvil.ui.gpu_ui import draw_rect_rounded, _get_uniform_shader
+        from melvil.ui.gpu import draw_rect_rounded, _get_uniform_shader
 
         shader_mock = _get_uniform_shader()
         shader_mock.uniform_float.reset_mock()
@@ -240,7 +240,7 @@ class TestDrawRectRounded:
 
     def test_positive_radius_generates_vertices(self):
         from gpu_extras.batch import batch_for_shader
-        from melvil.ui.gpu_ui import draw_rect_rounded
+        from melvil.ui.gpu import draw_rect_rounded
 
         batch_for_shader.reset_mock()
         draw_rect_rounded(0, 0, 100, 50, 5, (1.0, 1.0, 1.0, 1.0), segments=4)
@@ -254,7 +254,7 @@ class TestDrawRectRounded:
 
     def test_radius_clamped_to_half_shortest_side(self):
         from gpu_extras.batch import batch_for_shader
-        from melvil.ui.gpu_ui import draw_rect_rounded
+        from melvil.ui.gpu import draw_rect_rounded
 
         batch_for_shader.reset_mock()
         # Radius 100 on a 20×10 rect → clamped to 5.
@@ -264,7 +264,7 @@ class TestDrawRectRounded:
 
     def test_custom_segments(self):
         from gpu_extras.batch import batch_for_shader
-        from melvil.ui.gpu_ui import draw_rect_rounded
+        from melvil.ui.gpu import draw_rect_rounded
 
         batch_for_shader.reset_mock()
         draw_rect_rounded(0, 0, 100, 50, 5, (1.0, 1.0, 1.0, 1.0), segments=8)
@@ -277,7 +277,7 @@ class TestDrawRectRounded:
 
 class TestDrawTexture:
     def test_calls_image_shader(self):
-        from melvil.ui.gpu_ui import draw_texture, _get_image_shader
+        from melvil.ui.gpu import draw_texture, _get_image_shader
 
         shader_mock = _get_image_shader()
         shader_mock.uniform_sampler.reset_mock()
@@ -296,7 +296,7 @@ class TestDrawTexture:
 class TestDrawText:
     def test_calls_blf_functions(self):
         import blf
-        from melvil.ui.gpu_ui import draw_text
+        from melvil.ui.gpu import draw_text
 
         blf.position.reset_mock()
         blf.size.reset_mock()
@@ -312,7 +312,7 @@ class TestDrawText:
 
     def test_returns_measured_width(self):
         import blf
-        from melvil.ui.gpu_ui import draw_text
+        from melvil.ui.gpu import draw_text
 
         blf.dimensions = MagicMock(return_value=(72.5, 14.0))
         result = draw_text("test", 0, 0, 12, (1, 1, 1, 1))
@@ -322,7 +322,7 @@ class TestDrawText:
 class TestMeasureText:
     def test_calls_blf_dimensions(self):
         import blf
-        from melvil.ui.gpu_ui import measure_text
+        from melvil.ui.gpu import measure_text
 
         blf.dimensions = MagicMock(return_value=(55.0, 12.0))
         blf.size.reset_mock()
@@ -342,19 +342,19 @@ class TestMeasureText:
 
 class TestShaderCaching:
     def test_uniform_shader_cached(self):
-        import melvil.ui.gpu_ui as gpu_ui
+        import melvil.ui.gpu.drawing as gpu_drawing
 
-        gpu_ui._uniform_shader = None  # reset
-        s1 = gpu_ui._get_uniform_shader()
-        s2 = gpu_ui._get_uniform_shader()
+        gpu_drawing._uniform_shader = None  # reset
+        s1 = gpu_drawing._get_uniform_shader()
+        s2 = gpu_drawing._get_uniform_shader()
         assert s1 is s2
 
     def test_image_shader_cached(self):
-        import melvil.ui.gpu_ui as gpu_ui
+        import melvil.ui.gpu.drawing as gpu_drawing
 
-        gpu_ui._image_shader = None  # reset
-        s1 = gpu_ui._get_image_shader()
-        s2 = gpu_ui._get_image_shader()
+        gpu_drawing._image_shader = None  # reset
+        s1 = gpu_drawing._get_image_shader()
+        s2 = gpu_drawing._get_image_shader()
         assert s1 is s2
 
 
@@ -365,7 +365,7 @@ class TestShaderCaching:
 
 class TestColorWithAlpha:
     def test_replaces_alpha(self):
-        from melvil.ui.gpu_ui import _color_with_alpha
+        from melvil.ui.gpu import _color_with_alpha
 
         result = _color_with_alpha((0.5, 0.6, 0.7, 1.0), 0.3)
         assert result == (0.5, 0.6, 0.7, 0.3)
@@ -378,66 +378,66 @@ class TestColorWithAlpha:
 
 class TestGetTheme:
     def setup_method(self):
-        import melvil.ui.gpu_ui as gpu_ui
+        import melvil.ui.gpu.theme as gpu_theme
 
-        gpu_ui._theme = None  # ensure clean state
+        gpu_theme._theme = None  # ensure clean state
 
     def teardown_method(self):
-        import melvil.ui.gpu_ui as gpu_ui
+        import melvil.ui.gpu.theme as gpu_theme
 
-        gpu_ui._theme = None
+        gpu_theme._theme = None
 
     def test_returns_theme_colors(self):
-        from melvil.ui.gpu_ui import ThemeColors, get_theme
+        from melvil.ui.gpu import ThemeColors, get_theme
 
         result = get_theme()
         assert isinstance(result, ThemeColors)
 
     def test_caches_result(self):
-        from melvil.ui.gpu_ui import get_theme
+        from melvil.ui.gpu import get_theme
 
         first = get_theme()
         second = get_theme()
         assert first is second
 
     def test_uses_from_blender_when_available(self):
-        import melvil.ui.gpu_ui as gpu_ui
-        from melvil.ui.gpu_ui import ThemeColors
+        import melvil.ui.gpu.theme as gpu_theme
+        from melvil.ui.gpu import ThemeColors
 
         sentinel = ThemeColors.fallback()
         with patch.object(ThemeColors, "from_blender", return_value=sentinel) as mock_fb:
-            result = gpu_ui.get_theme()
+            result = gpu_theme.get_theme()
             mock_fb.assert_called_once()
             assert result is sentinel
 
     def test_falls_back_on_exception(self):
-        import melvil.ui.gpu_ui as gpu_ui
-        from melvil.ui.gpu_ui import ThemeColors
+        import melvil.ui.gpu.theme as gpu_theme
+        from melvil.ui.gpu import ThemeColors
 
         with patch.object(ThemeColors, "from_blender", side_effect=RuntimeError):
-            result = gpu_ui.get_theme()
+            result = gpu_theme.get_theme()
             assert isinstance(result, ThemeColors)
 
 
 class TestResetTheme:
     def test_clears_cached_theme(self):
-        import melvil.ui.gpu_ui as gpu_ui
-        from melvil.ui.gpu_ui import ThemeColors
+        import melvil.ui.gpu.theme as gpu_theme
+        from melvil.ui.gpu import ThemeColors
 
-        gpu_ui._theme = ThemeColors.fallback()
-        gpu_ui.reset_theme()
-        assert gpu_ui._theme is None
+        gpu_theme._theme = ThemeColors.fallback()
+        gpu_theme.reset_theme()
+        assert gpu_theme._theme is None
 
     def test_next_get_theme_reloads(self):
-        import melvil.ui.gpu_ui as gpu_ui
-        from melvil.ui.gpu_ui import ThemeColors
+        import melvil.ui.gpu.theme as gpu_theme
+        from melvil.ui.gpu import ThemeColors
 
-        first = gpu_ui.get_theme()
-        gpu_ui.reset_theme()
+        first = gpu_theme.get_theme()
+        gpu_theme.reset_theme()
 
         new_theme = ThemeColors.fallback()
         with patch.object(ThemeColors, "from_blender", return_value=new_theme):
-            second = gpu_ui.get_theme()
+            second = gpu_theme.get_theme()
             assert second is new_theme
             assert second is not first
 
@@ -449,7 +449,7 @@ class TestResetTheme:
 
 class TestHitResult:
     def test_fields(self):
-        from melvil.ui.gpu_ui import HitResult
+        from melvil.ui.gpu import HitResult
 
         hr = HitResult(
             widget_type="operator",
@@ -470,7 +470,7 @@ class TestHitResult:
 
 def _make_panel(**kwargs):
     """Create a GpuPanel with sensible defaults and no draw handler."""
-    from melvil.ui.gpu_ui import GpuPanel
+    from melvil.ui.gpu import GpuPanel
 
     defaults = {"width": 300, "anchor": (0, 200)}
     defaults.update(kwargs)
@@ -524,7 +524,7 @@ class TestGpuPanelAttachDetach:
 
 class TestGpuPanelFrameCycle:
     def test_begin_frame_returns_gpu_layout(self):
-        from melvil.ui.gpu_ui import GpuLayout
+        from melvil.ui.gpu import GpuLayout
 
         panel = _make_panel()
         root = panel.begin_frame()
@@ -548,7 +548,7 @@ class TestGpuPanelFrameCycle:
         root.separator()  # adds SEPARATOR_HEIGHT
         panel.end_frame()
 
-        from melvil.ui.gpu_ui import SEPARATOR_HEIGHT
+        from melvil.ui.gpu import SEPARATOR_HEIGHT
 
         x, y, w, h = panel._panel_rect
         assert w == pytest.approx(200.0)
@@ -565,7 +565,7 @@ class TestGpuPanelHitTest:
         assert panel.hit_test(50, 50) is None
 
     def test_returns_matching_hit_result(self):
-        from melvil.ui.gpu_ui import HitResult
+        from melvil.ui.gpu import HitResult
 
         panel = _make_panel()
         panel.begin_frame()
@@ -579,7 +579,7 @@ class TestGpuPanelHitTest:
         assert result.id == "test"
 
     def test_returns_none_outside_rect(self):
-        from melvil.ui.gpu_ui import HitResult
+        from melvil.ui.gpu import HitResult
 
         panel = _make_panel()
         panel.begin_frame()
@@ -591,7 +591,7 @@ class TestGpuPanelHitTest:
         assert panel.hit_test(200, 200) is None
 
     def test_topmost_wins(self):
-        from melvil.ui.gpu_ui import HitResult
+        from melvil.ui.gpu import HitResult
 
         panel = _make_panel()
         panel.begin_frame()
@@ -614,7 +614,7 @@ class TestGpuPanelIsInside:
         root.separator()
         panel.end_frame()
 
-        from melvil.ui.gpu_ui import SEPARATOR_HEIGHT
+        from melvil.ui.gpu import SEPARATOR_HEIGHT
 
         # Panel rect: x=10, y=50-8, w=100, h=8
         assert panel.is_inside(50, 50 - SEPARATOR_HEIGHT + 1) is True
@@ -690,7 +690,7 @@ class TestGpuLayoutContainers:
         assert b._is_box is True
 
     def test_separator_appended(self):
-        from melvil.ui.gpu_ui import _Separator
+        from melvil.ui.gpu import _Separator
 
         panel = _make_panel()
         root = panel.begin_frame()
@@ -699,7 +699,7 @@ class TestGpuLayoutContainers:
         assert isinstance(root._children[0], _Separator)
 
     def test_separator_factor(self):
-        from melvil.ui.gpu_ui import _Separator
+        from melvil.ui.gpu import _Separator
 
         panel = _make_panel()
         root = panel.begin_frame()
@@ -746,7 +746,7 @@ class TestGpuLayoutContainers:
 class TestLayoutPass:
     def test_column_with_3_separators(self):
         """Total height = 3 × SEPARATOR_HEIGHT × ui_scale."""
-        from melvil.ui.gpu_ui import SEPARATOR_HEIGHT
+        from melvil.ui.gpu import SEPARATOR_HEIGHT
 
         panel = _make_panel()
         root = panel.begin_frame()
@@ -758,7 +758,7 @@ class TestLayoutPass:
         assert h == pytest.approx(3 * SEPARATOR_HEIGHT)
 
     def test_column_with_3_separators_scaled(self):
-        from melvil.ui.gpu_ui import SEPARATOR_HEIGHT
+        from melvil.ui.gpu import SEPARATOR_HEIGHT
 
         panel = _make_panel()
         root = panel.begin_frame()
@@ -782,7 +782,7 @@ class TestLayoutPass:
         assert c1._rect is not None
         assert c2._rect is not None
 
-        from melvil.ui.gpu_ui import WIDGET_GAP
+        from melvil.ui.gpu import WIDGET_GAP
 
         expected_each = (200 - WIDGET_GAP) / 2
         assert c1._rect[2] == pytest.approx(expected_each)
@@ -804,7 +804,7 @@ class TestLayoutPass:
         assert right._rect[2] == pytest.approx(200.0 * 0.7)
 
     def test_box_adds_padding(self):
-        from melvil.ui.gpu_ui import BOX_PAD, SEPARATOR_HEIGHT
+        from melvil.ui.gpu import BOX_PAD, SEPARATOR_HEIGHT
 
         panel = _make_panel(width=200, anchor=(0, 200))
         root = panel.begin_frame()
@@ -820,7 +820,7 @@ class TestLayoutPass:
 
     def test_nested_row_in_column_in_split(self):
         """Nested containers produce correct coordinates."""
-        from melvil.ui.gpu_ui import SEPARATOR_HEIGHT
+        from melvil.ui.gpu import SEPARATOR_HEIGHT
 
         panel = _make_panel(width=400, anchor=(0, 300))
         root = panel.begin_frame()
@@ -845,7 +845,7 @@ class TestLayoutPass:
         assert right_col._rect[2] == pytest.approx(200.0)
 
     def test_scale_y_doubles_height(self):
-        from melvil.ui.gpu_ui import SEPARATOR_HEIGHT
+        from melvil.ui.gpu import SEPARATOR_HEIGHT
 
         panel = _make_panel()
         root = panel.begin_frame()
@@ -863,7 +863,7 @@ class TestLayoutPass:
 
     def test_column_widgets_gap(self):
         """Two non-separator children get WIDGET_GAP between them."""
-        from melvil.ui.gpu_ui import SEPARATOR_HEIGHT, WIDGET_GAP
+        from melvil.ui.gpu import SEPARATOR_HEIGHT, WIDGET_GAP
 
         panel = _make_panel()
         root = panel.begin_frame()
@@ -875,7 +875,7 @@ class TestLayoutPass:
         assert h == pytest.approx(expected)
 
     def test_aligned_column_uses_small_gap(self):
-        from melvil.ui.gpu_ui import SEPARATOR_HEIGHT, WIDGET_GAP_ALIGNED
+        from melvil.ui.gpu import SEPARATOR_HEIGHT, WIDGET_GAP_ALIGNED
 
         panel = _make_panel()
         root = panel.begin_frame()
@@ -895,7 +895,7 @@ class TestLayoutPass:
         bpy.context.region.width = 800
         bpy.context.region.height = 600
 
-        from melvil.ui.gpu_ui import GpuPanel, SEPARATOR_HEIGHT
+        from melvil.ui.gpu import GpuPanel, SEPARATOR_HEIGHT
 
         panel = GpuPanel(width=200, anchor=None)
         root = panel.begin_frame()
@@ -975,3 +975,292 @@ class TestDrawPass:
 
         shader = _gpu.shader.from_builtin.return_value
         assert shader.bind.called
+
+
+# ---------------------------------------------------------------------------
+# GpuWidget
+# ---------------------------------------------------------------------------
+
+
+class TestGpuWidget:
+    def test_label_fields(self):
+        from melvil.ui.gpu import GpuWidget
+
+        w = GpuWidget(kind="label", text="Hello", icon="MESH_DATA")
+        assert w.kind == "label"
+        assert w.text == "Hello"
+        assert w.icon == "MESH_DATA"
+        assert w.enabled is True
+        assert w.alert is False
+        assert w.rect is None
+
+    def test_separator_fields(self):
+        from melvil.ui.gpu import GpuWidget
+
+        w = GpuWidget(kind="separator", scale_y=2.0)
+        assert w.kind == "separator"
+        assert w.scale_y == 2.0
+
+    def test_defaults(self):
+        from melvil.ui.gpu import GpuWidget
+
+        w = GpuWidget(kind="label")
+        assert w.text == ""
+        assert w.icon == "NONE"
+        assert w.enabled is True
+        assert w.alert is False
+        assert w.scale_y == 1.0
+
+
+# ---------------------------------------------------------------------------
+# GpuLayout.label()
+# ---------------------------------------------------------------------------
+
+
+class TestGpuLayoutLabel:
+    def test_label_appends_widget(self):
+        from melvil.ui.gpu import GpuWidget
+
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.label(text="Hello")
+
+        assert len(root._children) == 1
+        child = root._children[0]
+        assert isinstance(child, GpuWidget)
+        assert child.kind == "label"
+        assert child.text == "Hello"
+
+    def test_label_icon(self):
+        from melvil.ui.gpu import GpuWidget
+
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.label(text="Test", icon="MESH_DATA")
+
+        child = root._children[0]
+        assert child.icon == "MESH_DATA"
+
+    def test_label_inherits_enabled(self):
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.enabled = False
+        root.label(text="Disabled")
+
+        child = root._children[0]
+        assert child.enabled is False
+
+    def test_label_inherits_alert(self):
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.alert = True
+        root.label(text="Alert!")
+
+        child = root._children[0]
+        assert child.alert is True
+
+    def test_empty_text_label(self):
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.label()
+
+        child = root._children[0]
+        assert child.text == ""
+
+    def test_label_height_matches_widget_height(self):
+        from melvil.ui.gpu import WIDGET_HEIGHT
+
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.label(text="Hello")
+
+        h = root._measure_height(1.0)
+        assert h == pytest.approx(WIDGET_HEIGHT)
+
+    def test_label_height_scaled(self):
+        from melvil.ui.gpu import WIDGET_HEIGHT
+
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.label(text="Hello")
+
+        h = root._measure_height(2.0)
+        assert h == pytest.approx(WIDGET_HEIGHT * 2.0)
+
+    def test_label_gets_rect_after_position(self):
+        panel = _make_panel(width=200, anchor=(0, 200))
+        root = panel.begin_frame()
+        root.label(text="Hello")
+        panel.end_frame()
+
+        child = root._children[0]
+        assert child.rect is not None
+        x, y, w, h = child.rect
+        assert w == pytest.approx(200.0)
+
+    def test_multiple_labels_stacked(self):
+        from melvil.ui.gpu import WIDGET_HEIGHT, WIDGET_GAP
+
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.label(text="A")
+        root.label(text="B")
+
+        h = root._measure_height(1.0)
+        assert h == pytest.approx(2 * WIDGET_HEIGHT + WIDGET_GAP)
+
+    def test_label_separator_label(self):
+        from melvil.ui.gpu import WIDGET_HEIGHT, SEPARATOR_HEIGHT
+
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.label(text="A")
+        root.separator()
+        root.label(text="B")
+
+        # No gap adjacent to separators.
+        h = root._measure_height(1.0)
+        assert h == pytest.approx(2 * WIDGET_HEIGHT + SEPARATOR_HEIGHT)
+
+
+# ---------------------------------------------------------------------------
+# Label drawing
+# ---------------------------------------------------------------------------
+
+
+class TestLabelDraw:
+    def test_label_calls_draw_text(self):
+        import blf
+
+        blf.draw.reset_mock()
+        blf.dimensions = MagicMock(return_value=(40.0, 12.0))
+
+        panel = _make_panel(width=200, anchor=(0, 200))
+        root = panel.begin_frame()
+        root.label(text="Hello World")
+        panel.end_frame()
+
+        blf.draw.assert_called()
+        # The text drawn should be "Hello World".
+        drawn_texts = [c.args[1] for c in blf.draw.call_args_list]
+        assert "Hello World" in drawn_texts
+
+    def test_empty_label_no_text_draw(self):
+        import blf
+
+        blf.draw.reset_mock()
+
+        panel = _make_panel(width=200, anchor=(0, 200))
+        root = panel.begin_frame()
+        root.label()  # empty text
+        panel.end_frame()
+
+        # Empty label should not call blf.draw for empty string.
+        drawn_texts = [c.args[1] for c in blf.draw.call_args_list]
+        assert "" not in drawn_texts
+
+    def test_disabled_label_uses_disabled_color(self):
+        import blf
+        from melvil.ui.gpu import get_theme
+
+        blf.color.reset_mock()
+        blf.dimensions = MagicMock(return_value=(40.0, 12.0))
+
+        panel = _make_panel(width=200, anchor=(0, 200))
+        root = panel.begin_frame()
+        root.enabled = False
+        root.label(text="Dim")
+        panel.end_frame()
+
+        theme = get_theme()
+        color_calls = [c.args[1:] for c in blf.color.call_args_list]
+        assert theme.text_disabled in color_calls
+
+    def test_alert_label_uses_alert_color(self):
+        import blf
+        from melvil.ui.gpu import get_theme
+
+        blf.color.reset_mock()
+        blf.dimensions = MagicMock(return_value=(40.0, 12.0))
+
+        panel = _make_panel(width=200, anchor=(0, 200))
+        root = panel.begin_frame()
+        root.alert = True
+        root.label(text="Alert!")
+        panel.end_frame()
+
+        theme = get_theme()
+        color_calls = [c.args[1:] for c in blf.color.call_args_list]
+        assert theme.alert in color_calls
+
+    def test_label_in_disabled_parent(self):
+        """A label inside a disabled parent layout uses disabled color."""
+        import blf
+        from melvil.ui.gpu import get_theme
+
+        blf.color.reset_mock()
+        blf.dimensions = MagicMock(return_value=(40.0, 12.0))
+
+        panel = _make_panel(width=200, anchor=(0, 200))
+        root = panel.begin_frame()
+        col = root.column()
+        col.enabled = False
+        col.label(text="Disabled child")
+        panel.end_frame()
+
+        theme = get_theme()
+        color_calls = [c.args[1:] for c in blf.color.call_args_list]
+        assert theme.text_disabled in color_calls
+
+
+# ---------------------------------------------------------------------------
+# Separator with label interop
+# ---------------------------------------------------------------------------
+
+
+class TestSeparatorGapLogic:
+    def test_separator_between_labels_no_extra_gap(self):
+        """Separator between two labels should not add WIDGET_GAP."""
+        from melvil.ui.gpu import WIDGET_HEIGHT, SEPARATOR_HEIGHT
+
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.label(text="A")
+        root.separator()
+        root.label(text="B")
+
+        h = root._measure_height(1.0)
+        assert h == pytest.approx(2 * WIDGET_HEIGHT + SEPARATOR_HEIGHT)
+
+    def test_label_then_container_gets_gap(self):
+        """A label followed by a column gets WIDGET_GAP between them."""
+        from melvil.ui.gpu import WIDGET_HEIGHT, SEPARATOR_HEIGHT, WIDGET_GAP
+
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.label(text="A")
+        col = root.column()
+        col.separator()
+
+        h = root._measure_height(1.0)
+        assert h == pytest.approx(WIDGET_HEIGHT + WIDGET_GAP + SEPARATOR_HEIGHT)
+
+    def test_label_in_row(self):
+        """Labels placed in a row share width equally."""
+        from melvil.ui.gpu import WIDGET_HEIGHT, WIDGET_GAP
+
+        panel = _make_panel(width=200, anchor=(0, 200))
+        root = panel.begin_frame()
+        row = root.row()
+        row.label(text="Left")
+        row.label(text="Right")
+        panel.end_frame()
+
+        left = row._children[0]
+        right = row._children[1]
+        assert left.rect is not None
+        assert right.rect is not None
+
+        expected_each = (200 - WIDGET_GAP) / 2
+        assert left.rect[2] == pytest.approx(expected_each)
+        assert right.rect[2] == pytest.approx(expected_each)
