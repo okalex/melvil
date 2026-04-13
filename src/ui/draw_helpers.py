@@ -240,18 +240,25 @@ def draw_unified_asset_section(
 
     if wm is not None:
         # Sync assets into the WM collection so template_list can display them.
-        wm.melvil_browser_assets.clear()
-        lib_root = resolve_library_root()
-        for asset in assets:
-            item = wm.melvil_browser_assets.add()
-            item.name = asset["name"]
-            item.asset_id = asset["id"]
-            item.asset_type = asset["type"]
-            preview_path = asset["preview_path"]
-            item.abs_preview_path = (
-                str(Path(lib_root) / preview_path) if preview_path else ""
-            )
-            item.blend_path = asset["blend_path"]
+        # Guard prevents the index-update callback from firing during rebuild.
+        from . import scene_props as _sp
+
+        _sp._rebuilding_browser_assets = True
+        try:
+            wm.melvil_browser_assets.clear()
+            lib_root = resolve_library_root()
+            for asset in assets:
+                item = wm.melvil_browser_assets.add()
+                item.name = asset["name"]
+                item.asset_id = asset["id"]
+                item.asset_type = asset["type"]
+                preview_path = asset["preview_path"]
+                item.abs_preview_path = (
+                    str(Path(lib_root) / preview_path) if preview_path else ""
+                )
+                item.blend_path = asset["blend_path"]
+        finally:
+            _sp._rebuilding_browser_assets = False
 
         layout.template_list(
             "MELVIL_UL_asset_grid", "",

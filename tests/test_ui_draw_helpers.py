@@ -243,6 +243,29 @@ class TestDrawUnifiedAssetSection:
 
         assert wm.melvil_browser_assets.clear.call_count == 1
 
+    def test_guard_flag_set_during_rebuild(self):
+        from melvil.ui import scene_props as sp
+        from melvil.ui.draw_helpers import draw_unified_asset_section
+
+        layout = MagicMock()
+        wm, _ = self._make_wm()
+        observed = []
+
+        original_clear = wm.melvil_browser_assets.clear.side_effect
+
+        def _spy_clear():
+            observed.append(sp._rebuilding_browser_assets)
+            if original_clear:
+                original_clear()
+
+        wm.melvil_browser_assets.clear = MagicMock(side_effect=_spy_clear)
+
+        with patch("melvil.ui.draw_helpers.resolve_library_root", return_value="/lib"):
+            draw_unified_asset_section(layout, [_make_asset("1", "Cube", "MESH")], wm=wm)
+
+        assert observed == [True]
+        assert sp._rebuilding_browser_assets is False
+
     # -- fallback (no wm) path -------------------------------------------
 
     def test_fallback_renders_name_row(self):

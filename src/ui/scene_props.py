@@ -42,6 +42,10 @@ from bpy.types import PropertyGroup
 # is_active update callback does not fire during that reconstruction.
 _rebuilding_filter_tags: bool = False
 
+# Guard flag: set True while draw() rebuilds melvil_browser_assets so that the
+# index update callback does not fire during that reconstruction.
+_rebuilding_browser_assets: bool = False
+
 
 def _update_pending_name(self, context) -> None:
     """Tag the current area for redraw so the confirm button's enabled state
@@ -73,6 +77,19 @@ def _update_filter_tags_index(self, context) -> None:
         self.melvil_active_tag_filters = tag_id
     # Reset so clicking the same row again fires this callback.
     self.melvil_filter_tags_index = -1
+
+
+def _update_browser_assets_index(self, context) -> None:
+    """Sync selectedasset_id when the user clicks a row in the asset list.
+
+    ``self`` is the WindowManager instance.
+    """
+    if _rebuilding_browser_assets:
+        return
+    idx = self.melvil_browser_assets_index
+    if idx < 0 or idx >= len(self.melvil_browser_assets):
+        return
+    self.melvil_selected_asset_id = self.melvil_browser_assets[idx].asset_id
 
 
 class MelvilFilterTagItem(PropertyGroup):
@@ -204,6 +221,7 @@ def register() -> None:
         name="Browser Assets Index",
         default=0,
         options={"HIDDEN", "SKIP_SAVE"},
+        update=_update_browser_assets_index,
     )
 
 
