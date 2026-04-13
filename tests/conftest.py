@@ -139,6 +139,13 @@ def _make_bpy_mock() -> types.ModuleType:
     bpy_types.NODE_MT_context_menu = NODE_MT_context_menu
     bpy_types.NODE_MT_add = NODE_MT_add
 
+    class SpaceView3D:
+        """Minimal SpaceView3D stand-in with draw_handler_add/remove."""
+        draw_handler_add = MagicMock(return_value="FAKE_HANDLE")
+        draw_handler_remove = MagicMock()
+
+    bpy_types.SpaceView3D = SpaceView3D
+
     class WindowManager:
         """Minimal WindowManager stand-in for attribute assignment in register()."""
 
@@ -200,6 +207,7 @@ def _make_bpy_mock() -> types.ModuleType:
     mock_context = MagicMock()
     mock_context.preferences.addons = mock_addons
     mock_context.preferences.filepaths.asset_libraries = []
+    mock_context.preferences.system.ui_scale = 1.0
     bpy.context = mock_context
 
     # Make bpy.ops.preferences.asset_library_add() append a stub entry so that
@@ -218,6 +226,34 @@ def _make_bpy_mock() -> types.ModuleType:
 # Install the mock before any addon module is imported.
 if "bpy" not in sys.modules:
     sys.modules["bpy"] = _make_bpy_mock()
+
+# ---------------------------------------------------------------------------
+# Mock Blender-only C modules (gpu, blf, gpu_extras)
+# ---------------------------------------------------------------------------
+# These are only available inside Blender's embedded Python.  grid_list.py
+# imports them at module level, so they must exist before exec_module runs.
+
+if "gpu" not in sys.modules:
+    _gpu = types.ModuleType("gpu")
+    _gpu.shader = MagicMock()
+    _gpu.state = MagicMock()
+    sys.modules["gpu"] = _gpu
+
+if "blf" not in sys.modules:
+    _blf = types.ModuleType("blf")
+    _blf.size = MagicMock()
+    _blf.color = MagicMock()
+    _blf.position = MagicMock()
+    _blf.draw = MagicMock()
+    sys.modules["blf"] = _blf
+
+if "gpu_extras" not in sys.modules:
+    _gpu_extras = types.ModuleType("gpu_extras")
+    sys.modules["gpu_extras"] = _gpu_extras
+if "gpu_extras.batch" not in sys.modules:
+    _gpu_extras_batch = types.ModuleType("gpu_extras.batch")
+    _gpu_extras_batch.batch_for_shader = MagicMock()
+    sys.modules["gpu_extras.batch"] = _gpu_extras_batch
 
 # ---------------------------------------------------------------------------
 # Register src/ as the 'melvil' package
