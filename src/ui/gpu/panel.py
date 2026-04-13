@@ -8,7 +8,7 @@ from typing import Any, Callable
 import bpy
 import gpu
 
-from .constants import get_ui_scale, scaled
+from .constants import get_ui_scale, scaled, PANEL_PAD
 from .drawing import draw_rect_outline, draw_rect_rounded
 from .layout import GpuLayout
 from .theme import get_theme
@@ -127,8 +127,9 @@ class GpuPanel:
             return
 
         s = self._ui_scale
+        pad = scaled(PANEL_PAD, s)
         w = scaled(self._width, s)
-        h = self._root._measure_height(s)
+        h = self._root._measure_height(s) + pad * 2
 
         # Determine anchor (top-left of panel in region pixels).
         anchor = self._anchor
@@ -152,7 +153,9 @@ class GpuPanel:
         self._panel_rect = (panel_x, panel_y, w, h)
 
         # Position pass then draw pass.
-        self._root._position(panel_x, panel_y, w, h, s)
+        self._root._position(
+            panel_x + pad, panel_y + pad, w - pad * 2, h - pad * 2, s,
+        )
 
         # Panel background.
         theme = get_theme()

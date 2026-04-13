@@ -542,19 +542,20 @@ class TestGpuPanelFrameCycle:
         assert panel._panel_rect is not None
 
     def test_panel_rect_dimensions(self):
-        """Panel rect width = scaled width, height = tree height."""
+        """Panel rect width = scaled width, height = tree height + padding."""
         panel = _make_panel(width=200, anchor=(10, 100))
         root = panel.begin_frame()
         root.separator()  # adds SEPARATOR_HEIGHT
         panel.end_frame()
 
-        from melvil.ui.gpu import SEPARATOR_HEIGHT
+        from melvil.ui.gpu import PANEL_PAD, SEPARATOR_HEIGHT
 
+        expected_h = SEPARATOR_HEIGHT + 2 * PANEL_PAD
         x, y, w, h = panel._panel_rect
         assert w == pytest.approx(200.0)
-        assert h == pytest.approx(SEPARATOR_HEIGHT)
+        assert h == pytest.approx(expected_h)
         assert x == pytest.approx(10.0)
-        assert y == pytest.approx(100.0 - SEPARATOR_HEIGHT)
+        assert y == pytest.approx(100.0 - expected_h)
 
 
 class TestGpuPanelHitTest:
@@ -782,13 +783,16 @@ class TestLayoutPass:
         assert c1._rect is not None
         assert c2._rect is not None
 
-        from melvil.ui.gpu import WIDGET_GAP
+        from melvil.ui.gpu import PANEL_PAD, WIDGET_GAP
 
-        expected_each = (200 - WIDGET_GAP) / 2
+        content_w = 200 - 2 * PANEL_PAD
+        expected_each = (content_w - WIDGET_GAP) / 2
         assert c1._rect[2] == pytest.approx(expected_each)
         assert c2._rect[2] == pytest.approx(expected_each)
 
     def test_split_factor_03(self):
+        from melvil.ui.gpu import PANEL_PAD
+
         panel = _make_panel(width=200, anchor=(0, 100))
         root = panel.begin_frame()
         sp = root.split(factor=0.3)
@@ -798,13 +802,14 @@ class TestLayoutPass:
         right.separator()
         panel.end_frame()
 
+        content_w = 200 - 2 * PANEL_PAD
         assert left._rect is not None
         assert right._rect is not None
-        assert left._rect[2] == pytest.approx(200.0 * 0.3)
-        assert right._rect[2] == pytest.approx(200.0 * 0.7)
+        assert left._rect[2] == pytest.approx(content_w * 0.3)
+        assert right._rect[2] == pytest.approx(content_w * 0.7)
 
     def test_box_adds_padding(self):
-        from melvil.ui.gpu import BOX_PAD, SEPARATOR_HEIGHT
+        from melvil.ui.gpu import BOX_PAD, PANEL_PAD, SEPARATOR_HEIGHT
 
         panel = _make_panel(width=200, anchor=(0, 200))
         root = panel.begin_frame()
@@ -813,14 +818,15 @@ class TestLayoutPass:
         panel.end_frame()
 
         # Box rect includes padding on all sides.
+        content_w = 200 - 2 * PANEL_PAD
         assert bx._rect is not None
         bx_x, bx_y, bx_w, bx_h = bx._rect
-        assert bx_w == pytest.approx(200.0)
+        assert bx_w == pytest.approx(content_w)
         assert bx_h == pytest.approx(SEPARATOR_HEIGHT + 2 * BOX_PAD)
 
     def test_nested_row_in_column_in_split(self):
         """Nested containers produce correct coordinates."""
-        from melvil.ui.gpu import SEPARATOR_HEIGHT
+        from melvil.ui.gpu import PANEL_PAD, SEPARATOR_HEIGHT
 
         panel = _make_panel(width=400, anchor=(0, 300))
         root = panel.begin_frame()
@@ -835,14 +841,15 @@ class TestLayoutPass:
         right_col.separator()
         panel.end_frame()
 
-        # Left half = 200px wide, row inside splits it.
+        content_w = 400 - 2 * PANEL_PAD
+        # Left half = content_w * 0.5, row inside splits it.
         assert a._rect is not None
         assert b._rect is not None
         assert right_col._rect is not None
         assert a._rect[2] + b._rect[2] == pytest.approx(
             left_col._rect[2], abs=5,
         )
-        assert right_col._rect[2] == pytest.approx(200.0)
+        assert right_col._rect[2] == pytest.approx(content_w * 0.5)
 
     def test_scale_y_doubles_height(self):
         from melvil.ui.gpu import SEPARATOR_HEIGHT
@@ -1085,6 +1092,8 @@ class TestGpuLayoutLabel:
         assert h == pytest.approx(WIDGET_HEIGHT * 2.0)
 
     def test_label_gets_rect_after_position(self):
+        from melvil.ui.gpu import PANEL_PAD
+
         panel = _make_panel(width=200, anchor=(0, 200))
         root = panel.begin_frame()
         root.label(text="Hello")
@@ -1093,7 +1102,7 @@ class TestGpuLayoutLabel:
         child = root._children[0]
         assert child.rect is not None
         x, y, w, h = child.rect
-        assert w == pytest.approx(200.0)
+        assert w == pytest.approx(200 - 2 * PANEL_PAD)
 
     def test_multiple_labels_stacked(self):
         from melvil.ui.gpu import WIDGET_HEIGHT, WIDGET_GAP
@@ -1244,7 +1253,7 @@ class TestSeparatorGapLogic:
 
     def test_label_in_row(self):
         """Labels placed in a row share width equally."""
-        from melvil.ui.gpu import WIDGET_HEIGHT, WIDGET_GAP
+        from melvil.ui.gpu import WIDGET_HEIGHT, WIDGET_GAP, PANEL_PAD
 
         panel = _make_panel(width=200, anchor=(0, 200))
         root = panel.begin_frame()
@@ -1258,7 +1267,8 @@ class TestSeparatorGapLogic:
         assert left.rect is not None
         assert right.rect is not None
 
-        expected_each = (200 - WIDGET_GAP) / 2
+        content_w = 200 - 2 * PANEL_PAD
+        expected_each = (content_w - WIDGET_GAP) / 2
         assert left.rect[2] == pytest.approx(expected_each)
         assert right.rect[2] == pytest.approx(expected_each)
 
@@ -1400,6 +1410,8 @@ class TestGpuButton:
         assert h == pytest.approx(WIDGET_HEIGHT)
 
     def test_button_gets_rect_after_position(self):
+        from melvil.ui.gpu import PANEL_PAD
+
         panel = _make_panel(width=200, anchor=(0, 200))
         root = panel.begin_frame()
         root.operator("melvil.test_op", text="Click")
@@ -1408,7 +1420,7 @@ class TestGpuButton:
         child = root._children[0]
         assert child.rect is not None
         x, y, w, h = child.rect
-        assert w == pytest.approx(200.0)
+        assert w == pytest.approx(200 - 2 * PANEL_PAD)
 
     def test_icon_stored(self):
         panel = _make_panel()
