@@ -90,9 +90,9 @@ class GpuButton(GpuWidget):
             )
             draw_rect_rounded(x, y, w, h, r, hover_color)
 
-        # -- Text -------------------------------------------------------------
+        # -- Text + icon ------------------------------------------------------
         text_color = self._resolve_text_color(parent_enabled, theme.button_text)
-        self._draw_text_content(s, text_color)
+        self._draw_text_content(s, text_color, panel=panel)
 
         # -- Hit-rect registration -------------------------------------------
         if is_enabled:

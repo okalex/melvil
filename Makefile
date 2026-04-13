@@ -23,3 +23,7 @@ test:
 ## Sync dependencies
 sync:
 	uv sync
+
+## Build the icon atlas from Blender's SVG source
+icons:
+	DYLD_FALLBACK_LIBRARY_PATH="$$(brew --prefix)/lib" uv run python scripts/build_icon_atlas.py --tag v$(BLENDER_VERSION).0

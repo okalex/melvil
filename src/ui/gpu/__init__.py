@@ -43,16 +43,18 @@ from .button import GpuButton, GpuOperatorProps
 from .enum_buttons import GpuEnumButtons
 from .layout import GpuLayout
 from .label import GpuLabel
+from .icons import IconProvider
 from .panel import GpuPanel, HitResult, get_region_offsets
 from .separator import GpuSeparator
 from .text_field import GpuTextField
+from .template_icon import GpuTemplateIcon
 from .theme import (
     ThemeColors,
     _color_with_alpha,
     get_theme,
     reset_theme,
 )
-from .widget import GpuWidget, draw_text_in_rect, point_in_rect
+from .widget import GpuWidget, draw_icon, draw_text_in_rect, point_in_rect
 from ._logger import GpuUiLogger
 
 __all__ = [
@@ -97,10 +99,14 @@ __all__ = [
     "GpuLabel",
     "GpuOperatorProps",
     "GpuSeparator",
+    "GpuTemplateIcon",
     "GpuTextField",
     # Helpers
+    "draw_icon",
     "draw_text_in_rect",
     "point_in_rect",
     # Logger
     "GpuUiLogger",
+    # Icons
+    "IconProvider",
 ]

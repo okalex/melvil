@@ -11,6 +11,7 @@ import gpu
 
 from .constants import get_ui_scale, scaled, PANEL_PAD
 from .drawing import draw_rect_outline, draw_rect_rounded
+from .icons import IconProvider
 from .layout import GpuLayout
 from .theme import get_theme
 from ._logger import _logger
@@ -97,6 +98,12 @@ class GpuPanel:
         self._text_field_order: list[str] = []
         self._text_field_data: dict[str, object] = {}
         self._textedit_update_fields: set[str] = set()
+
+        # Icon provider (lazy-loaded atlas of built-in Blender icons).
+        self._icon_provider: IconProvider = IconProvider()
+
+        # Preview path registry: icon_value → image file path.
+        self._preview_paths: dict[int, str] = {}
 
     # -- Lifecycle -----------------------------------------------------------
 
@@ -450,3 +457,21 @@ class GpuPanel:
             _logger.log(f"get_texture() failed for {path!r}: {exc}")
             self._texture_cache[path] = None
             return None
+
+    # -- Preview image support -----------------------------------------------
+
+    def register_preview(self, icon_value: int, path: str) -> None:
+        """Associate a preview *icon_value* with an image file *path*.
+
+        Call this during the build function for every preview that will be
+        referenced by :meth:`GpuLayout.template_icon`.  The path is loaded
+        as a GPU texture on first use and cached for future frames.
+        """
+        self._preview_paths[icon_value] = path
+
+    def get_preview_texture(self, icon_value: int) -> Any | None:
+        """Return the GPU texture for *icon_value*, or ``None``."""
+        path = self._preview_paths.get(icon_value)
+        if path is None:
+            return None
+        return self.get_texture(path)

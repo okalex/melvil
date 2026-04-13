@@ -3089,3 +3089,447 @@ class TestTextFieldTabCycle:
         panel.activate_text_field("search_query", mock)
         panel.handle_text_event(_MockEvent(type="TAB"))
         assert panel.active_text_field is None
+
+
+# ===========================================================================
+# Phase 6 — Icons
+# ===========================================================================
+
+
+# ---------------------------------------------------------------------------
+# draw_texture uv_rect support
+# ---------------------------------------------------------------------------
+
+
+class TestDrawTextureUvRect:
+    """Tests for the uv_rect parameter on draw_texture."""
+
+    def test_default_uv_full_texture(self):
+        """Without uv_rect, UVs span (0,0)→(1,1)."""
+        from gpu_extras.batch import batch_for_shader
+        from melvil.ui.gpu import draw_texture
+
+        batch_for_shader.reset_mock()
+        draw_texture(MagicMock(), 0, 0, 64, 64)
+
+        # batch_for_shader(shader, 'TRIS', {"pos": ..., "texCoord": ...}, indices=...)
+        attrs = batch_for_shader.call_args[0][2]
+        assert attrs["texCoord"] == [(0, 0), (1, 0), (1, 1), (0, 1)]
+
+    def test_custom_uv_rect(self):
+        """uv_rect provides sub-region UV coordinates."""
+        from gpu_extras.batch import batch_for_shader
+        from melvil.ui.gpu import draw_texture
+
+        batch_for_shader.reset_mock()
+        draw_texture(MagicMock(), 0, 0, 32, 32, uv_rect=(0.25, 0.5, 0.75, 1.0))
+
+        attrs = batch_for_shader.call_args[0][2]
+        assert attrs["texCoord"] == [(0.25, 0.5), (0.75, 0.5), (0.75, 1.0), (0.25, 1.0)]
+
+
+# ---------------------------------------------------------------------------
+# IconProvider
+# ---------------------------------------------------------------------------
+
+
+class TestIconProvider:
+    """Tests for the IconProvider class."""
+
+    def test_atlas_none_in_test_env(self):
+        """Atlas returns None when Blender isn't running."""
+        from melvil.ui.gpu.icons import IconProvider
+
+        provider = IconProvider()
+        assert provider.atlas is None
+
+    def test_get_icon_uv_none_when_no_atlas(self):
+        """get_icon_uv returns None when atlas is not loaded."""
+        from melvil.ui.gpu.icons import IconProvider
+
+        provider = IconProvider()
+        assert provider.get_icon_uv("MESH_DATA") is None
+
+    def test_get_icon_uv_none_for_unknown_icon(self):
+        """get_icon_uv returns None for an unknown icon name."""
+        from melvil.ui.gpu.icons import IconProvider
+
+        provider = IconProvider()
+        provider._loaded = True
+        provider._icon_map = {"MESH_DATA": 5}
+        provider._columns = 26
+        provider._rows = 30
+        provider._atlas_size = (832, 960)
+        provider._atlas = MagicMock()  # Pretend atlas loaded.
+        assert provider.get_icon_uv("NO_SUCH_ICON") is None
+
+    def test_get_icon_uv_correct_coords(self):
+        """get_icon_uv returns correct UV coordinates for a known icon."""
+        from melvil.ui.gpu.icons import IconProvider, ICON_PX
+
+        provider = IconProvider()
+        provider._loaded = True
+        provider._columns = 26
+        provider._rows = 30
+        provider._atlas_size = (832, 960)
+        provider._atlas = MagicMock()
+        # Place an icon at grid index 27 → col=1, row=1
+        provider._icon_map = {"TEST_ICON": 27}
+
+        uv = provider.get_icon_uv("TEST_ICON")
+        assert uv is not None
+        u0, v0, u1, v1 = uv
+
+        w, h = 832, 960
+        expected_u0 = (1 * ICON_PX) / w
+        expected_u1 = (2 * ICON_PX) / w
+        expected_v1 = 1.0 - (1 * ICON_PX) / h
+        expected_v0 = 1.0 - (2 * ICON_PX) / h
+
+        assert abs(u0 - expected_u0) < 1e-6
+        assert abs(u1 - expected_u1) < 1e-6
+        assert abs(v0 - expected_v0) < 1e-6
+        assert abs(v1 - expected_v1) < 1e-6
+
+    def test_get_icon_uv_none_if_row_out_of_bounds(self):
+        """get_icon_uv returns None if the icon index exceeds atlas rows."""
+        from melvil.ui.gpu.icons import IconProvider
+
+        provider = IconProvider()
+        provider._loaded = True
+        provider._columns = 26
+        provider._rows = 2  # Only 2 rows.
+        provider._atlas_size = (832, 64)
+        provider._atlas = MagicMock()
+        # Index 100 → row 3 which is beyond rows=2
+        provider._icon_map = {"BIG": 100}
+        assert provider.get_icon_uv("BIG") is None
+
+    def test_lazy_load_called_once(self):
+        """Accessing .atlas triggers _load() exactly once."""
+        from melvil.ui.gpu.icons import IconProvider
+
+        provider = IconProvider()
+
+        def _fake_load():
+            provider._loaded = True
+
+        with patch.object(provider, "_load", side_effect=_fake_load) as mock_load:
+            _ = provider.atlas
+            _ = provider.atlas  # Second access should NOT call _load.
+            assert mock_load.call_count == 1
+
+    def test_get_icon_uv_triggers_load(self):
+        """get_icon_uv triggers _load if not yet loaded."""
+        from melvil.ui.gpu.icons import IconProvider
+
+        provider = IconProvider()
+        with patch.object(provider, "_load") as mock_load:
+            provider.get_icon_uv("MESH_DATA")
+            assert mock_load.call_count == 1
+
+
+# ---------------------------------------------------------------------------
+# draw_icon helper
+# ---------------------------------------------------------------------------
+
+
+def _make_panel_with_icons(**overrides):
+    """Create a panel with a mocked icon provider."""
+    from melvil.ui.gpu.icons import IconProvider
+
+    panel = _make_panel(**overrides)
+    provider = IconProvider()
+    provider._loaded = True
+    provider._columns = 26
+    provider._rows = 30
+    provider._atlas_size = (832, 960)
+    provider._atlas = MagicMock()
+    provider._icon_map = {
+        "ASSET_MANAGER": 1,
+        "VIEWZOOM": 2,
+        "ADD": 3,
+        "TAG": 4,
+        "MESH_DATA": 5,
+    }
+    panel._icon_provider = provider
+    return panel
+
+
+class TestDrawIcon:
+    """Tests for the draw_icon helper function."""
+
+    def test_returns_zero_for_none_icon(self):
+        """draw_icon('NONE', ...) returns 0."""
+        from melvil.ui.gpu import draw_icon
+
+        panel = _make_panel_with_icons()
+        panel.begin_frame()
+        offset = draw_icon("NONE", (0, 0, 200, 20), 1.0, panel)
+        assert offset == 0.0
+
+    def test_returns_zero_when_no_atlas(self):
+        """draw_icon returns 0 when the provider has no atlas."""
+        from melvil.ui.gpu import draw_icon
+
+        panel = _make_panel()
+        panel.begin_frame()
+        offset = draw_icon("MESH_DATA", (0, 0, 200, 20), 1.0, panel)
+        assert offset == 0.0
+
+    def test_returns_offset_when_icon_available(self):
+        """draw_icon returns nonzero offset when icon atlas is loaded."""
+        from melvil.ui.gpu import draw_icon
+        from melvil.ui.gpu.constants import ICON_SIZE, WIDGET_PAD_X, scaled
+
+        panel = _make_panel_with_icons()
+        panel.begin_frame()
+        offset = draw_icon("MESH_DATA", (0, 0, 200, 20), 1.0, panel)
+        expected = scaled(WIDGET_PAD_X, 1.0) + scaled(ICON_SIZE, 1.0)
+        assert offset == expected
+
+    def test_returns_zero_for_unknown_icon(self):
+        """draw_icon returns 0 for an icon not in the map."""
+        from melvil.ui.gpu import draw_icon
+
+        panel = _make_panel_with_icons()
+        panel.begin_frame()
+        offset = draw_icon("NO_SUCH_ICON", (0, 0, 200, 20), 1.0, panel)
+        assert offset == 0.0
+
+    def test_calls_draw_texture(self):
+        """draw_icon calls draw_texture with atlas and UV coords."""
+        from melvil.ui.gpu import draw_icon
+
+        panel = _make_panel_with_icons()
+        panel.begin_frame()
+        with patch("melvil.ui.gpu.widget.draw_texture") as mock_draw:
+            draw_icon("MESH_DATA", (10, 20, 200, 26), 1.0, panel)
+            assert mock_draw.call_count == 1
+            call_kw = mock_draw.call_args
+            assert call_kw.kwargs.get("uv_rect") is not None
+
+
+# ---------------------------------------------------------------------------
+# Icon rendering on existing widgets
+# ---------------------------------------------------------------------------
+
+
+class TestLabelIcon:
+    """Tests for icon rendering on GpuLabel."""
+
+    def test_label_renders_icon(self):
+        """Label with icon calls draw_texture when atlas is available."""
+        from melvil.ui.gpu import GpuLabel
+
+        panel = _make_panel_with_icons()
+        panel.begin_frame()
+        label = GpuLabel(text="Hello", icon="MESH_DATA")
+        label.rect = (10, 20, 200, 20)
+        with patch("melvil.ui.gpu.widget.draw_texture") as mock_draw:
+            label.draw(1.0, True, panel)
+            assert mock_draw.call_count == 1
+
+    def test_label_no_icon_no_texture_call(self):
+        """Label without icon does not call draw_texture."""
+        from melvil.ui.gpu import GpuLabel
+
+        panel = _make_panel_with_icons()
+        panel.begin_frame()
+        label = GpuLabel(text="Hello", icon="NONE")
+        label.rect = (10, 20, 200, 20)
+        with patch("melvil.ui.gpu.widget.draw_texture") as mock_draw:
+            label.draw(1.0, True, panel)
+            assert mock_draw.call_count == 0
+
+    def test_label_without_atlas_no_crash(self):
+        """Label with icon gracefully handles missing atlas."""
+        from melvil.ui.gpu import GpuLabel
+
+        panel = _make_panel()  # No icon provider atlas.
+        panel.begin_frame()
+        label = GpuLabel(text="Hello", icon="MESH_DATA")
+        label.rect = (10, 20, 200, 20)
+        label.draw(1.0, True, panel)  # Should not raise.
+
+
+class TestButtonIcon:
+    """Tests for icon rendering on GpuButton."""
+
+    def test_button_renders_icon(self):
+        """Button with icon calls draw_texture when atlas is available."""
+        from melvil.ui.gpu import GpuButton
+
+        panel = _make_panel_with_icons()
+        panel.begin_frame()
+        btn = GpuButton(text="Add", icon="ADD", operator_id="melvil.test")
+        btn.rect = (10, 20, 200, 20)
+        with patch("melvil.ui.gpu.widget.draw_texture") as mock_draw:
+            btn.draw(1.0, True, panel)
+            assert mock_draw.call_count == 1
+
+    def test_button_no_icon_no_texture_call(self):
+        """Button without icon does not call draw_texture."""
+        from melvil.ui.gpu import GpuButton
+
+        panel = _make_panel_with_icons()
+        panel.begin_frame()
+        btn = GpuButton(text="Click", icon="NONE", operator_id="melvil.test")
+        btn.rect = (10, 20, 200, 20)
+        with patch("melvil.ui.gpu.widget.draw_texture") as mock_draw:
+            btn.draw(1.0, True, panel)
+            assert mock_draw.call_count == 0
+
+
+class TestEnumButtonsIcon:
+    """Tests for icon rendering on GpuEnumButtons items."""
+
+    def test_enum_item_renders_icon(self):
+        """Enum button with item icon calls draw_icon per item."""
+        from melvil.ui.gpu import GpuEnumButtons
+
+        panel = _make_panel_with_icons()
+        panel.begin_frame()
+        items = [
+            ("A", "First", "", "MESH_DATA"),
+            ("B", "Second", "", "ADD"),
+        ]
+        widget = GpuEnumButtons(
+            items=items,
+            active_value="A",
+            property_name="test",
+        )
+        widget.rect = (10, 20, 200, 50)
+        with patch("melvil.ui.gpu.enum_buttons.draw_icon", return_value=0.0) as mock_draw:
+            widget.draw(1.0, True, panel)
+            assert mock_draw.call_count == 2
+
+    def test_enum_item_none_icon_no_draw(self):
+        """Enum button items with NONE icon skip draw_texture."""
+        from melvil.ui.gpu import GpuEnumButtons
+
+        panel = _make_panel_with_icons()
+        panel.begin_frame()
+        items = [
+            ("A", "First", "", "NONE"),
+            ("B", "Second", "", "NONE"),
+        ]
+        widget = GpuEnumButtons(
+            items=items,
+            active_value="A",
+            property_name="test",
+        )
+        widget.rect = (10, 20, 200, 50)
+        with patch("melvil.ui.gpu.enum_buttons.draw_icon", return_value=0.0) as mock_draw:
+            widget.draw(1.0, True, panel)
+            # draw_icon is still called but returns 0 for "NONE".
+            for c in mock_draw.call_args_list:
+                assert c[0][0] == "NONE"
+
+
+# ---------------------------------------------------------------------------
+# GpuTemplateIcon widget
+# ---------------------------------------------------------------------------
+
+
+class TestGpuTemplateIcon:
+    """Tests for the GpuTemplateIcon widget."""
+
+    def test_measure_height(self):
+        """Height is ICON_SIZE * scale * s."""
+        from melvil.ui.gpu import GpuTemplateIcon
+        from melvil.ui.gpu.constants import ICON_SIZE, scaled
+
+        w = GpuTemplateIcon(icon_value=42, scale=5.0)
+        assert w.measure_height(1.0) == scaled(ICON_SIZE, 1.0) * 5.0
+        assert w.measure_height(2.0) == scaled(ICON_SIZE, 2.0) * 5.0
+
+    def test_no_draw_when_icon_value_zero(self):
+        """icon_value=0 produces no draw calls."""
+        from melvil.ui.gpu import GpuTemplateIcon
+
+        panel = _make_panel()
+        panel.begin_frame()
+        w = GpuTemplateIcon(icon_value=0, scale=5.0)
+        w.rect = (10, 20, 200, 80)
+        with patch("melvil.ui.gpu.template_icon.draw_texture") as mock_draw:
+            w.draw(1.0, True, panel)
+            assert mock_draw.call_count == 0
+
+    def test_draws_preview_texture(self):
+        """Draws the preview texture when registered on the panel."""
+        from melvil.ui.gpu import GpuTemplateIcon
+
+        panel = _make_panel()
+        panel.begin_frame()
+        mock_tex = MagicMock()
+        panel._texture_cache["/some/preview.png"] = mock_tex
+        panel.register_preview(42, "/some/preview.png")
+
+        w = GpuTemplateIcon(icon_value=42, scale=5.0)
+        w.rect = (10, 20, 200, 80)
+        with patch("melvil.ui.gpu.template_icon.draw_texture") as mock_draw:
+            w.draw(1.0, True, panel)
+            assert mock_draw.call_count == 1
+            call_args = mock_draw.call_args[0]
+            assert call_args[0] is mock_tex  # texture
+
+    def test_no_draw_when_preview_not_registered(self):
+        """No draw when icon_value is not in the preview registry."""
+        from melvil.ui.gpu import GpuTemplateIcon
+
+        panel = _make_panel()
+        panel.begin_frame()
+        w = GpuTemplateIcon(icon_value=99, scale=5.0)
+        w.rect = (10, 20, 200, 80)
+        with patch("melvil.ui.gpu.template_icon.draw_texture") as mock_draw:
+            w.draw(1.0, True, panel)
+            assert mock_draw.call_count == 0
+
+    def test_layout_template_icon(self):
+        """layout.template_icon() appends a GpuTemplateIcon widget."""
+        from melvil.ui.gpu import GpuTemplateIcon
+
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.template_icon(icon_value=42, scale=8.0)
+
+        assert len(root._children) == 1
+        child = root._children[0]
+        assert isinstance(child, GpuTemplateIcon)
+        assert child.icon_value == 42
+        assert child.scale == 8.0
+
+
+# ---------------------------------------------------------------------------
+# Panel preview registry
+# ---------------------------------------------------------------------------
+
+
+class TestPanelPreviewRegistry:
+    """Tests for register_preview / get_preview_texture."""
+
+    def test_register_and_get(self):
+        """Registered preview resolves to a texture via get_texture."""
+        panel = _make_panel()
+        mock_tex = MagicMock()
+        panel._texture_cache["/img/preview.png"] = mock_tex
+        panel.register_preview(42, "/img/preview.png")
+        assert panel.get_preview_texture(42) is mock_tex
+
+    def test_unregistered_returns_none(self):
+        """Unregistered icon_value returns None."""
+        panel = _make_panel()
+        assert panel.get_preview_texture(999) is None
+
+    def test_multiple_registrations(self):
+        """Multiple previews can be registered independently."""
+        panel = _make_panel()
+        tex_a = MagicMock()
+        tex_b = MagicMock()
+        panel._texture_cache["/a.png"] = tex_a
+        panel._texture_cache["/b.png"] = tex_b
+        panel.register_preview(1, "/a.png")
+        panel.register_preview(2, "/b.png")
+        assert panel.get_preview_texture(1) is tex_a
+        assert panel.get_preview_texture(2) is tex_b

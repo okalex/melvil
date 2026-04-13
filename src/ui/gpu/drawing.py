@@ -131,20 +131,34 @@ def draw_rect_rounded(
     batch.draw(shader)
 
 
-def draw_texture(texture, x: float, y: float, w: float, h: float) -> None:
-    """Draw a GPU texture at (*x*, *y*) with size *w* x *h*."""
+def draw_texture(
+    texture, x: float, y: float, w: float, h: float,
+    *,
+    uv_rect: tuple[float, float, float, float] | None = None,
+) -> None:
+    """Draw a GPU texture at (*x*, *y*) with size *w* x *h*.
+
+    *uv_rect* is an optional ``(u0, v0, u1, v1)`` sub-region for atlas
+    rendering.  Defaults to the full texture ``(0, 0, 1, 1)``.
+    """
     shader = _get_image_shader()
     verts = [(x, y), (x + w, y), (x + w, y + h), (x, y + h)]
-    uvs = [(0, 0), (1, 0), (1, 1), (0, 1)]
+    if uv_rect is not None:
+        u0, v0, u1, v1 = uv_rect
+        uvs = [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]
+    else:
+        uvs = [(0, 0), (1, 0), (1, 1), (0, 1)]
     indices = [(0, 1, 2), (0, 2, 3)]
     batch = batch_for_shader(
         shader, 'TRIS',
         {"pos": verts, "texCoord": uvs},
         indices=indices,
     )
+    gpu.state.blend_set("ALPHA")
     shader.bind()
     shader.uniform_sampler("image", texture)
     batch.draw(shader)
+    gpu.state.blend_set("NONE")
 
 
 # ---------------------------------------------------------------------------

@@ -6,7 +6,7 @@ requires-python = ">=3.11"
 dependencies = []
 
 [dependency-groups]
-dev = ["fake-bpy-module-latest", "pytest"]
+dev = ["cairosvg", "fake-bpy-module-latest", "pillow", "pytest"]
 
 [tool.uv]
 package = false

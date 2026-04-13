@@ -23,4 +23,4 @@ class GpuLabel(GpuWidget):
     def draw(self, s: float, parent_enabled: bool, panel: GpuPanel) -> None:
         theme = get_theme()
         color = self._resolve_text_color(parent_enabled, theme.text_primary)
-        self._draw_text_content(s, color, align="LEFT")
+        self._draw_text_content(s, color, align="LEFT", panel=panel)

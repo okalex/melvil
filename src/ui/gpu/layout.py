@@ -16,6 +16,7 @@ from .enum_buttons import GpuEnumButtons
 from .label import GpuLabel
 from .separator import GpuSeparator
 from .text_field import GpuTextField
+from .template_icon import GpuTemplateIcon
 from .theme import get_theme
 from .widget import GpuWidget
 from ._logger import _logger
@@ -279,6 +280,23 @@ class GpuLayout:
         child._grid_even_rows = even_rows
         self._children.append(child)
         return child
+
+    def template_icon(
+        self,
+        *,
+        icon_value: int = 0,
+        scale: float = 1.0,
+    ) -> None:
+        """Add a large preview image.
+
+        Mirrors ``UILayout.template_icon(icon_value=..., scale=...)``.
+        The *icon_value* is an integer preview-collection icon ID that
+        the panel resolves to a GPU texture.
+        """
+        self._children.append(GpuTemplateIcon(
+            icon_value=icon_value,
+            scale=scale,
+        ))
 
     # -- Measure pass (bottom-up) -------------------------------------------
 
