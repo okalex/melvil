@@ -11,7 +11,7 @@ import bpy
 from pathlib import Path
 
 from ..core.library import resolve_db_path, resolve_library_root
-from .previews_collection import get_icon_id
+from .previews_collection import get_icon_id, get_placeholder_icon_id
 from ..db import open_db
 from ..db.assets import get_asset as _get_asset, list_assets
 from ..db.kits import list_kits
@@ -185,10 +185,11 @@ def draw_unified_asset_section(
         preview_path = asset["preview_path"]
         abs_preview_path = str(Path(resolve_library_root()) / preview_path) if preview_path else None
         icon_id = get_icon_id(asset["id"], abs_preview_path)
+        if icon_id is None:
+            icon_id = get_placeholder_icon_id(asset_type)
         if icon_id is not None:
-            row.template_icon(icon_value=icon_id, scale=1.3)
-        else:
-            row.label(text="", icon=_TYPE_ICONS.get(asset_type, "OBJECT_DATA"))
+            row.template_icon(icon_value=icon_id, scale=2.6)
+        row.label(text="", icon=_TYPE_ICONS.get(asset_type, "OBJECT_DATA"))
         row.label(text=asset["name"])
 
         if _SHOW_LOAD_FOR_TYPE.get(asset_type, True):
@@ -326,14 +327,6 @@ def draw_asset_details(
         The ``bpy.types.WindowManager`` instance; used for the inline name
         editor's draft state.
     """
-    # Preview image (if available)
-    preview_path = asset["preview_path"]
-    if preview_path:
-        abs_preview_path = str(Path(resolve_library_root()) / preview_path)
-        icon_id = get_icon_id(asset["id"], abs_preview_path)
-        if icon_id is not None:
-            box = layout.box()
-            box.template_icon(icon_value=icon_id, scale=8.0)
 
     # Sync the draft name whenever the selected asset changes so that
     # switching assets always shows the current saved name.
@@ -366,6 +359,37 @@ def draw_asset_details(
     type_split = layout.row().split(factor=0.15)
     type_split.label(text="Type:")
     type_split.label(text=_TYPE_LABELS.get(asset["type"], asset["type"]))
+
+    # Source — path to the managed .blend file
+    try:
+        abs_blend_path = str(Path(resolve_library_root()) / asset["blend_path"])
+    except Exception:  # noqa: BLE001
+        abs_blend_path = ""
+    source_row = layout.row(align=True)
+    source_split = source_row.split(factor=0.15)
+    source_split.label(text="Source:")
+    source_split.label(text=asset["blend_path"] or "")
+    open_op = source_row.operator(
+        "melvil.open_blend_file", text="", icon="BLENDER", emboss=False
+    )
+    open_op.blend_path = abs_blend_path
+    reveal_op = source_row.operator(
+        "melvil.reveal_blend_file", text="", icon="FILE_FOLDER", emboss=False
+    )
+    reveal_op.blend_path = abs_blend_path
+
+    layout.separator()
+
+    # Preview image (if available)
+    preview_path = asset["preview_path"]
+    if preview_path:
+        layout.label(text="Preview image", icon="IMAGE_DATA")
+
+        abs_preview_path = str(Path(resolve_library_root()) / preview_path)
+        icon_id = get_icon_id(asset["id"], abs_preview_path)
+        if icon_id is not None:
+            box = layout.box()
+            box.template_icon(icon_value=icon_id, scale=8.0)
 
     layout.separator()
 

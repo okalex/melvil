@@ -249,7 +249,7 @@ class TestDrawUnifiedAssetSection:
             draw_unified_asset_section(layout, [asset])
 
         mock_icon.assert_called_once_with("1", "/lib/previews/1.png")
-        row.template_icon.assert_called_once_with(icon_value=42, scale=1.3)
+        row.template_icon.assert_called_once_with(icon_value=42, scale=2.6)
 
     def test_thumbnail_uses_str_path(self):
         """abs_preview_path passed to get_icon_id is a string, not a Path."""
@@ -270,7 +270,8 @@ class TestDrawUnifiedAssetSection:
         abs_path_arg = mock_icon.call_args[0][1]
         assert isinstance(abs_path_arg, str)
 
-    def test_fallback_icon_shown_when_get_icon_id_returns_none(self):
+    def test_placeholder_shown_when_no_real_preview(self):
+        """When get_icon_id returns None, the placeholder icon is shown instead."""
         from melvil.ui.draw_helpers import draw_unified_asset_section
 
         layout = MagicMock()
@@ -282,10 +283,48 @@ class TestDrawUnifiedAssetSection:
         asset = {**_make_asset("1", "Cube", "MESH"), "preview_path": "previews/1.png"}
 
         with patch("melvil.ui.draw_helpers.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ui.draw_helpers.get_icon_id", return_value=None):
+             patch("melvil.ui.draw_helpers.get_icon_id", return_value=None), \
+             patch("melvil.ui.draw_helpers.get_placeholder_icon_id", return_value=55) as mock_ph:
             draw_unified_asset_section(layout, [asset])
 
+        mock_ph.assert_called_once_with("MESH")
+        row.template_icon.assert_called_once_with(icon_value=55, scale=2.6)
+
+    def test_no_template_icon_when_both_preview_and_placeholder_unavailable(self):
+        """Graceful fallback: if neither real preview nor placeholder loads, skip template_icon."""
+        from melvil.ui.draw_helpers import draw_unified_asset_section
+
+        layout = MagicMock()
+        box = MagicMock()
+        layout.box.return_value = box
+        row = MagicMock()
+        box.row.return_value = row
+
+        with patch("melvil.ui.draw_helpers.resolve_library_root", return_value="/lib"), \
+             patch("melvil.ui.draw_helpers.get_icon_id", return_value=None), \
+             patch("melvil.ui.draw_helpers.get_placeholder_icon_id", return_value=None):
+            draw_unified_asset_section(layout, [_make_asset("1", "Cube", "MESH")])
+
         row.template_icon.assert_not_called()
+
+    def test_type_icon_always_shown(self):
+        """Type icon label is always shown regardless of whether a preview image is available."""
+        from melvil.ui.draw_helpers import draw_unified_asset_section
+
+        layout = MagicMock()
+        box = MagicMock()
+        layout.box.return_value = box
+        row = MagicMock()
+        box.row.return_value = row
+
+        asset = {**_make_asset("1", "Cube", "MESH"), "preview_path": "previews/1.png"}
+
+        # Real preview available
+        with patch("melvil.ui.draw_helpers.resolve_library_root", return_value="/lib"), \
+             patch("melvil.ui.draw_helpers.get_icon_id", return_value=42), \
+             patch("melvil.ui.draw_helpers.get_placeholder_icon_id", return_value=None):
+            draw_unified_asset_section(layout, [asset])
+
         row.label.assert_any_call(text="", icon="MESH_DATA")
 
     def test_thumbnail_not_shown_when_no_preview_path(self):
@@ -297,7 +336,9 @@ class TestDrawUnifiedAssetSection:
         row = MagicMock()
         box.row.return_value = row
 
-        with patch("melvil.ui.draw_helpers.get_icon_id", return_value=None) as mock_icon:
+        with patch("melvil.ui.draw_helpers.resolve_library_root", return_value="/lib"), \
+             patch("melvil.ui.draw_helpers.get_icon_id", return_value=None) as mock_icon, \
+             patch("melvil.ui.draw_helpers.get_placeholder_icon_id", return_value=None):
             draw_unified_asset_section(layout, [_make_asset("1", "Cube", "MESH")])
 
         mock_icon.assert_called_once_with("1", None)
@@ -650,8 +691,8 @@ class TestFilterAssetsTagNames:
 # ---------------------------------------------------------------------------
 
 
-def _make_details_asset(id="asset-1", name="My Cube", type="MESH"):
-    return {"id": id, "name": name, "type": type, "kit_id": "default", "preview_path": None}
+def _make_details_asset(id="asset-1", name="My Cube", type="MESH", blend_path="my_cube_abc12345.blend"):
+    return {"id": id, "name": name, "type": type, "kit_id": "default", "preview_path": None, "blend_path": blend_path}
 
 
 def _make_wm(pending_name="", pending_name_asset_id=""):
@@ -907,4 +948,62 @@ class TestDrawAssetDetailsPreview:
             draw_asset_details(layout, asset, [], "General", wm=wm)
 
         mock_icon.assert_called_once_with("my-id", "/lib/previews/my-id.png")
+
+
+# ---------------------------------------------------------------------------
+# draw_asset_details() — source row
+# ---------------------------------------------------------------------------
+
+
+def _draw_for_source(blend_path="cube_abc12345.blend"):
+    from melvil.ui.draw_helpers import draw_asset_details
+
+    asset = _make_details_asset(blend_path=blend_path)
+    layout = MagicMock()
+    split = MagicMock()
+    open_op = MagicMock()
+    reveal_op = MagicMock()
+    row = MagicMock()
+    row.split.return_value = split
+    row.operator.side_effect = [MagicMock(), MagicMock(), open_op, reveal_op]
+    col = MagicMock()
+    col.operator.return_value = MagicMock()
+    row.column.return_value = col
+    layout.row.return_value = row
+    wm = _make_wm(pending_name=asset["name"], pending_name_asset_id=asset["id"])
+    with patch("melvil.ui.draw_helpers.resolve_library_root", return_value="/lib"):
+        draw_asset_details(layout, asset, [], "General", wm=wm)
+    return layout, row, split, open_op, reveal_op
+
+
+class TestDrawAssetDetailsSourceRow:
+    def test_source_label_shown(self):
+        _layout, _row, split, _open, _reveal = _draw_for_source()
+        calls = [c[1].get("text", c[0][0] if c[0] else "") for c in split.label.call_args_list]
+        assert "Source:" in calls
+
+    def test_source_path_shown(self):
+        _layout, _row, split, _open, _reveal = _draw_for_source(blend_path="cube_abc12345.blend")
+        calls = [c[1].get("text", "") for c in split.label.call_args_list]
+        assert "cube_abc12345.blend" in calls
+
+    def test_open_blend_file_operator_added(self):
+        _layout, row, _split, _open, _reveal = _draw_for_source()
+        op_ids = [c[0][0] for c in row.operator.call_args_list]
+        assert "melvil.open_blend_file" in op_ids
+
+    def test_reveal_blend_file_operator_added(self):
+        _layout, row, _split, _open, _reveal = _draw_for_source()
+        op_ids = [c[0][0] for c in row.operator.call_args_list]
+        assert "melvil.reveal_blend_file" in op_ids
+
+    def test_open_operator_uses_blender_icon(self):
+        _layout, row, _split, _open, _reveal = _draw_for_source()
+        open_call = next(c for c in row.operator.call_args_list if c[0][0] == "melvil.open_blend_file")
+        assert open_call[1].get("icon") == "BLENDER"
+
+    def test_reveal_operator_uses_file_folder_icon(self):
+        _layout, row, _split, _open, _reveal = _draw_for_source()
+        reveal_call = next(c for c in row.operator.call_args_list if c[0][0] == "melvil.reveal_blend_file")
+        assert reveal_call[1].get("icon") == "FILE_FOLDER"
 

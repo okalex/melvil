@@ -169,3 +169,92 @@ def test_get_icon_id_returns_icon_id_integer(tmp_path):
     result = pc.get_icon_id("xyz", str(preview))
 
     assert result == 12345
+
+
+# ---------------------------------------------------------------------------
+# get_placeholder_icon_id()
+# ---------------------------------------------------------------------------
+
+
+def test_get_placeholder_icon_id_returns_none_when_collection_is_none():
+    import melvil.ui.previews_collection as pc
+
+    result = pc.get_placeholder_icon_id("MESH")
+
+    assert result is None
+
+
+def test_get_placeholder_icon_id_returns_none_for_unknown_type():
+    import melvil.ui.previews_collection as pc
+
+    pc._collection = MagicMock()
+
+    result = pc.get_placeholder_icon_id("UNKNOWN_TYPE")
+
+    assert result is None
+
+
+def test_get_placeholder_icon_id_returns_none_when_file_missing():
+    import melvil.ui.previews_collection as pc
+
+    pc._collection = MagicMock()
+
+    with patch("melvil.ui.previews_collection._RESOURCES_DIR", __import__("pathlib").Path("/nonexistent")):
+        result = pc.get_placeholder_icon_id("MESH")
+
+    assert result is None
+
+
+def test_get_placeholder_icon_id_loads_from_resources(tmp_path):
+    import melvil.ui.previews_collection as pc
+
+    img = tmp_path / "placeholder_mesh.png"
+    img.write_bytes(b"")
+
+    mock_col = MagicMock()
+    mock_col.__contains__ = MagicMock(return_value=False)
+    mock_col.__getitem__ = MagicMock(return_value=MagicMock(icon_id=77))
+    pc._collection = mock_col
+
+    with patch("melvil.ui.previews_collection._RESOURCES_DIR", tmp_path):
+        result = pc.get_placeholder_icon_id("MESH")
+
+    mock_col.load.assert_called_once_with("PLACEHOLDER_MESH", str(img), "IMAGE")
+    assert result == 77
+
+
+def test_get_placeholder_icon_id_uses_cache(tmp_path):
+    import melvil.ui.previews_collection as pc
+
+    img = tmp_path / "placeholder_material.png"
+    img.write_bytes(b"")
+
+    mock_col = MagicMock()
+    mock_col.__contains__ = MagicMock(return_value=True)
+    mock_col.__getitem__ = MagicMock(return_value=MagicMock(icon_id=88))
+    pc._collection = mock_col
+
+    with patch("melvil.ui.previews_collection._RESOURCES_DIR", tmp_path):
+        result = pc.get_placeholder_icon_id("MATERIAL")
+
+    mock_col.load.assert_not_called()
+    assert result == 88
+
+
+def test_get_placeholder_icon_id_covers_all_asset_types(tmp_path):
+    """All three known asset types must resolve to a placeholder file."""
+    import melvil.ui.previews_collection as pc
+
+    for asset_type in ("MATERIAL", "MESH", "NODE_GROUP"):
+        filename = pc._PLACEHOLDER_FILENAMES[asset_type]
+        (tmp_path / filename).write_bytes(b"")
+
+    mock_col = MagicMock()
+    mock_col.__contains__ = MagicMock(return_value=False)
+    mock_col.__getitem__ = MagicMock(return_value=MagicMock(icon_id=1))
+    pc._collection = mock_col
+
+    with patch("melvil.ui.previews_collection._RESOURCES_DIR", tmp_path):
+        for asset_type in ("MATERIAL", "MESH", "NODE_GROUP"):
+            assert pc.get_placeholder_icon_id(asset_type) is not None
+

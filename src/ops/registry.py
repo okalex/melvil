@@ -20,6 +20,7 @@ from .load_material import (
     MELVIL_PG_MaterialItem,
     MELVIL_UL_MaterialList,
 )
+from .open_blend_file import MELVIL_OT_open_blend_file, MELVIL_OT_reveal_blend_file
 from .open_browser import MELVIL_OT_open_browser
 from .save import MELVIL_OT_save_asset, MELVIL_OT_save_nodes_as_asset
 from .set_active_kit import MELVIL_OT_set_active_kit
@@ -48,6 +49,8 @@ _classes = (
     MELVIL_OT_load_asset,
     MELVIL_OT_load_material_to_slot,
     MELVIL_OT_delete_asset,
+    MELVIL_OT_open_blend_file,
+    MELVIL_OT_reveal_blend_file,
     MELVIL_OT_open_browser,
     MELVIL_OT_set_active_kit,
     MELVIL_OT_set_preview_object,
