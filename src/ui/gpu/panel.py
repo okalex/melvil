@@ -221,12 +221,23 @@ class GpuPanel:
     # -- Hit testing ---------------------------------------------------------
 
     def hit_test(self, mx: int, my: int) -> HitResult | None:
-        """Return the topmost interactive widget at region-local *(mx, my)*."""
-        for hr in reversed(self._hit_rects):
+        """Return the most specific interactive widget at *(mx, my)*.
+
+        When multiple hit rects overlap (e.g. an icon button inside a
+        list row), the smallest one wins so that child widgets take
+        priority over their parent containers.  Among equal-size rects
+        the last registered one wins (topmost / latest).
+        """
+        best: HitResult | None = None
+        best_area = float("inf")
+        for hr in self._hit_rects:
             rx, ry, rw, rh = hr.rect
             if rx <= mx <= rx + rw and ry <= my <= ry + rh:
-                return hr
-        return None
+                area = rw * rh
+                if area <= best_area:
+                    best = hr
+                    best_area = area
+        return best
 
     def is_inside(self, mx: int, my: int) -> bool:
         """Return ``True`` if *(mx, my)* is within the panel bounding box."""

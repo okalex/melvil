@@ -4398,3 +4398,278 @@ class TestPanelScrollState:
         panel._get_scroll_state("test").offset = 5
         panel.detach()
         assert len(panel._scroll_states) == 0
+
+
+# ---------------------------------------------------------------------------
+# Icon Button
+# ---------------------------------------------------------------------------
+
+
+class TestGpuIconButton:
+    def test_icon_button_registers_hit_rect(self):
+        """icon_button inside a list row registers an icon_button HitResult."""
+        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+
+        coll, items = _make_collection(3)
+        dataptr, active_dp = _make_dataptr(coll)
+
+        def draw_fn(layout, item, index, is_active):
+            row = layout.row(align=True)
+            row.label(text=item.name)
+            row.icon_button(icon="GREASEPENCIL", button_id="rename")
+
+        gl = GpuGridList(
+            list_id="ib_test",
+            rows_visible=3,
+            cell_height=WIDGET_HEIGHT,
+            dataptr=dataptr,
+            propname="my_collection",
+            active_dataptr=active_dp,
+            active_propname="my_collection_index",
+            draw_fn=draw_fn,
+        )
+        panel = _make_panel()
+        panel.begin_frame()
+        # Select row 0 so the icon is visible.
+        panel._list_selections["ib_test"] = 0
+        h = gl.measure_height(1.0)
+        gl.rect = (0, 0, 300, h)
+
+        with patch("melvil.ui.gpu.grid_list.gpu"):
+            gl.draw(1.0, True, panel)
+
+        icon_hits = [
+            hr for hr in panel._hit_rects if hr.widget_type == "icon_button"
+        ]
+        assert len(icon_hits) == 1
+        assert icon_hits[0].id == "rename"
+        assert icon_hits[0].kwargs["index"] == 0
+        assert icon_hits[0].kwargs["list_id"] == "ib_test"
+
+    def test_icon_button_hidden_when_row_not_hovered_or_selected(self):
+        """icon_button with show_only_on_hover does not register when row
+        is neither hovered nor selected."""
+        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+
+        coll, items = _make_collection(3)
+        dataptr, active_dp = _make_dataptr(coll)
+
+        def draw_fn(layout, item, index, is_active):
+            row = layout.row(align=True)
+            row.label(text=item.name)
+            row.icon_button(icon="GREASEPENCIL", button_id="rename")
+
+        gl = GpuGridList(
+            list_id="ib_hidden",
+            rows_visible=3,
+            cell_height=WIDGET_HEIGHT,
+            dataptr=dataptr,
+            propname="my_collection",
+            active_dataptr=active_dp,
+            active_propname="my_collection_index",
+            draw_fn=draw_fn,
+        )
+        panel = _make_panel()
+        panel.begin_frame()
+        # No selection, mouse far away.
+        panel._mouse_pos = (-999, -999)
+        h = gl.measure_height(1.0)
+        gl.rect = (0, 0, 300, h)
+
+        with patch("melvil.ui.gpu.grid_list.gpu"):
+            gl.draw(1.0, True, panel)
+
+        icon_hits = [
+            hr for hr in panel._hit_rects if hr.widget_type == "icon_button"
+        ]
+        assert len(icon_hits) == 0
+
+    def test_icon_button_shown_on_hover(self):
+        """icon_button visible when row is hovered."""
+        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+
+        coll, items = _make_collection(3)
+        dataptr, active_dp = _make_dataptr(coll)
+
+        def draw_fn(layout, item, index, is_active):
+            row = layout.row(align=True)
+            row.label(text=item.name)
+            row.icon_button(icon="GREASEPENCIL", button_id="rename")
+
+        gl = GpuGridList(
+            list_id="ib_hover",
+            rows_visible=3,
+            cell_height=WIDGET_HEIGHT,
+            dataptr=dataptr,
+            propname="my_collection",
+            active_dataptr=active_dp,
+            active_propname="my_collection_index",
+            draw_fn=draw_fn,
+        )
+        panel = _make_panel()
+        panel.begin_frame()
+        h = gl.measure_height(1.0)
+        gl.rect = (0, 0, 300, h)
+        # Hover over the first row.
+        panel._mouse_pos = (5.0, h - 2.0)
+
+        with patch("melvil.ui.gpu.grid_list.gpu"):
+            gl.draw(1.0, True, panel)
+
+        icon_hits = [
+            hr for hr in panel._hit_rects if hr.widget_type == "icon_button"
+        ]
+        assert len(icon_hits) == 1
+        assert icon_hits[0].kwargs["index"] == 0
+
+    def test_icon_button_hit_wins_over_list_row(self):
+        """hit_test returns icon_button when mouse is over both icon and row."""
+        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+
+        coll, items = _make_collection(3)
+        dataptr, active_dp = _make_dataptr(coll)
+
+        def draw_fn(layout, item, index, is_active):
+            row = layout.row(align=True)
+            row.label(text=item.name)
+            row.icon_button(icon="GREASEPENCIL", button_id="rename")
+
+        gl = GpuGridList(
+            list_id="ib_hit",
+            rows_visible=3,
+            cell_height=WIDGET_HEIGHT,
+            dataptr=dataptr,
+            propname="my_collection",
+            active_dataptr=active_dp,
+            active_propname="my_collection_index",
+            draw_fn=draw_fn,
+        )
+        panel = _make_panel()
+        panel.begin_frame()
+        panel._list_selections["ib_hit"] = 0
+        h = gl.measure_height(1.0)
+        gl.rect = (0, 0, 300, h)
+
+        with patch("melvil.ui.gpu.grid_list.gpu"):
+            gl.draw(1.0, True, panel)
+
+        # Find the icon_button hit rect and test at its centre.
+        icon_hits = [
+            hr for hr in panel._hit_rects if hr.widget_type == "icon_button"
+        ]
+        assert len(icon_hits) == 1
+        ix, iy, iw, ih = icon_hits[0].rect
+        result = panel.hit_test(int(ix + iw / 2), int(iy + ih / 2))
+        assert result is not None
+        assert result.widget_type == "icon_button"
+
+    def test_list_context_propagates_to_nested_layouts(self):
+        """_list_context propagates through row/column/split/box."""
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root._list_context = {"list_id": "test", "index": 3}
+
+        row = root.row()
+        assert row._list_context == {"list_id": "test", "index": 3}
+
+        col = row.column()
+        assert col._list_context == {"list_id": "test", "index": 3}
+
+        sp = col.split(factor=0.5)
+        assert sp._list_context == {"list_id": "test", "index": 3}
+
+        bx = sp.box()
+        assert bx._list_context == {"list_id": "test", "index": 3}
+
+    def test_icon_button_always_visible_when_show_only_on_hover_false(self):
+        """icon_button with show_only_on_hover=False registers even when
+        row is not hovered or selected."""
+        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+
+        coll, items = _make_collection(3)
+        dataptr, active_dp = _make_dataptr(coll)
+
+        def draw_fn(layout, item, index, is_active):
+            row = layout.row(align=True)
+            row.label(text=item.name)
+            row.icon_button(
+                icon="GREASEPENCIL", button_id="always",
+                show_only_on_hover=False,
+            )
+
+        gl = GpuGridList(
+            list_id="ib_always",
+            rows_visible=3,
+            cell_height=WIDGET_HEIGHT,
+            dataptr=dataptr,
+            propname="my_collection",
+            active_dataptr=active_dp,
+            active_propname="my_collection_index",
+            draw_fn=draw_fn,
+        )
+        panel = _make_panel()
+        panel.begin_frame()
+        panel._mouse_pos = (-999, -999)
+        h = gl.measure_height(1.0)
+        gl.rect = (0, 0, 300, h)
+
+        with patch("melvil.ui.gpu.grid_list.gpu"):
+            gl.draw(1.0, True, panel)
+
+        icon_hits = [
+            hr for hr in panel._hit_rects if hr.widget_type == "icon_button"
+        ]
+        # All 3 rows should have the icon.
+        assert len(icon_hits) == 3
+
+    def test_ghost_style_skips_hover_background(self):
+        """icon_button with style='GHOST' does not draw hover background."""
+        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+
+        coll, items = _make_collection(3)
+        dataptr, active_dp = _make_dataptr(coll)
+
+        def draw_fn(layout, item, index, is_active):
+            row = layout.row(align=True)
+            row.label(text=item.name)
+            row.icon_button(
+                icon="GREASEPENCIL", button_id="ghost",
+                style="GHOST",
+            )
+
+        gl = GpuGridList(
+            list_id="ib_ghost",
+            rows_visible=3,
+            cell_height=WIDGET_HEIGHT,
+            dataptr=dataptr,
+            propname="my_collection",
+            active_dataptr=active_dp,
+            active_propname="my_collection_index",
+            draw_fn=draw_fn,
+        )
+        panel = _make_panel()
+        panel.begin_frame()
+        panel._list_selections["ib_ghost"] = 0
+        h = gl.measure_height(1.0)
+        gl.rect = (0, 0, 300, h)
+
+        with patch("melvil.ui.gpu.grid_list.gpu"):
+            gl.draw(1.0, True, panel)
+
+        # Place mouse over the icon_button hit rect.
+        icon_hits = [
+            hr for hr in panel._hit_rects if hr.widget_type == "icon_button"
+        ]
+        assert len(icon_hits) == 1
+        ix, iy, iw, ih = icon_hits[0].rect
+        panel._mouse_pos = (ix + iw / 2, iy + ih / 2)
+
+        # Re-draw and check that draw_rect_rounded is NOT called
+        # from icon_button (the grid_list will still call it for row bg).
+        panel.begin_frame()
+        panel._list_selections["ib_ghost"] = 0
+        panel._mouse_pos = (ix + iw / 2, iy + ih / 2)
+        with patch("melvil.ui.gpu.grid_list.gpu"), \
+             patch("melvil.ui.gpu.icon_button.draw_rect_rounded") as mock_rr:
+            gl.draw(1.0, True, panel)
+        mock_rr.assert_not_called()

@@ -14,6 +14,7 @@ from .drawing import draw_rect_outline, draw_rect_rounded
 from .button import GpuButton, GpuOperatorProps
 from .enum_buttons import GpuEnumButtons
 from .grid_list import GpuGridList
+from .icon_button import GpuIconButton
 from .label import GpuLabel
 from .separator import GpuSeparator
 from .text_field import GpuTextField
@@ -114,15 +115,21 @@ class GpuLayout:
         self.scale_x: float = 1.0
         self.scale_y: float = 1.0
 
+        # Row context set by GpuGridList for per-cell layouts.
+        # Contains list_id, index, is_hovered, is_active when inside a list.
+        self._list_context: dict[str, object] = {}
+
     # -- Container methods ---------------------------------------------------
 
     def row(self, align: bool = False) -> GpuLayout:
         child = GpuLayout(self._panel, direction="ROW", align=align)
+        child._list_context = self._list_context
         self._children.append(child)
         return child
 
     def column(self, align: bool = False) -> GpuLayout:
         child = GpuLayout(self._panel, direction="COLUMN", align=align)
+        child._list_context = self._list_context
         self._children.append(child)
         return child
 
@@ -130,11 +137,13 @@ class GpuLayout:
         child = GpuLayout(
             self._panel, direction="SPLIT", align=align, split_factor=factor,
         )
+        child._list_context = self._list_context
         self._children.append(child)
         return child
 
     def box(self) -> GpuLayout:
         child = GpuLayout(self._panel, direction="COLUMN", is_box=True)
+        child._list_context = self._list_context
         self._children.append(child)
         return child
 
@@ -146,6 +155,29 @@ class GpuLayout:
         self._children.append(GpuLabel(
             text=text, icon=icon,
             enabled=self.enabled, alert=self.alert,
+        ))
+
+    def icon_button(
+        self,
+        *,
+        icon: str = "NONE",
+        button_id: str = "",
+        show_only_on_hover: bool = True,
+        style: str = "DEFAULT",
+    ) -> None:
+        """Append a clickable icon button.
+
+        Inside a list row ``draw_fn``, the button inherits the row's
+        ``_list_context`` so it can be shown only on hover/selection and
+        its :class:`HitResult` carries the row index and list ID.
+        """
+        self._children.append(GpuIconButton(
+            icon=icon,
+            button_id=button_id,
+            show_only_on_hover=show_only_on_hover,
+            style=style,
+            enabled=self.enabled,
+            _list_context=dict(self._list_context),
         ))
 
     def operator(

@@ -171,6 +171,13 @@ class GpuGridList(GpuWidget):
 
                 # Draw cell content via callback.
                 row_layout = GpuLayout(panel, direction="ROW")
+                is_hovered = point_in_rect(panel._mouse_pos, cell_rect)
+                row_layout._list_context = {
+                    "list_id": self.list_id,
+                    "index": idx,
+                    "is_hovered": is_hovered,
+                    "is_active": is_active,
+                }
                 self.draw_fn(row_layout, item, idx, is_active)
                 row_layout._position(cell_x, cursor_y, cell_w, ch, s)
                 row_layout._draw(s)

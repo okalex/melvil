@@ -26,6 +26,11 @@ def _draw_filter_tag_item(layout, item, index, is_active):
     """Draw a single tag-filter row."""
     row = layout.row(align=True)
     row.label(text=item.name)
+    sub = row.row()
+    sub.scale_x = 0.15
+    sub.icon_button(
+        icon="GREASEPENCIL", button_id="tag_rename", style="GHOST",
+    )
 
 
 class MELVIL_OT_gpu_browser(bpy.types.Operator):
@@ -275,6 +280,9 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
                         except Exception:  # noqa: BLE001
                             pass
                     return {"RUNNING_MODAL"}
+                if hit is not None and hit.widget_type == "icon_button":
+                    self._handle_icon_button(context, hit)
+                    return {"RUNNING_MODAL"}
                 if hit is not None and hit.widget_type == "list_row":
                     data = hit.kwargs.get("active_dataptr")
                     prop = hit.kwargs.get("active_propname")
@@ -300,6 +308,19 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
 
     def cancel(self, context):
         self._cleanup(context)
+
+    def _handle_icon_button(self, context, hit):
+        """Dispatch an icon_button click to the appropriate action."""
+        button_id = hit.id
+        idx = hit.kwargs.get("index")
+        if button_id == "tag_rename" and idx is not None:
+            wm = context.window_manager
+            tags = getattr(wm, "melvil_filter_tags", [])
+            if 0 <= idx < len(tags):
+                tag_item = tags[idx]
+                bpy.ops.melvil.tag_rename("INVOKE_DEFAULT", tag_id=tag_item.tag_id)
+        if context.area is not None:
+            context.area.tag_redraw()
 
     def _cleanup(self, context):
         if self._panel is not None:
