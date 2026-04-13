@@ -690,16 +690,16 @@ class TestGpuLayoutContainers:
         assert b._is_box is True
 
     def test_separator_appended(self):
-        from melvil.ui.gpu import _Separator
+        from melvil.ui.gpu import GpuSeparator
 
         panel = _make_panel()
         root = panel.begin_frame()
         root.separator()
         assert len(root._children) == 1
-        assert isinstance(root._children[0], _Separator)
+        assert isinstance(root._children[0], GpuSeparator)
 
     def test_separator_factor(self):
-        from melvil.ui.gpu import _Separator
+        from melvil.ui.gpu import GpuSeparator
 
         panel = _make_panel()
         root = panel.begin_frame()
@@ -984,10 +984,9 @@ class TestDrawPass:
 
 class TestGpuWidget:
     def test_label_fields(self):
-        from melvil.ui.gpu import GpuWidget
+        from melvil.ui.gpu import GpuLabel
 
-        w = GpuWidget(kind="label", text="Hello", icon="MESH_DATA")
-        assert w.kind == "label"
+        w = GpuLabel(text="Hello", icon="MESH_DATA")
         assert w.text == "Hello"
         assert w.icon == "MESH_DATA"
         assert w.enabled is True
@@ -995,21 +994,20 @@ class TestGpuWidget:
         assert w.rect is None
 
     def test_separator_fields(self):
-        from melvil.ui.gpu import GpuWidget
+        from melvil.ui.gpu import GpuSeparator
 
-        w = GpuWidget(kind="separator", scale_y=2.0)
-        assert w.kind == "separator"
-        assert w.scale_y == 2.0
+        w = GpuSeparator(factor=2.0)
+        assert w.factor == 2.0
+        assert w.is_separator is True
 
     def test_defaults(self):
-        from melvil.ui.gpu import GpuWidget
+        from melvil.ui.gpu import GpuLabel
 
-        w = GpuWidget(kind="label")
+        w = GpuLabel()
         assert w.text == ""
         assert w.icon == "NONE"
         assert w.enabled is True
         assert w.alert is False
-        assert w.scale_y == 1.0
 
 
 # ---------------------------------------------------------------------------
@@ -1019,7 +1017,7 @@ class TestGpuWidget:
 
 class TestGpuLayoutLabel:
     def test_label_appends_widget(self):
-        from melvil.ui.gpu import GpuWidget
+        from melvil.ui.gpu import GpuLabel
 
         panel = _make_panel()
         root = panel.begin_frame()
@@ -1027,12 +1025,11 @@ class TestGpuLayoutLabel:
 
         assert len(root._children) == 1
         child = root._children[0]
-        assert isinstance(child, GpuWidget)
-        assert child.kind == "label"
+        assert isinstance(child, GpuLabel)
         assert child.text == "Hello"
 
     def test_label_icon(self):
-        from melvil.ui.gpu import GpuWidget
+        from melvil.ui.gpu import GpuLabel
 
         panel = _make_panel()
         root = panel.begin_frame()

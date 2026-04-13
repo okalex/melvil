@@ -6,14 +6,15 @@ from typing import TYPE_CHECKING
 
 from .constants import (
     BOX_PAD,
-    SEPARATOR_HEIGHT,
     WIDGET_GAP,
     WIDGET_GAP_ALIGNED,
     scaled,
 )
 from .drawing import draw_rect_outline, draw_rect_rounded
+from .label import GpuLabel
+from .separator import GpuSeparator
 from .theme import get_theme
-from .widget import GpuWidget, _Separator, _draw_widget, _widget_height
+from .widget import GpuWidget
 
 if TYPE_CHECKING:
     from .panel import GpuPanel
@@ -42,7 +43,7 @@ class GpuLayout:
         self._align = align
         self._is_box = is_box
         self._split_factor = split_factor
-        self._children: list[GpuLayout | _Separator | GpuWidget] = []
+        self._children: list[GpuLayout | GpuWidget] = []
         self._rect: tuple[float, float, float, float] | None = None
 
         # Public properties (matching UILayout).
@@ -77,12 +78,12 @@ class GpuLayout:
         return child
 
     def separator(self, *, factor: float = 1.0) -> None:
-        self._children.append(_Separator(factor=factor))
+        self._children.append(GpuSeparator(factor=factor))
 
     def label(self, *, text: str = "", icon: str = "NONE") -> None:
         """Append a non-interactive text label."""
-        self._children.append(GpuWidget(
-            kind="label", text=text, icon=icon,
+        self._children.append(GpuLabel(
+            text=text, icon=icon,
             enabled=self.enabled, alert=self.alert,
         ))
 
@@ -104,26 +105,22 @@ class GpuLayout:
 
     # -- Measure pass (bottom-up) -------------------------------------------
 
-    def _child_height(self, child: GpuLayout | _Separator | GpuWidget, s: float) -> float:
+    def _child_height(self, child: GpuLayout | GpuWidget, s: float) -> float:
         """Return the measured height of a single child."""
-        if isinstance(child, _Separator):
-            return scaled(SEPARATOR_HEIGHT * child.factor, s)
         if isinstance(child, GpuWidget):
-            return _widget_height(child, s)
+            return child.measure_height(s)
         return child._measure_height(s) * child.scale_y
 
     @staticmethod
-    def _is_separator(child: GpuLayout | _Separator | GpuWidget) -> bool:
+    def _is_separator(child: GpuLayout | GpuWidget) -> bool:
         """Return ``True`` if *child* acts as a separator for gap logic."""
-        if isinstance(child, _Separator):
-            return True
-        if isinstance(child, GpuWidget) and child.kind == "separator":
-            return True
+        if isinstance(child, GpuWidget):
+            return child.is_separator
         return False
 
     @staticmethod
     def _gap_before(
-        children: list[GpuLayout | _Separator | GpuWidget], index: int,
+        children: list[GpuLayout | GpuWidget], index: int,
     ) -> bool:
         """Return ``True`` if a gap should be inserted before *index*.
 
@@ -235,10 +232,8 @@ class GpuLayout:
         n_gaps = 0
         nonsep: list[GpuLayout | GpuWidget] = []
         for i, child in enumerate(self._children):
-            if isinstance(child, _Separator):
-                sep_w += scaled(SEPARATOR_HEIGHT * child.factor, s)
-            elif isinstance(child, GpuWidget) and child.kind == "separator":
-                sep_w += _widget_height(child, s)
+            if isinstance(child, GpuWidget) and child.is_separator:
+                sep_w += child.measure_height(s)
             else:
                 nonsep.append(child)
                 if self._gap_before(self._children, i):
@@ -255,10 +250,8 @@ class GpuLayout:
             if self._gap_before(self._children, i):
                 cursor_x += gap
 
-            if isinstance(child, _Separator):
-                cursor_x += scaled(SEPARATOR_HEIGHT * child.factor, s)
-            elif isinstance(child, GpuWidget) and child.kind == "separator":
-                cursor_x += _widget_height(child, s)
+            if isinstance(child, GpuWidget) and child.is_separator:
+                cursor_x += child.measure_height(s)
             elif isinstance(child, GpuWidget):
                 sx = 1.0
                 cw = available * (sx / total_sx) if total_sx > 0 else 0.0
@@ -314,9 +307,9 @@ class GpuLayout:
 
     def _grid_flow_rows(
         self, cols: int,
-    ) -> list[list[GpuLayout | _Separator | GpuWidget]]:
+    ) -> list[list[GpuLayout | GpuWidget]]:
         """Partition children into rows of *cols* items each."""
-        rows: list[list[GpuLayout | _Separator | GpuWidget]] = []
+        rows: list[list[GpuLayout | GpuWidget]] = []
         for i in range(0, len(self._children), cols):
             rows.append(self._children[i : i + cols])
         return rows
@@ -339,4 +332,5 @@ class GpuLayout:
             if isinstance(child, GpuLayout):
                 child._draw(s)
             elif isinstance(child, GpuWidget):
-                _draw_widget(child, s, self.enabled)
+                if child.rect is not None:
+                    child.draw(s, self.enabled)

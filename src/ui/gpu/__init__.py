@@ -39,14 +39,16 @@ from .drawing import (
     _get_uniform_shader,
 )
 from .layout import GpuLayout
+from .label import GpuLabel
 from .panel import GpuPanel, HitResult, get_region_offsets
+from .separator import GpuSeparator
 from .theme import (
     ThemeColors,
     _color_with_alpha,
     get_theme,
     reset_theme,
 )
-from .widget import GpuWidget, _Separator
+from .widget import GpuWidget
 from ._logger import GpuUiLogger
 
 __all__ = [
@@ -83,8 +85,10 @@ __all__ = [
     "GpuPanel",
     "HitResult",
     "get_region_offsets",
-    # Widget
+    # Widgets
     "GpuWidget",
+    "GpuLabel",
+    "GpuSeparator",
     # Logger
     "GpuUiLogger",
 ]
