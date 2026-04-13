@@ -10,7 +10,7 @@ Widgets and functionality are added as each GPU UI phase lands.
 """
 
 import bpy
-from bpy.props import EnumProperty
+from bpy.props import EnumProperty, StringProperty
 
 from ..ui.gpu import GpuPanel, get_region_offsets
 from .open_browser import _TYPE_ENUM_ITEMS, _get_kit_filter_items
@@ -36,6 +36,12 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
         items=_get_kit_filter_items,
         default=0,
         options={"HIDDEN"},
+    )
+
+    search_query: StringProperty(
+        name="Asset name",
+        default="",
+        options={"HIDDEN", "TEXTEDIT_UPDATE"},
     )
 
     _panel = None
@@ -93,7 +99,7 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
 
         # -- Left column: filters --------------------------------------------
         left.label(text="Search by name/tag", icon="VIEWZOOM")
-        # search_query prop — not yet implemented (STRING)
+        left.prop(self, "search_query", text="")
         left.separator()
 
         left.label(text="Asset type")
@@ -144,6 +150,38 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
                 event.mouse_region_x, event.mouse_region_y,
             )
 
+        # -- Text field editing mode -----------------------------------------
+        if self._panel is not None and self._panel.active_text_field is not None:
+            # ESC / RMB cancel the text edit (not the browser).
+            if event.type in {"ESC", "RIGHTMOUSE"} and event.value == "PRESS":
+                self._panel.cancel_text_field()
+                if context.area is not None:
+                    context.area.tag_redraw()
+                return {"RUNNING_MODAL"}
+
+            # LMB: re-click on same field is a no-op; otherwise confirm
+            # the current field and fall through to normal click handling.
+            if event.type == "LEFTMOUSE" and event.value == "PRESS":
+                hit = self._panel.hit_test(
+                    event.mouse_region_x, event.mouse_region_y,
+                )
+                if (
+                    hit is not None
+                    and hit.widget_type == "text_field"
+                    and hit.id == self._panel.active_text_field
+                ):
+                    return {"RUNNING_MODAL"}
+                self._panel.confirm_text_field()
+                # Fall through to normal LMB handling below.
+
+            # All other PRESS events are routed to the text handler.
+            elif event.value == "PRESS":
+                self._panel.handle_text_event(event)
+                if context.area is not None:
+                    context.area.tag_redraw()
+                return {"RUNNING_MODAL"}
+
+        # -- Normal handling -------------------------------------------------
         if event.type in {"ESC", "RIGHTMOUSE"} and event.value == "PRESS":
             self._cleanup(context)
             return {"CANCELLED"}
@@ -159,6 +197,13 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
                 hit = self._panel.hit_test(
                     event.mouse_region_x, event.mouse_region_y,
                 )
+                if hit is not None and hit.widget_type == "text_field":
+                    self._panel.activate_text_field(
+                        hit.id, hit.kwargs["data"],
+                    )
+                    if context.area is not None:
+                        context.area.tag_redraw()
+                    return {"RUNNING_MODAL"}
                 if hit is not None and hit.widget_type == "operator":
                     try:
                         op_fn = getattr(bpy.ops, hit.id.split(".", 1)[0])

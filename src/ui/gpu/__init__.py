@@ -45,6 +45,7 @@ from .layout import GpuLayout
 from .label import GpuLabel
 from .panel import GpuPanel, HitResult, get_region_offsets
 from .separator import GpuSeparator
+from .text_field import GpuTextField
 from .theme import (
     ThemeColors,
     _color_with_alpha,
@@ -96,6 +97,7 @@ __all__ = [
     "GpuLabel",
     "GpuOperatorProps",
     "GpuSeparator",
+    "GpuTextField",
     # Helpers
     "draw_text_in_rect",
     "point_in_rect",

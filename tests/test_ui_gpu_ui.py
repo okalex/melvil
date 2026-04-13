@@ -2274,15 +2274,16 @@ def _mock_enum_rna(items, current_value="ALL"):
     return mock_data
 
 
-def _mock_string_rna():
+def _mock_string_rna(*, textedit_update=False, current_value=""):
     """Create a mock data object with a STRING property for testing prop()."""
     prop_rna = MagicMock()
     prop_rna.type = "STRING"
+    prop_rna.name = "Asset name"
 
     props_coll = MagicMock()
     props_coll.__contains__ = MagicMock(return_value=True)
     props_coll.__getitem__ = MagicMock(return_value=prop_rna)
-    props_coll.keys = MagicMock(return_value=["some_string"])
+    props_coll.keys = MagicMock(return_value=["search_query"])
 
     bl_rna = MagicMock()
     bl_rna.properties = props_coll
@@ -2291,7 +2292,23 @@ def _mock_string_rna():
         pass
 
     MockStringData.bl_rna = bl_rna
-    return MockStringData()
+
+    if textedit_update:
+        _kw = {"options": {"HIDDEN", "TEXTEDIT_UPDATE"}}
+    else:
+        _kw = {"options": {"HIDDEN"}}
+
+    class _Deferred:
+        def __init__(self, keywords):
+            self.keywords = keywords
+
+    MockStringData.__annotations__ = {
+        "search_query": _Deferred(_kw),
+    }
+
+    mock = MockStringData()
+    mock.search_query = current_value
+    return mock
 
 
 class TestGpuLayoutProp:
@@ -2339,6 +2356,34 @@ class TestGpuLayoutProp:
         """Non-enum property type falls back to label stub."""
         from melvil.ui.gpu import GpuLabel
 
+        # Use an INT property (not STRING — STRING is now a text field).
+        prop_rna = MagicMock()
+        prop_rna.type = "INT"
+        props_coll = MagicMock()
+        props_coll.__contains__ = MagicMock(return_value=True)
+        props_coll.__getitem__ = MagicMock(return_value=prop_rna)
+
+        bl_rna = MagicMock()
+        bl_rna.properties = props_coll
+
+        class MockIntData:
+            pass
+
+        MockIntData.bl_rna = bl_rna
+        mock_data = MockIntData()
+
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.prop(mock_data, "some_int")
+
+        assert len(root._children) == 1
+        child = root._children[0]
+        assert isinstance(child, GpuLabel)
+
+    def test_string_creates_text_field(self):
+        """STRING property creates a GpuTextField."""
+        from melvil.ui.gpu import GpuTextField
+
         mock_data = _mock_string_rna()
 
         panel = _make_panel()
@@ -2347,11 +2392,13 @@ class TestGpuLayoutProp:
 
         assert len(root._children) == 1
         child = root._children[0]
-        assert isinstance(child, GpuLabel)
+        assert isinstance(child, GpuTextField)
+        assert child.property_name == "search_query"
+        assert child.data is mock_data
 
-    def test_label_stub_uses_text_param(self):
-        """Label stub uses the text parameter when provided."""
-        from melvil.ui.gpu import GpuLabel
+    def test_string_text_field_uses_text_param(self):
+        """Text field uses the text parameter as prefix."""
+        from melvil.ui.gpu import GpuTextField
 
         mock_data = _mock_string_rna()
 
@@ -2360,12 +2407,12 @@ class TestGpuLayoutProp:
         root.prop(mock_data, "search_query", text="Search")
 
         child = root._children[0]
-        assert isinstance(child, GpuLabel)
-        assert child.text == "Search"
+        assert isinstance(child, GpuTextField)
+        assert child.prefix_text == "Search"
 
-    def test_label_stub_uses_property_name_when_no_text(self):
-        """Label stub defaults to the property name when text is None."""
-        from melvil.ui.gpu import GpuLabel
+    def test_string_text_field_uses_rna_name_when_no_text(self):
+        """Text field defaults to the RNA property name as prefix."""
+        from melvil.ui.gpu import GpuTextField
 
         mock_data = _mock_string_rna()
 
@@ -2374,7 +2421,35 @@ class TestGpuLayoutProp:
         root.prop(mock_data, "search_query")
 
         child = root._children[0]
-        assert child.text == "search_query"
+        assert child.prefix_text == "Asset name"
+
+    def test_string_text_field_empty_text_no_prefix(self):
+        """text='' means no prefix label on the text field."""
+        from melvil.ui.gpu import GpuTextField
+
+        mock_data = _mock_string_rna()
+
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.prop(mock_data, "search_query", text="")
+
+        child = root._children[0]
+        assert isinstance(child, GpuTextField)
+        assert child.prefix_text == ""
+
+    def test_string_text_field_inherits_textedit_update(self):
+        """TEXTEDIT_UPDATE option is propagated to the widget."""
+        from melvil.ui.gpu import GpuTextField
+
+        mock_data = _mock_string_rna(textedit_update=True)
+
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.prop(mock_data, "search_query", text="")
+
+        child = root._children[0]
+        assert isinstance(child, GpuTextField)
+        assert child.textedit_update is True
 
     def test_bl_rna_missing_falls_back_to_label(self):
         """If bl_rna access fails, falls back to label gracefully."""
@@ -2453,3 +2528,564 @@ def _make_enum_widget(**overrides):
     }
     defaults.update(overrides)
     return GpuEnumButtons(**defaults)
+
+
+# ---------------------------------------------------------------------------
+# Helper for building GpuTextField used by multiple test classes
+# ---------------------------------------------------------------------------
+
+
+def _make_text_field(**overrides):
+    """Return a GpuTextField with sensible defaults."""
+    from melvil.ui.gpu import GpuTextField
+
+    mock = _mock_string_rna(current_value="hello")
+    defaults = {
+        "data": mock,
+        "property_name": "search_query",
+        "prefix_text": "",
+        "textedit_update": False,
+    }
+    defaults.update(overrides)
+    return GpuTextField(**defaults)
+
+
+class _MockEvent:
+    """Minimal mock for ``bpy.types.Event`` used in text field tests."""
+
+    def __init__(
+        self,
+        type: str = "A",
+        value: str = "PRESS",
+        unicode: str = "",
+        ctrl: bool = False,
+    ):
+        self.type = type
+        self.value = value
+        self.unicode = unicode
+        self.ctrl = ctrl
+
+
+# ===========================================================================
+# Text field widget — measure / draw / hit rect
+# ===========================================================================
+
+
+class TestGpuTextField:
+    """Tests for the GpuTextField widget."""
+
+    def test_measure_height(self):
+        """measure_height returns scaled WIDGET_HEIGHT."""
+        from melvil.ui.gpu.constants import WIDGET_HEIGHT, scaled
+
+        w = _make_text_field()
+        assert w.measure_height(1.0) == scaled(WIDGET_HEIGHT, 1.0)
+        assert w.measure_height(2.0) == scaled(WIDGET_HEIGHT, 2.0)
+
+    def test_hit_rect_registered(self):
+        """Drawing a text field registers a hit rect."""
+        w = _make_text_field()
+        panel = _make_panel()
+        panel.begin_frame()
+        w.rect = (10, 20, 200, 26)
+        w.draw(1.0, True, panel)
+        hits = [h for h in panel._hit_rects if h.widget_type == "text_field"]
+        assert len(hits) == 1
+        assert hits[0].id == "search_query"
+        assert hits[0].kwargs["data"] is w.data
+
+    def test_hit_rect_not_registered_when_disabled(self):
+        """Disabled text field does not register a hit rect."""
+        w = _make_text_field(enabled=False)
+        panel = _make_panel()
+        panel.begin_frame()
+        w.rect = (10, 20, 200, 26)
+        w.draw(1.0, True, panel)
+        hits = [h for h in panel._hit_rects if h.widget_type == "text_field"]
+        assert len(hits) == 0
+
+    def test_tab_order_registration(self):
+        """Drawing registers the field in the panel tab order."""
+        w = _make_text_field()
+        panel = _make_panel()
+        panel.begin_frame()
+        w.rect = (10, 20, 200, 26)
+        w.draw(1.0, True, panel)
+        assert "search_query" in panel._text_field_order
+        assert panel._text_field_data["search_query"] is w.data
+
+    def test_textedit_update_registration(self):
+        """Field with textedit_update=True is registered in the set."""
+        w = _make_text_field(textedit_update=True)
+        panel = _make_panel()
+        panel.begin_frame()
+        w.rect = (10, 20, 200, 26)
+        w.draw(1.0, True, panel)
+        assert "search_query" in panel._textedit_update_fields
+
+    def test_textedit_update_not_registered_when_false(self):
+        """Field with textedit_update=False is not registered."""
+        w = _make_text_field(textedit_update=False)
+        panel = _make_panel()
+        panel.begin_frame()
+        w.rect = (10, 20, 200, 26)
+        w.draw(1.0, True, panel)
+        assert "search_query" not in panel._textedit_update_fields
+
+    def test_prefix_label_shrinks_field(self):
+        """Prefix text reduces the field width."""
+        w = _make_text_field(prefix_text="Search")
+        panel = _make_panel()
+        panel.begin_frame()
+        w.rect = (10, 20, 200, 26)
+        w.draw(1.0, True, panel)
+        # Hit rect should be narrower than the full widget width.
+        hits = [h for h in panel._hit_rects if h.widget_type == "text_field"]
+        assert len(hits) == 1
+        hit_x, _, hit_w, _ = hits[0].rect
+        assert hit_x > 10  # Field pushed to the right
+        assert hit_w < 200  # Field narrower
+
+    def test_no_prefix_field_uses_full_width(self):
+        """Without prefix the field uses the full widget width."""
+        w = _make_text_field(prefix_text="")
+        panel = _make_panel()
+        panel.begin_frame()
+        w.rect = (10, 20, 200, 26)
+        w.draw(1.0, True, panel)
+        hits = [h for h in panel._hit_rects if h.widget_type == "text_field"]
+        assert len(hits) == 1
+        hit_x, _, hit_w, _ = hits[0].rect
+        assert hit_x == 10
+        assert hit_w == 200
+
+
+# ===========================================================================
+# Text field activation / deactivation
+# ===========================================================================
+
+
+class TestTextFieldActivation:
+    """Tests for activating and deactivating text fields."""
+
+    def test_activate_sets_state(self):
+        """activate_text_field sets all relevant state."""
+        mock = _mock_string_rna(current_value="hello")
+        panel = _make_panel()
+        panel.begin_frame()
+        panel.activate_text_field("search_query", mock)
+        assert panel.active_text_field == "search_query"
+        assert panel._text_buffer == "hello"
+        assert panel.text_cursor_pos == 5  # at end
+        assert panel._text_selection_start == 0  # select all
+        assert panel._text_original_value == "hello"
+
+    def test_confirm_deactivates(self):
+        """confirm_text_field deactivates the field."""
+        mock = _mock_string_rna(current_value="hello")
+        panel = _make_panel()
+        panel.begin_frame()
+        panel.activate_text_field("search_query", mock)
+        panel.confirm_text_field()
+        assert panel.active_text_field is None
+        assert panel._text_buffer is None
+
+    def test_confirm_writes_value_for_non_textedit(self):
+        """Non-TEXTEDIT_UPDATE fields write on confirm."""
+        mock = _mock_string_rna(current_value="hello")
+        panel = _make_panel()
+        panel.begin_frame()
+        panel.activate_text_field("search_query", mock)
+        panel._text_buffer = "world"
+        panel.confirm_text_field()
+        assert mock.search_query == "world"
+
+    def test_confirm_skips_write_for_textedit(self):
+        """TEXTEDIT_UPDATE fields were already written; confirm is a no-op."""
+        mock = _mock_string_rna(
+            current_value="hello", textedit_update=True,
+        )
+        panel = _make_panel()
+        panel.begin_frame()
+        # Simulate draw to register TEXTEDIT_UPDATE.
+        panel._textedit_update_fields.add("search_query")
+        panel.activate_text_field("search_query", mock)
+        panel._text_buffer = "world"
+        panel.confirm_text_field()
+        # The value was NOT written by confirm (it would have been
+        # written incrementally by _apply_text).
+        assert mock.search_query == "hello"
+
+    def test_cancel_restores_original(self):
+        """cancel_text_field restores the original value."""
+        mock = _mock_string_rna(current_value="hello")
+        panel = _make_panel()
+        panel.begin_frame()
+        panel.activate_text_field("search_query", mock)
+        mock.search_query = "changed"
+        panel.cancel_text_field()
+        assert mock.search_query == "hello"
+        assert panel.active_text_field is None
+
+    def test_activate_confirms_previous_field(self):
+        """Activating a new field confirms the currently active one."""
+        mock1 = _mock_string_rna(current_value="one")
+        mock2 = _mock_string_rna(current_value="two")
+        panel = _make_panel()
+        panel.begin_frame()
+        panel.activate_text_field("search_query", mock1)
+        panel._text_buffer = "modified"
+        panel.activate_text_field("search_query", mock2)
+        # First field was confirmed (non-textedit) so value is written.
+        assert mock1.search_query == "modified"
+
+
+# ===========================================================================
+# Text field keyboard handling
+# ===========================================================================
+
+
+class TestTextFieldKeyboard:
+    """Tests for handle_text_event."""
+
+    def _activate(self, panel, mock, prop="search_query"):
+        panel.activate_text_field(prop, mock)
+        # Clear selection to start typing at end without select-all.
+        panel._text_selection_start = None
+
+    def test_printable_inserts_at_cursor(self):
+        """Printable character inserts at cursor position."""
+        mock = _mock_string_rna(current_value="ab")
+        panel = _make_panel()
+        panel.begin_frame()
+        self._activate(panel, mock)
+        panel.text_cursor_pos = 1  # between 'a' and 'b'
+        panel.handle_text_event(_MockEvent(type="X", unicode="x"))
+        assert panel._text_buffer == "axb"
+        assert panel.text_cursor_pos == 2
+
+    def test_backspace_deletes_before_cursor(self):
+        """BACK_SPACE deletes the character before the cursor."""
+        mock = _mock_string_rna(current_value="abc")
+        panel = _make_panel()
+        panel.begin_frame()
+        self._activate(panel, mock)
+        panel.text_cursor_pos = 2
+        panel.handle_text_event(_MockEvent(type="BACK_SPACE"))
+        assert panel._text_buffer == "ac"
+        assert panel.text_cursor_pos == 1
+
+    def test_backspace_at_start_does_nothing(self):
+        """BACK_SPACE at position 0 leaves text unchanged."""
+        mock = _mock_string_rna(current_value="abc")
+        panel = _make_panel()
+        panel.begin_frame()
+        self._activate(panel, mock)
+        panel.text_cursor_pos = 0
+        panel.handle_text_event(_MockEvent(type="BACK_SPACE"))
+        assert panel._text_buffer == "abc"
+        assert panel.text_cursor_pos == 0
+
+    def test_delete_removes_after_cursor(self):
+        """DEL deletes the character after the cursor."""
+        mock = _mock_string_rna(current_value="abc")
+        panel = _make_panel()
+        panel.begin_frame()
+        self._activate(panel, mock)
+        panel.text_cursor_pos = 1
+        panel.handle_text_event(_MockEvent(type="DEL"))
+        assert panel._text_buffer == "ac"
+        assert panel.text_cursor_pos == 1
+
+    def test_delete_at_end_does_nothing(self):
+        """DEL at end of text leaves text unchanged."""
+        mock = _mock_string_rna(current_value="abc")
+        panel = _make_panel()
+        panel.begin_frame()
+        self._activate(panel, mock)
+        panel.text_cursor_pos = 3
+        panel.handle_text_event(_MockEvent(type="DEL"))
+        assert panel._text_buffer == "abc"
+
+    def test_left_arrow_moves_cursor(self):
+        """LEFT_ARROW decrements cursor position."""
+        mock = _mock_string_rna(current_value="abc")
+        panel = _make_panel()
+        panel.begin_frame()
+        self._activate(panel, mock)
+        panel.text_cursor_pos = 2
+        panel.handle_text_event(_MockEvent(type="LEFT_ARROW"))
+        assert panel.text_cursor_pos == 1
+
+    def test_right_arrow_moves_cursor(self):
+        """RIGHT_ARROW increments cursor position."""
+        mock = _mock_string_rna(current_value="abc")
+        panel = _make_panel()
+        panel.begin_frame()
+        self._activate(panel, mock)
+        panel.text_cursor_pos = 1
+        panel.handle_text_event(_MockEvent(type="RIGHT_ARROW"))
+        assert panel.text_cursor_pos == 2
+
+    def test_home_moves_to_start(self):
+        """HOME moves cursor to position 0."""
+        mock = _mock_string_rna(current_value="abc")
+        panel = _make_panel()
+        panel.begin_frame()
+        self._activate(panel, mock)
+        panel.text_cursor_pos = 2
+        panel.handle_text_event(_MockEvent(type="HOME"))
+        assert panel.text_cursor_pos == 0
+
+    def test_end_moves_to_end(self):
+        """END moves cursor to end of text."""
+        mock = _mock_string_rna(current_value="abc")
+        panel = _make_panel()
+        panel.begin_frame()
+        self._activate(panel, mock)
+        panel.text_cursor_pos = 1
+        panel.handle_text_event(_MockEvent(type="END"))
+        assert panel.text_cursor_pos == 3
+
+    def test_enter_confirms(self):
+        """RET confirms the field."""
+        mock = _mock_string_rna(current_value="hello")
+        panel = _make_panel()
+        panel.begin_frame()
+        self._activate(panel, mock)
+        consumed = panel.handle_text_event(_MockEvent(type="RET"))
+        assert consumed is True
+        assert panel.active_text_field is None
+
+    def test_escape_cancels(self):
+        """ESC cancels and restores original value."""
+        mock = _mock_string_rna(current_value="hello")
+        panel = _make_panel()
+        panel.begin_frame()
+        self._activate(panel, mock)
+        panel._text_buffer = "changed"
+        consumed = panel.handle_text_event(_MockEvent(type="ESC"))
+        assert consumed is True
+        assert panel.active_text_field is None
+        assert mock.search_query == "hello"
+
+    def test_non_press_ignored(self):
+        """Non-PRESS events are not consumed."""
+        mock = _mock_string_rna(current_value="abc")
+        panel = _make_panel()
+        panel.begin_frame()
+        self._activate(panel, mock)
+        consumed = panel.handle_text_event(
+            _MockEvent(type="A", value="RELEASE", unicode="a"),
+        )
+        assert consumed is False
+
+    def test_unrecognized_key_not_consumed(self):
+        """Unrecognized keys return False."""
+        mock = _mock_string_rna(current_value="abc")
+        panel = _make_panel()
+        panel.begin_frame()
+        self._activate(panel, mock)
+        consumed = panel.handle_text_event(
+            _MockEvent(type="F1", unicode=""),
+        )
+        assert consumed is False
+
+    def test_ctrl_shortcuts_consumed(self):
+        """Unknown Ctrl+key combos are consumed to prevent shortcuts."""
+        mock = _mock_string_rna(current_value="abc")
+        panel = _make_panel()
+        panel.begin_frame()
+        self._activate(panel, mock)
+        consumed = panel.handle_text_event(
+            _MockEvent(type="Z", ctrl=True),
+        )
+        assert consumed is True
+
+    def test_textedit_update_applies_immediately(self):
+        """TEXTEDIT_UPDATE field applies text via setattr on each key."""
+        mock = _mock_string_rna(
+            current_value="abc", textedit_update=True,
+        )
+        panel = _make_panel()
+        panel.begin_frame()
+        panel._textedit_update_fields.add("search_query")
+        self._activate(panel, mock)
+        panel.handle_text_event(
+            _MockEvent(type="X", unicode="x"),
+        )
+        assert mock.search_query == "abcx"
+
+    def test_non_textedit_does_not_apply_immediately(self):
+        """Non-TEXTEDIT_UPDATE field only writes to the buffer."""
+        mock = _mock_string_rna(current_value="abc")
+        panel = _make_panel()
+        panel.begin_frame()
+        self._activate(panel, mock)
+        panel.handle_text_event(
+            _MockEvent(type="X", unicode="x"),
+        )
+        # Buffer updated, but property NOT yet written.
+        assert panel._text_buffer == "abcx"
+        assert mock.search_query == "abc"
+
+
+# ===========================================================================
+# Text field clipboard
+# ===========================================================================
+
+
+class TestTextFieldClipboard:
+    """Tests for Ctrl+V paste."""
+
+    def test_paste_inserts_clipboard(self):
+        """Ctrl+V inserts clipboard text at cursor."""
+        mock = _mock_string_rna(current_value="ab")
+        panel = _make_panel()
+        panel.begin_frame()
+        panel.activate_text_field("search_query", mock)
+        panel._text_selection_start = None
+        panel.text_cursor_pos = 1
+        with patch(
+            "melvil.ui.gpu.panel.bpy.context.window_manager"
+        ) as mock_wm:
+            mock_wm.clipboard = "XY"
+            panel.handle_text_event(
+                _MockEvent(type="V", ctrl=True),
+            )
+        assert panel._text_buffer == "aXYb"
+        assert panel.text_cursor_pos == 3
+
+    def test_paste_strips_newlines(self):
+        """Pasted newlines are stripped for single-line field."""
+        mock = _mock_string_rna(current_value="")
+        panel = _make_panel()
+        panel.begin_frame()
+        panel.activate_text_field("search_query", mock)
+        panel._text_selection_start = None
+        with patch(
+            "melvil.ui.gpu.panel.bpy.context.window_manager"
+        ) as mock_wm:
+            mock_wm.clipboard = "a\nb\r\nc"
+            panel.handle_text_event(
+                _MockEvent(type="V", ctrl=True),
+            )
+        assert panel._text_buffer == "abc"
+
+
+# ===========================================================================
+# Text field selection
+# ===========================================================================
+
+
+class TestTextFieldSelection:
+    """Tests for select-all and selection replacement behaviour."""
+
+    def test_activate_selects_all(self):
+        """Activating a field selects all text."""
+        mock = _mock_string_rna(current_value="hello")
+        panel = _make_panel()
+        panel.begin_frame()
+        panel.activate_text_field("search_query", mock)
+        assert panel._text_selection_start == 0
+        assert panel.text_cursor_pos == 5
+
+    def test_typing_replaces_selection(self):
+        """Typing with select-all replaces all text."""
+        mock = _mock_string_rna(current_value="hello")
+        panel = _make_panel()
+        panel.begin_frame()
+        panel.activate_text_field("search_query", mock)
+        # select-all is active (selection_start=0, cursor=5)
+        panel.handle_text_event(_MockEvent(type="X", unicode="x"))
+        assert panel._text_buffer == "x"
+        assert panel.text_cursor_pos == 1
+        assert panel._text_selection_start is None
+
+    def test_backspace_deletes_selection(self):
+        """Backspace with selection deletes the selected text."""
+        mock = _mock_string_rna(current_value="hello")
+        panel = _make_panel()
+        panel.begin_frame()
+        panel.activate_text_field("search_query", mock)
+        # select-all
+        panel.handle_text_event(_MockEvent(type="BACK_SPACE"))
+        assert panel._text_buffer == ""
+        assert panel.text_cursor_pos == 0
+
+    def test_ctrl_a_selects_all(self):
+        """Ctrl+A selects all text."""
+        mock = _mock_string_rna(current_value="hello")
+        panel = _make_panel()
+        panel.begin_frame()
+        panel.activate_text_field("search_query", mock)
+        panel._text_selection_start = None
+        panel.text_cursor_pos = 2
+        panel.handle_text_event(_MockEvent(type="A", ctrl=True))
+        assert panel._text_selection_start == 0
+        assert panel.text_cursor_pos == 5
+
+    def test_arrow_clears_selection(self):
+        """Arrow keys clear the selection."""
+        mock = _mock_string_rna(current_value="hello")
+        panel = _make_panel()
+        panel.begin_frame()
+        panel.activate_text_field("search_query", mock)
+        # select-all is active
+        panel.handle_text_event(_MockEvent(type="LEFT_ARROW"))
+        assert panel._text_selection_start is None
+
+
+# ===========================================================================
+# Text field tab cycling
+# ===========================================================================
+
+
+class TestTextFieldTabCycle:
+    """Tests for Tab key cycling through text fields."""
+
+    def test_tab_cycles_to_next_field(self):
+        """Tab confirms current field and activates the next."""
+        mock1 = _mock_string_rna(current_value="one")
+        mock2 = _mock_string_rna(current_value="two")
+        panel = _make_panel()
+        panel.begin_frame()
+        # Simulate tab order populated during draw.
+        panel._text_field_order = ["field_a", "field_b"]
+        panel._text_field_data = {"field_a": mock1, "field_b": mock2}
+        panel.activate_text_field("field_a", mock1)
+        panel.handle_text_event(_MockEvent(type="TAB"))
+        assert panel.active_text_field == "field_b"
+
+    def test_tab_wraps_around(self):
+        """Tab from the last field wraps to the first."""
+        mock1 = _mock_string_rna(current_value="one")
+        mock2 = _mock_string_rna(current_value="two")
+        panel = _make_panel()
+        panel.begin_frame()
+        panel._text_field_order = ["field_a", "field_b"]
+        panel._text_field_data = {"field_a": mock1, "field_b": mock2}
+        panel.activate_text_field("field_b", mock2)
+        panel.handle_text_event(_MockEvent(type="TAB"))
+        assert panel.active_text_field == "field_a"
+
+    def test_tab_with_single_field_confirms(self):
+        """Tab with only one field confirms and re-activates it."""
+        mock = _mock_string_rna(current_value="solo")
+        panel = _make_panel()
+        panel.begin_frame()
+        panel._text_field_order = ["search_query"]
+        panel._text_field_data = {"search_query": mock}
+        panel.activate_text_field("search_query", mock)
+        panel.handle_text_event(_MockEvent(type="TAB"))
+        # Re-activates the same (only) field.
+        assert panel.active_text_field == "search_query"
+
+    def test_tab_with_no_fields_confirms(self):
+        """Tab with empty field order just confirms."""
+        mock = _mock_string_rna(current_value="solo")
+        panel = _make_panel()
+        panel.begin_frame()
+        panel.activate_text_field("search_query", mock)
+        panel.handle_text_event(_MockEvent(type="TAB"))
+        assert panel.active_text_field is None

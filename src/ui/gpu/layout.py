@@ -15,6 +15,7 @@ from .button import GpuButton, GpuOperatorProps
 from .enum_buttons import GpuEnumButtons
 from .label import GpuLabel
 from .separator import GpuSeparator
+from .text_field import GpuTextField
 from .theme import get_theme
 from .widget import GpuWidget
 from ._logger import _logger
@@ -62,6 +63,21 @@ def _resolve_dynamic_enum(
     except Exception as exc:
         _logger.log(f"_resolve_dynamic_enum({property!r}): {exc}")
         return []
+
+
+def _has_textedit_update(data: object, property: str) -> bool:
+    """Return ``True`` if the property annotation has ``TEXTEDIT_UPDATE``."""
+    try:
+        ann = getattr(type(data), "__annotations__", {}).get(property)
+        if ann is None:
+            return False
+        kw = getattr(ann, "keywords", None)
+        if kw is None:
+            return False
+        return "TEXTEDIT_UPDATE" in kw.get("options", set())
+    except Exception:  # noqa: BLE001
+        return False
+
 
 class GpuLayout:
     """Immediate-mode layout container mirroring ``bpy.types.UILayout``.
@@ -227,6 +243,19 @@ class GpuLayout:
                 active_value=active_value,
                 data=data,
                 property_name=property,
+                enabled=self.enabled,
+                alert=self.alert,
+            ))
+        elif prop_type == "STRING":
+            if text is None:
+                prefix = getattr(prop_rna, "name", property)
+            else:
+                prefix = text
+            self._children.append(GpuTextField(
+                data=data,
+                property_name=property,
+                prefix_text=prefix,
+                textedit_update=_has_textedit_update(data, property),
                 enabled=self.enabled,
                 alert=self.alert,
             ))
