@@ -13,6 +13,7 @@ from .constants import (
 from .drawing import draw_rect_outline, draw_rect_rounded
 from .button import GpuButton, GpuOperatorProps
 from .enum_buttons import GpuEnumButtons
+from .grid_list import GpuGridList
 from .label import GpuLabel
 from .separator import GpuSeparator
 from .text_field import GpuTextField
@@ -298,6 +299,56 @@ class GpuLayout:
             scale=scale,
         ))
 
+    def template_list(
+        self,
+        listtype_name: str,
+        list_id: str,
+        dataptr: object,
+        propname: str,
+        active_dataptr: object,
+        active_propname: str,
+        *,
+        rows: int = 5,
+        maxrows: int = 5,
+        cols: int = 1,
+        cell_height: int | None = None,
+        **kwargs: object,
+    ) -> None:
+        """Append a scrollable list/grid drawn by a registered callback.
+
+        Mirrors ``UILayout.template_list()``.  The *listtype_name* must
+        have been registered via :meth:`GpuPanel.register_list_drawer`
+        before the build function runs.
+
+        Parameters
+        ----------
+        cols:
+            Number of columns.  ``1`` (default) gives a single-column
+            scrollable list.  Values > 1 produce a card grid.
+        cell_height:
+            Per-cell height in base (unscaled) pixels.  Defaults to
+            ``WIDGET_HEIGHT`` for single-column lists.
+        """
+        from .constants import WIDGET_HEIGHT
+
+        draw_fn = self._panel._list_drawers.get(listtype_name)
+        if draw_fn is None:
+            _logger.log(
+                f"template_list: no drawer registered for {listtype_name!r}",
+            )
+        effective_height = cell_height if cell_height is not None else WIDGET_HEIGHT
+        self._children.append(GpuGridList(
+            list_id=list_id,
+            cols=cols,
+            rows_visible=rows,
+            cell_height=effective_height,
+            dataptr=dataptr,
+            propname=propname,
+            active_dataptr=active_dataptr,
+            active_propname=active_propname,
+            draw_fn=draw_fn,
+        ))
+
     # -- Measure pass (bottom-up) -------------------------------------------
 
     def _child_height(self, child: GpuLayout | GpuWidget, s: float) -> float:
@@ -529,3 +580,13 @@ class GpuLayout:
             elif isinstance(child, GpuWidget):
                 if child.rect is not None:
                     child.draw(s, self.enabled, self._panel)
+
+    # -- Event handling ------------------------------------------------------
+
+    def handle_event(self, event_type: str, panel: object, **kwargs) -> bool:
+        """Handle a dispatched event.  Return ``True`` if consumed.
+
+        Layouts do not consume events by default.  Subclasses or future
+        container widgets may override this.
+        """
+        return False

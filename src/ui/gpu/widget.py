@@ -122,6 +122,14 @@ class GpuWidget:
         """Draw this widget.  Called during the draw pass."""
         raise NotImplementedError
 
+    def handle_event(self, event_type: str, panel: GpuPanel, **kwargs) -> bool:
+        """Handle a dispatched event.  Return ``True`` if consumed.
+
+        Subclasses override this to handle specific events (e.g. scroll).
+        The default implementation does not consume any events.
+        """
+        return False
+
     @property
     def is_separator(self) -> bool:
         """Return ``True`` if this widget acts as a separator for gap logic."""

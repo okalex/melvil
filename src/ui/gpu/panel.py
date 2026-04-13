@@ -11,6 +11,7 @@ import gpu
 
 from .constants import get_ui_scale, scaled, PANEL_PAD
 from .drawing import draw_rect_outline, draw_rect_rounded
+from .grid_list import ScrollState
 from .icons import IconProvider
 from .layout import GpuLayout
 from .theme import get_theme
@@ -105,6 +106,12 @@ class GpuPanel:
         # Preview path registry: icon_value → image file path.
         self._preview_paths: dict[int, str] = {}
 
+        # List drawer registry: listtype_name → draw callback.
+        self._list_drawers: dict[str, Callable] = {}
+
+        # Scroll state per list widget, keyed by list_id.
+        self._scroll_states: dict[str, ScrollState] = {}
+
     # -- Lifecycle -----------------------------------------------------------
 
     def attach(self, area: Any) -> None:
@@ -131,6 +138,7 @@ class GpuPanel:
         self._text_field_order.clear()
         self._text_field_data.clear()
         self._textedit_update_fields.clear()
+        self._scroll_states.clear()
 
     def update_mouse(self, mx: float, my: float) -> None:
         """Store the latest mouse position for hover detection."""
@@ -475,3 +483,92 @@ class GpuPanel:
         if path is None:
             return None
         return self.get_texture(path)
+
+    # -- List drawer registry ------------------------------------------------
+
+    def register_list_drawer(
+        self, listtype_name: str, draw_fn: Callable,
+    ) -> None:
+        """Register a list-item draw callback for *listtype_name*.
+
+        The callback signature is::
+
+            draw_fn(layout: GpuLayout, item, index: int, is_active: bool)
+
+        This mirrors how ``UIList.draw_item()`` works but uses
+        :class:`GpuLayout` instead of ``UILayout``.
+        """
+        self._list_drawers[listtype_name] = draw_fn
+
+    # -- Scroll state --------------------------------------------------------
+
+    def _get_scroll_state(self, list_id: str) -> ScrollState:
+        """Return the :class:`ScrollState` for *list_id*, creating if needed."""
+        if list_id not in self._scroll_states:
+            self._scroll_states[list_id] = ScrollState()
+        return self._scroll_states[list_id]
+
+    # -- Event dispatching (bubbling) ----------------------------------------
+
+    def dispatch_event(
+        self,
+        event_type: str,
+        mx: float,
+        my: float,
+        **kwargs: Any,
+    ) -> bool:
+        """Dispatch *event_type* through the widget tree with bubbling.
+
+        Finds the deepest widget under ``(mx, my)`` and propagates the
+        event upward through parent layouts until a handler consumes it
+        (returns ``True``) or the root is reached.
+
+        Returns ``True`` if the event was consumed.
+        """
+        if self._root is None:
+            return False
+        path: list[Any] = []
+        self._build_hit_path(self._root, mx, my, path)
+        for node in reversed(path):
+            handler = getattr(node, "handle_event", None)
+            if handler is not None and handler(event_type, panel=self, **kwargs):
+                return True
+        return False
+
+    def _build_hit_path(
+        self,
+        node: Any,
+        mx: float,
+        my: float,
+        path: list[Any],
+    ) -> bool:
+        """Recursively build the ancestor path to the deepest node at *(mx, my)*.
+
+        Appends nodes from root toward leaves; callers reverse for bubbling.
+        Returns ``True`` if *node* contains the point.
+        """
+        from .widget import GpuWidget
+
+        if isinstance(node, GpuLayout):
+            rect = node._rect
+        elif isinstance(node, GpuWidget):
+            rect = node.rect
+        else:
+            return False
+
+        if rect is None:
+            return False
+
+        x, y, w, h = rect
+        if not (x <= mx <= x + w and y <= my <= y + h):
+            return False
+
+        path.append(node)
+
+        # Descend into layout children (reverse order = front-to-back).
+        if isinstance(node, GpuLayout):
+            for child in reversed(node._children):
+                if self._build_hit_path(child, mx, my, path):
+                    break  # Found the deepest child on this branch.
+
+        return True

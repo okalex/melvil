@@ -3533,3 +3533,749 @@ class TestPanelPreviewRegistry:
         panel.register_preview(2, "/b.png")
         assert panel.get_preview_texture(1) is tex_a
         assert panel.get_preview_texture(2) is tex_b
+
+
+# ---------------------------------------------------------------------------
+# ScrollState
+# ---------------------------------------------------------------------------
+
+
+class TestScrollState:
+    def test_default_values(self):
+        from melvil.ui.gpu import ScrollState
+
+        ss = ScrollState()
+        assert ss.offset == 0
+        assert ss.max_visible == 5
+        assert ss.total_items == 0
+
+    def test_mutable(self):
+        from melvil.ui.gpu import ScrollState
+
+        ss = ScrollState()
+        ss.offset = 3
+        ss.max_visible = 10
+        ss.total_items = 50
+        assert ss.offset == 3
+        assert ss.max_visible == 10
+        assert ss.total_items == 50
+
+
+# ---------------------------------------------------------------------------
+# GpuGridList
+# ---------------------------------------------------------------------------
+
+
+def _make_collection(n: int):
+    """Create a mock PropertyGroup collection with *n* items."""
+    items = []
+    for i in range(n):
+        item = MagicMock()
+        item.name = f"item_{i}"
+        item.is_active = i % 2 == 0
+        items.append(item)
+    coll = MagicMock()
+    coll.__len__ = lambda self: len(items)
+    coll.__getitem__ = lambda self, idx: items[idx]
+    coll.__iter__ = lambda self: iter(items)
+    return coll, items
+
+
+def _make_dataptr(collection, active_index=-1):
+    """Create a mock dataptr + active_dataptr pair."""
+    dataptr = MagicMock()
+    dataptr.my_collection = collection
+    active_dataptr = MagicMock()
+    active_dataptr.my_collection_index = active_index
+    return dataptr, active_dataptr
+
+
+class TestGpuGridListMeasureHeight:
+    def test_basic_measurement(self):
+        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT, WIDGET_GAP
+
+        gl = GpuGridList(rows_visible=5, cell_height=WIDGET_HEIGHT)
+        h = gl.measure_height(1.0)
+        expected = 5 * WIDGET_HEIGHT + 4 * WIDGET_GAP
+        assert h == pytest.approx(expected)
+
+    def test_scaled_measurement(self):
+        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT, WIDGET_GAP
+
+        gl = GpuGridList(rows_visible=3, cell_height=WIDGET_HEIGHT)
+        h = gl.measure_height(2.0)
+        expected = 3 * (WIDGET_HEIGHT * 2) + 2 * (WIDGET_GAP * 2)
+        assert h == pytest.approx(expected)
+
+    def test_single_row(self):
+        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+
+        gl = GpuGridList(rows_visible=1, cell_height=WIDGET_HEIGHT)
+        h = gl.measure_height(1.0)
+        assert h == pytest.approx(WIDGET_HEIGHT)
+
+
+class TestGpuGridListDraw:
+    def _make_grid_list(self, n_items, rows=5, cols=1, active=-1):
+        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+
+        coll, items = _make_collection(n_items)
+        dataptr, active_dp = _make_dataptr(coll, active)
+
+        def draw_fn(layout, item, index, is_active):
+            layout.label(text=item.name)
+
+        gl = GpuGridList(
+            list_id="test_list",
+            cols=cols,
+            rows_visible=rows,
+            cell_height=WIDGET_HEIGHT,
+            dataptr=dataptr,
+            propname="my_collection",
+            active_dataptr=active_dp,
+            active_propname="my_collection_index",
+            draw_fn=draw_fn,
+        )
+        return gl, items, dataptr, active_dp
+
+    def test_draw_registers_hit_rects(self):
+        gl, items, _, _ = self._make_grid_list(10, rows=5)
+        panel = _make_panel()
+        panel.begin_frame()
+        h = gl.measure_height(1.0)
+        gl.rect = (0, 0, 300, h)
+
+        with patch("melvil.ui.gpu.grid_list.gpu"):
+            gl.draw(1.0, True, panel)
+
+        # Should register 5 hit rects (rows_visible = 5).
+        list_rows = [hr for hr in panel._hit_rects if hr.widget_type == "list_row"]
+        assert len(list_rows) == 5
+
+    def test_draw_hit_rects_have_correct_indices(self):
+        gl, items, _, _ = self._make_grid_list(10, rows=5)
+        panel = _make_panel()
+        panel.begin_frame()
+        h = gl.measure_height(1.0)
+        gl.rect = (0, 0, 300, h)
+
+        with patch("melvil.ui.gpu.grid_list.gpu"):
+            gl.draw(1.0, True, panel)
+
+        list_rows = [hr for hr in panel._hit_rects if hr.widget_type == "list_row"]
+        indices = [hr.kwargs["index"] for hr in list_rows]
+        assert indices == [0, 1, 2, 3, 4]
+
+    def test_draw_with_scroll_offset(self):
+        gl, items, _, _ = self._make_grid_list(10, rows=5)
+        panel = _make_panel()
+        scroll = panel._get_scroll_state("test_list")
+        scroll.offset = 3
+        panel.begin_frame()
+        h = gl.measure_height(1.0)
+        gl.rect = (0, 0, 300, h)
+
+        with patch("melvil.ui.gpu.grid_list.gpu"):
+            gl.draw(1.0, True, panel)
+
+        list_rows = [hr for hr in panel._hit_rects if hr.widget_type == "list_row"]
+        indices = [hr.kwargs["index"] for hr in list_rows]
+        assert indices == [3, 4, 5, 6, 7]
+
+    def test_draw_fewer_items_than_rows(self):
+        gl, items, _, _ = self._make_grid_list(3, rows=5)
+        panel = _make_panel()
+        panel.begin_frame()
+        h = gl.measure_height(1.0)
+        gl.rect = (0, 0, 300, h)
+
+        with patch("melvil.ui.gpu.grid_list.gpu"):
+            gl.draw(1.0, True, panel)
+
+        list_rows = [hr for hr in panel._hit_rects if hr.widget_type == "list_row"]
+        assert len(list_rows) == 3
+
+    def test_draw_calls_draw_fn_per_visible_item(self):
+        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+
+        coll, items = _make_collection(10)
+        dataptr, active_dp = _make_dataptr(coll, 2)
+        draw_calls = []
+
+        def draw_fn(layout, item, index, is_active):
+            draw_calls.append((item.name, index, is_active))
+
+        gl = GpuGridList(
+            list_id="cb_test",
+            rows_visible=3,
+            cell_height=WIDGET_HEIGHT,
+            dataptr=dataptr,
+            propname="my_collection",
+            active_dataptr=active_dp,
+            active_propname="my_collection_index",
+            draw_fn=draw_fn,
+        )
+        panel = _make_panel()
+        panel.begin_frame()
+        gl.rect = (0, 0, 300, gl.measure_height(1.0))
+
+        with patch("melvil.ui.gpu.grid_list.gpu"):
+            gl.draw(1.0, True, panel)
+
+        assert len(draw_calls) == 3
+        assert draw_calls[0] == ("item_0", 0, False)
+        assert draw_calls[1] == ("item_1", 1, False)
+        assert draw_calls[2] == ("item_2", 2, True)
+
+    def test_draw_no_draw_fn_does_nothing(self):
+        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+
+        coll, _ = _make_collection(5)
+        dataptr, active_dp = _make_dataptr(coll)
+        gl = GpuGridList(
+            list_id="no_fn",
+            rows_visible=3,
+            cell_height=WIDGET_HEIGHT,
+            dataptr=dataptr,
+            propname="my_collection",
+            active_dataptr=active_dp,
+            active_propname="my_collection_index",
+            draw_fn=None,
+        )
+        panel = _make_panel()
+        panel.begin_frame()
+        gl.rect = (0, 0, 300, 100)
+
+        # Should not raise.
+        gl.draw(1.0, True, panel)
+        assert len(panel._hit_rects) == 0
+
+    def test_draw_active_row_uses_selection_bg(self):
+        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+        from melvil.ui.gpu.theme import get_theme
+
+        coll, items = _make_collection(5)
+        dataptr, active_dp = _make_dataptr(coll, active_index=1)
+
+        def draw_fn(layout, item, index, is_active):
+            layout.label(text=item.name)
+
+        gl = GpuGridList(
+            list_id="sel_test",
+            rows_visible=3,
+            cell_height=WIDGET_HEIGHT,
+            dataptr=dataptr,
+            propname="my_collection",
+            active_dataptr=active_dp,
+            active_propname="my_collection_index",
+            draw_fn=draw_fn,
+        )
+        panel = _make_panel()
+        panel.begin_frame()
+        gl.rect = (0, 0, 300, gl.measure_height(1.0))
+
+        sel_bg = get_theme().selection_bg
+        with patch("melvil.ui.gpu.grid_list.draw_rect_rounded") as mock_rr:
+            gl.draw(1.0, True, panel)
+            found = any(
+                len(c.args) >= 6 and c.args[5] == sel_bg
+                for c in mock_rr.call_args_list
+            )
+            assert found, "selection_bg not used for active row"
+
+    def test_draw_grid_mode_multi_column(self):
+        """Grid mode with cols=2 registers correct hit rect indices."""
+        from melvil.ui.gpu import GpuGridList
+
+        coll, items = _make_collection(6)
+        dataptr, active_dp = _make_dataptr(coll)
+
+        def draw_fn(layout, item, index, is_active):
+            layout.label(text=item.name)
+
+        gl = GpuGridList(
+            list_id="grid_test",
+            cols=2,
+            rows_visible=2,
+            cell_height=40,
+            dataptr=dataptr,
+            propname="my_collection",
+            active_dataptr=active_dp,
+            active_propname="my_collection_index",
+            draw_fn=draw_fn,
+        )
+        panel = _make_panel()
+        panel.begin_frame()
+        gl.rect = (0, 0, 300, gl.measure_height(1.0))
+
+        with patch("melvil.ui.gpu.grid_list.gpu"):
+            gl.draw(1.0, True, panel)
+
+        list_rows = [hr for hr in panel._hit_rects if hr.widget_type == "list_row"]
+        # 2 rows × 2 cols = 4 cells visible.
+        assert len(list_rows) == 4
+        indices = [hr.kwargs["index"] for hr in list_rows]
+        assert indices == [0, 1, 2, 3]
+
+
+class TestGpuGridListScrollbar:
+    def test_scrollbar_drawn_when_items_exceed_rows(self):
+        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+        from melvil.ui.gpu.theme import get_theme
+
+        coll, _ = _make_collection(10)
+        dataptr, active_dp = _make_dataptr(coll)
+
+        def draw_fn(layout, item, index, is_active):
+            layout.label(text=item.name)
+
+        gl = GpuGridList(
+            list_id="sb_test",
+            rows_visible=5,
+            cell_height=WIDGET_HEIGHT,
+            dataptr=dataptr,
+            propname="my_collection",
+            active_dataptr=active_dp,
+            active_propname="my_collection_index",
+            draw_fn=draw_fn,
+        )
+        panel = _make_panel()
+        panel.begin_frame()
+        gl.rect = (0, 0, 300, gl.measure_height(1.0))
+
+        theme = get_theme()
+        with patch("melvil.ui.gpu.grid_list.draw_rect_rounded") as mock_rr:
+            gl.draw(1.0, True, panel)
+            sb_calls = [
+                c for c in mock_rr.call_args_list
+                if len(c.args) >= 6
+                and c.args[5] in (theme.scrollbar_bg, theme.scrollbar_handle)
+            ]
+            assert len(sb_calls) >= 2
+
+    def test_no_scrollbar_when_items_fit(self):
+        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+
+        coll, _ = _make_collection(3)
+        dataptr, active_dp = _make_dataptr(coll)
+
+        def draw_fn(layout, item, index, is_active):
+            layout.label(text=item.name)
+
+        gl = GpuGridList(
+            list_id="no_sb",
+            rows_visible=5,
+            cell_height=WIDGET_HEIGHT,
+            dataptr=dataptr,
+            propname="my_collection",
+            active_dataptr=active_dp,
+            active_propname="my_collection_index",
+            draw_fn=draw_fn,
+        )
+        panel = _make_panel()
+        panel.begin_frame()
+        gl.rect = (0, 0, 300, gl.measure_height(1.0))
+
+        from melvil.ui.gpu.theme import get_theme
+
+        theme = get_theme()
+        with patch("melvil.ui.gpu.grid_list.draw_rect_rounded") as mock_rr:
+            gl.draw(1.0, True, panel)
+            sb_calls = [
+                c for c in mock_rr.call_args_list
+                if len(c.args) >= 6
+                and c.args[5] in (theme.scrollbar_bg, theme.scrollbar_handle)
+            ]
+            assert len(sb_calls) == 0
+
+    def test_scrollbar_handle_proportional_height(self):
+        """Handle height is proportional to visible/total ratio."""
+        from melvil.ui.gpu import GpuGridList, ScrollState, WIDGET_HEIGHT
+
+        gl = GpuGridList(list_id="prop_test", rows_visible=5, cols=1)
+        scroll = ScrollState(offset=0, max_visible=5, total_items=10)
+        # 5/10 = 0.5 → handle should be ~50% of track height
+        track_h = 200.0
+        # Call _draw_scrollbar directly to check.
+        from melvil.ui.gpu.theme import get_theme
+
+        theme = get_theme()
+        with patch("melvil.ui.gpu.grid_list.draw_rect_rounded") as mock_rr:
+            gl._draw_scrollbar(0, 0, 8, track_h, scroll, 1.0, theme)
+            # Second call is the handle.
+            assert mock_rr.call_count == 2
+            handle_call = mock_rr.call_args_list[1]
+            handle_h = handle_call.args[3]  # height arg (x, y, w, h, r, color)
+            assert handle_h == pytest.approx(track_h * 0.5)
+
+
+# ---------------------------------------------------------------------------
+# GpuGridList event handling
+# ---------------------------------------------------------------------------
+
+
+class TestGpuGridListHandleEvent:
+    def _make_list_with_scroll(self, n_items=10, rows=5, offset=0):
+        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+
+        coll, items = _make_collection(n_items)
+        dataptr, active_dp = _make_dataptr(coll)
+        gl = GpuGridList(
+            list_id="ev_test",
+            rows_visible=rows,
+            cell_height=WIDGET_HEIGHT,
+            dataptr=dataptr,
+            propname="my_collection",
+            active_dataptr=active_dp,
+            active_propname="my_collection_index",
+        )
+        panel = _make_panel()
+        scroll = panel._get_scroll_state("ev_test")
+        scroll.offset = offset
+        return gl, panel, scroll
+
+    def test_scroll_down_increments_offset(self):
+        gl, panel, scroll = self._make_list_with_scroll(10, 5, offset=0)
+        consumed = gl.handle_event("SCROLL_DOWN", panel=panel)
+        assert consumed is True
+        assert scroll.offset == 1
+
+    def test_scroll_up_decrements_offset(self):
+        gl, panel, scroll = self._make_list_with_scroll(10, 5, offset=3)
+        consumed = gl.handle_event("SCROLL_UP", panel=panel)
+        assert consumed is True
+        assert scroll.offset == 2
+
+    def test_scroll_up_at_zero_not_consumed(self):
+        gl, panel, scroll = self._make_list_with_scroll(10, 5, offset=0)
+        consumed = gl.handle_event("SCROLL_UP", panel=panel)
+        assert consumed is False
+        assert scroll.offset == 0
+
+    def test_scroll_down_at_max_not_consumed(self):
+        gl, panel, scroll = self._make_list_with_scroll(10, 5, offset=5)
+        consumed = gl.handle_event("SCROLL_DOWN", panel=panel)
+        assert consumed is False
+        assert scroll.offset == 5
+
+    def test_scroll_offset_clamped(self):
+        gl, panel, scroll = self._make_list_with_scroll(10, 5, offset=0)
+        for _ in range(20):
+            gl.handle_event("SCROLL_DOWN", panel=panel)
+        assert scroll.offset == 5  # max(0, 10-5)
+
+    def test_unknown_event_not_consumed(self):
+        gl, panel, scroll = self._make_list_with_scroll(10, 5, offset=0)
+        consumed = gl.handle_event("CLICK", panel=panel)
+        assert consumed is False
+
+
+# ---------------------------------------------------------------------------
+# List drawer registry
+# ---------------------------------------------------------------------------
+
+
+class TestListDrawerRegistry:
+    def test_register_stores_callback(self):
+        panel = _make_panel()
+        fn = lambda layout, item, index, is_active: None
+        panel.register_list_drawer("MY_UL_list", fn)
+        assert panel._list_drawers["MY_UL_list"] is fn
+
+    def test_template_list_calls_registered_callback(self):
+        from melvil.ui.gpu import GpuGridList
+
+        panel = _make_panel()
+        calls = []
+
+        def draw_fn(layout, item, index, is_active):
+            calls.append((item.name, index, is_active))
+
+        panel.register_list_drawer("MY_UL_list", draw_fn)
+
+        coll, items = _make_collection(5)
+        dataptr, active_dp = _make_dataptr(coll, active_index=2)
+
+        root = panel.begin_frame()
+        root.template_list(
+            "MY_UL_list", "test",
+            dataptr, "my_collection",
+            active_dp, "my_collection_index",
+            rows=3,
+        )
+        # The child should be a GpuGridList.
+        assert len(root._children) == 1
+        assert isinstance(root._children[0], GpuGridList)
+
+        # Run a frame to trigger draw.
+        with patch("melvil.ui.gpu.grid_list.gpu"):
+            panel.end_frame()
+
+        assert len(calls) == 3
+        assert calls[0] == ("item_0", 0, False)
+        assert calls[1] == ("item_1", 1, False)
+        assert calls[2] == ("item_2", 2, True)
+
+    def test_unregistered_listtype_appends_grid_list_with_none_fn(self):
+        """Unregistered listtype creates a GpuGridList with draw_fn=None."""
+        from melvil.ui.gpu import GpuGridList
+
+        panel = _make_panel()
+        coll, _ = _make_collection(5)
+        dataptr, active_dp = _make_dataptr(coll)
+
+        root = panel.begin_frame()
+        root.template_list(
+            "UNKNOWN_UL_list", "test",
+            dataptr, "my_collection",
+            active_dp, "my_collection_index",
+        )
+        assert len(root._children) == 1
+        child = root._children[0]
+        assert isinstance(child, GpuGridList)
+        assert child.draw_fn is None
+
+
+# ---------------------------------------------------------------------------
+# Scissor clipping
+# ---------------------------------------------------------------------------
+
+
+class TestScissorClipping:
+    def test_scissor_enabled_during_draw(self):
+        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+
+        coll, _ = _make_collection(10)
+        dataptr, active_dp = _make_dataptr(coll)
+
+        def draw_fn(layout, item, index, is_active):
+            layout.label(text=item.name)
+
+        gl = GpuGridList(
+            list_id="scissor_test",
+            rows_visible=5,
+            cell_height=WIDGET_HEIGHT,
+            dataptr=dataptr,
+            propname="my_collection",
+            active_dataptr=active_dp,
+            active_propname="my_collection_index",
+            draw_fn=draw_fn,
+        )
+        panel = _make_panel()
+        panel.begin_frame()
+        gl.rect = (10, 20, 300, gl.measure_height(1.0))
+
+        mock_gpu = MagicMock()
+        with patch("melvil.ui.gpu.grid_list.gpu", mock_gpu):
+            gl.draw(1.0, True, panel)
+
+        # Scissor test should have been enabled then disabled.
+        calls = mock_gpu.state.scissor_test_set.call_args_list
+        assert len(calls) >= 2
+        assert calls[0] == call(True)
+        assert calls[-1] == call(False)
+
+    def test_scissor_rect_matches_content_area(self):
+        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT, SCROLLBAR_WIDTH
+
+        coll, _ = _make_collection(10)
+        dataptr, active_dp = _make_dataptr(coll)
+
+        def draw_fn(layout, item, index, is_active):
+            layout.label(text=item.name)
+
+        gl = GpuGridList(
+            list_id="scissor_rect_test",
+            rows_visible=5,
+            cell_height=WIDGET_HEIGHT,
+            dataptr=dataptr,
+            propname="my_collection",
+            active_dataptr=active_dp,
+            active_propname="my_collection_index",
+            draw_fn=draw_fn,
+        )
+        panel = _make_panel()
+        panel.begin_frame()
+        h = gl.measure_height(1.0)
+        gl.rect = (10, 20, 300, h)
+
+        mock_gpu = MagicMock()
+        with patch("melvil.ui.gpu.grid_list.gpu", mock_gpu):
+            gl.draw(1.0, True, panel)
+
+        # Scissor rect should be the content area (excluding scrollbar).
+        scissor_call = mock_gpu.state.scissor_set.call_args
+        # 10 items > 5 rows → scrollbar present.
+        expected_w = 300 - SCROLLBAR_WIDTH
+        assert scissor_call == call(10, 20, int(expected_w), int(h))
+
+
+# ---------------------------------------------------------------------------
+# Event bubbling (dispatch_event)
+# ---------------------------------------------------------------------------
+
+
+class TestEventBubbling:
+    def test_dispatch_to_grid_list(self):
+        """Scroll event dispatched to GpuGridList under cursor is consumed."""
+        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+
+        coll, _ = _make_collection(10)
+        dataptr, active_dp = _make_dataptr(coll)
+
+        def draw_fn(layout, item, index, is_active):
+            layout.label(text=item.name)
+
+        panel = _make_panel()
+        panel.register_list_drawer("MY_UL", draw_fn)
+
+        root = panel.begin_frame()
+        root.template_list(
+            "MY_UL", "bubble_test",
+            dataptr, "my_collection",
+            active_dp, "my_collection_index",
+            rows=5,
+        )
+
+        with patch("melvil.ui.gpu.grid_list.gpu"):
+            panel.end_frame()
+
+        # Grid list should have a rect after layout.
+        grid_list = root._children[0]
+        assert grid_list.rect is not None
+
+        # Dispatch scroll event inside the grid list rect.
+        gx, gy, gw, gh = grid_list.rect
+        consumed = panel.dispatch_event(
+            "SCROLL_DOWN", gx + 5, gy + 5,
+        )
+        assert consumed is True
+        scroll = panel._get_scroll_state("bubble_test")
+        assert scroll.offset == 1
+
+    def test_dispatch_outside_panel_not_consumed(self):
+        """Event outside any widget rect is not consumed."""
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.label(text="hello")
+        panel.end_frame()
+
+        consumed = panel.dispatch_event("SCROLL_DOWN", -999, -999)
+        assert consumed is False
+
+    def test_dispatch_to_non_handling_widget(self):
+        """Event dispatched to a label (non-handler) is not consumed."""
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.label(text="hello")
+        panel.end_frame()
+
+        # Label's rect should be inside the panel.
+        label = root._children[0]
+        assert label.rect is not None
+        lx, ly, lw, lh = label.rect
+        consumed = panel.dispatch_event("SCROLL_DOWN", lx + 1, ly + 1)
+        assert consumed is False
+
+    def test_bubbling_reaches_parent(self):
+        """Event on a child widget bubbles to parent layout if unhandled.
+
+        Here we verify the path includes parent layouts.
+        """
+        panel = _make_panel()
+        root = panel.begin_frame()
+        col = root.column()
+        col.label(text="nested")
+        panel.end_frame()
+
+        label = col._children[0]
+        assert label.rect is not None
+        lx, ly, lw, lh = label.rect
+
+        # Build the hit path manually.
+        path: list = []
+        panel._build_hit_path(panel._root, lx + 1, ly + 1, path)
+        # Path should contain: root → col → label.
+        assert len(path) >= 3
+        assert path[0] is root
+        assert path[1] is col
+        assert path[-1] is label
+
+    def test_dispatch_no_root_returns_false(self):
+        panel = _make_panel()
+        consumed = panel.dispatch_event("SCROLL_DOWN", 0, 0)
+        assert consumed is False
+
+
+# ---------------------------------------------------------------------------
+# GpuWidget.handle_event default
+# ---------------------------------------------------------------------------
+
+
+class TestWidgetHandleEvent:
+    def test_default_returns_false(self):
+        from melvil.ui.gpu.widget import GpuWidget
+
+        class ConcreteWidget(GpuWidget):
+            def measure_height(self, s):
+                return 20
+
+            def draw(self, s, parent_enabled, panel):
+                pass
+
+        w = ConcreteWidget()
+        panel = _make_panel()
+        assert w.handle_event("SCROLL_DOWN", panel=panel) is False
+
+
+# ---------------------------------------------------------------------------
+# GpuLayout.handle_event default
+# ---------------------------------------------------------------------------
+
+
+class TestLayoutHandleEvent:
+    def test_default_returns_false(self):
+        from melvil.ui.gpu import GpuLayout
+
+        panel = _make_panel()
+        layout = GpuLayout(panel)
+        assert layout.handle_event("SCROLL_DOWN", panel=panel) is False
+
+
+# ---------------------------------------------------------------------------
+# Panel scroll state management
+# ---------------------------------------------------------------------------
+
+
+class TestPanelScrollState:
+    def test_get_creates_new_state(self):
+        from melvil.ui.gpu import ScrollState
+
+        panel = _make_panel()
+        ss = panel._get_scroll_state("my_list")
+        assert isinstance(ss, ScrollState)
+        assert ss.offset == 0
+
+    def test_get_returns_same_instance(self):
+        panel = _make_panel()
+        ss1 = panel._get_scroll_state("my_list")
+        ss1.offset = 7
+        ss2 = panel._get_scroll_state("my_list")
+        assert ss1 is ss2
+        assert ss2.offset == 7
+
+    def test_different_ids_different_states(self):
+        panel = _make_panel()
+        a = panel._get_scroll_state("list_a")
+        b = panel._get_scroll_state("list_b")
+        a.offset = 5
+        assert b.offset == 0
+
+    def test_detach_clears_scroll_states(self):
+        import bpy
+
+        panel = _make_panel()
+        panel.attach(MagicMock())
+        panel._get_scroll_state("test").offset = 5
+        panel.detach()
+        assert len(panel._scroll_states) == 0

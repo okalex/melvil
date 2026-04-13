@@ -13,10 +13,20 @@ import bpy
 from bpy.props import EnumProperty, StringProperty
 
 from ..ui.gpu import GpuPanel, get_region_offsets
+from ..ui import scene_props as _scene_props
+from ..ui.draw_helpers import load_all_tags
 from .open_browser import _TYPE_ENUM_ITEMS, _get_kit_filter_items
+from .tag_filter_toggle import get_active_tag_filters
 
 _PANEL_MARGIN_X = 0
 _PANEL_MARGIN_Y = 18
+
+
+def _draw_filter_tag_item(layout, item, index, is_active):
+    """Draw a single tag-filter row — mirrors MELVIL_UL_filter_tags.draw_item."""
+    row = layout.row(align=True)
+    icon = "RADIOBUT_ON" if item.is_active else "RADIOBUT_OFF"
+    row.label(text=item.name, icon=icon)
 
 
 class MELVIL_OT_gpu_browser(bpy.types.Operator):
@@ -74,6 +84,9 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
             anchor=self._compute_anchor,
             build_fn=self._build,
         )
+        self._panel.register_list_drawer(
+            "MELVIL_UL_filter_tags", _draw_filter_tag_item,
+        )
         self._panel.attach(context.area)
         context.window_manager.modal_handler_add(self)
         context.area.tag_redraw()
@@ -125,7 +138,35 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
         # Tag filter section.
         tag_header = left.row(align=True)
         tag_header.label(text="Tags", icon="TAG")
-        # tag template_list — not yet implemented
+
+        wm = bpy.context.window_manager
+        try:
+            visible_tags = load_all_tags()
+        except Exception:  # noqa: BLE001
+            visible_tags = []
+
+        if visible_tags:
+            active_tag_ids = get_active_tag_filters(wm)
+            active_set = set(active_tag_ids)
+            _scene_props._rebuilding_filter_tags = True
+            try:
+                wm.melvil_filter_tags.clear()
+                for _ftag in visible_tags:
+                    _item = wm.melvil_filter_tags.add()
+                    _item.name = _ftag["name"]
+                    _item.tag_id = _ftag["id"]
+                    _item.is_active = _ftag["id"] in active_set
+                wm.melvil_filter_tags_index = -1
+            finally:
+                _scene_props._rebuilding_filter_tags = False
+
+            left.template_list(
+                "MELVIL_UL_filter_tags", "gpu_tag_filter",
+                wm, "melvil_filter_tags",
+                wm, "melvil_filter_tags_index",
+                rows=min(len(visible_tags), 8),
+            )
+
         tag_side = left.column(align=True)
         tag_side.operator("melvil.tag_create", text="New", icon="ADD")
         delete_col = tag_side.column()
@@ -186,6 +227,20 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
             self._cleanup(context)
             return {"CANCELLED"}
 
+        # -- Scroll events → dispatch through widget tree --------------------
+        if (
+            event.type in {"WHEELUPMOUSE", "WHEELDOWNMOUSE"}
+            and event.value == "PRESS"
+            and self._panel is not None
+        ):
+            ev = "SCROLL_UP" if event.type == "WHEELUPMOUSE" else "SCROLL_DOWN"
+            self._panel.dispatch_event(
+                ev, event.mouse_region_x, event.mouse_region_y,
+            )
+            if context.area is not None:
+                context.area.tag_redraw()
+            return {"RUNNING_MODAL"}
+
         if event.type == "LEFTMOUSE" and event.value == "PRESS":
             if self._panel is not None:
                 if not self._panel.is_inside(
@@ -220,6 +275,18 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
                             setattr(data, hit.id, value)
                         except Exception:  # noqa: BLE001
                             pass
+                    return {"RUNNING_MODAL"}
+                if hit is not None and hit.widget_type == "list_row":
+                    data = hit.kwargs.get("active_dataptr")
+                    prop = hit.kwargs.get("active_propname")
+                    idx = hit.kwargs.get("index")
+                    if data is not None and prop is not None and idx is not None:
+                        try:
+                            setattr(data, prop, idx)
+                        except Exception:  # noqa: BLE001
+                            pass
+                    if context.area is not None:
+                        context.area.tag_redraw()
                     return {"RUNNING_MODAL"}
 
         if context.area is not None:
