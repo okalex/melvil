@@ -137,6 +137,7 @@ class TestModal:
             for i in range(30)
         ]
         bpy.types.SpaceView3D.draw_handler_remove.reset_mock()
+        bpy.ops.melvil.load_asset.reset_mock()
 
     def _make_ctx(self, scroll_offset=0, display_mode="GRID"):
         """Build a mock context with a melvil_grid_scroll PropertyGroup stub."""
@@ -145,6 +146,7 @@ class TestModal:
         scroll_props.scroll_offset = scroll_offset
         scroll_props.selected_id = ""
         scroll_props.hovered_index = -1
+        scroll_props.hovered_button_index = -1
         scroll_props.display_mode = display_mode
         ctx.window_manager.melvil_grid_scroll = scroll_props
         ctx.region.x = 0
@@ -515,6 +517,103 @@ class TestModal:
         op.modal(ctx, event)
 
         assert ctx.window_manager.melvil_grid_scroll.scroll_offset == 26
+
+    def test_button_click_calls_load_asset(self):
+        from melvil.ops.open_test_grid import MELVIL_OT_open_test_grid
+        import melvil.ui.grid_list as grid_list
+
+        grid_list._card_rects = [(0, 0, 200, 200, "id-0")]
+        grid_list._button_rects = [(10, 10, 100, 20, "id-load-me")]
+
+        ctx = self._make_ctx()
+        op = MELVIL_OT_open_test_grid()
+        event = MagicMock()
+        event.type = "LEFTMOUSE"
+        event.value = "PRESS"
+        event.mouse_x = 50
+        event.mouse_y = 15
+
+        result = op.modal(ctx, event)
+
+        assert result == {"RUNNING_MODAL"}
+        bpy.ops.melvil.load_asset.assert_called_once_with(asset_id="id-load-me")
+
+    def test_button_click_takes_priority_over_card_select(self):
+        from melvil.ops.open_test_grid import MELVIL_OT_open_test_grid
+        import melvil.ui.grid_list as grid_list
+
+        grid_list._card_rects = [(0, 0, 200, 200, "id-card")]
+        grid_list._button_rects = [(10, 10, 100, 20, "id-btn")]
+
+        ctx = self._make_ctx()
+        op = MELVIL_OT_open_test_grid()
+        event = MagicMock()
+        event.type = "LEFTMOUSE"
+        event.value = "PRESS"
+        event.mouse_x = 50
+        event.mouse_y = 15
+
+        op.modal(ctx, event)
+
+        # Card selection should NOT have been changed.
+        assert ctx.window_manager.melvil_grid_scroll.selected_id == ""
+
+    def test_card_click_when_not_on_button(self):
+        from melvil.ops.open_test_grid import MELVIL_OT_open_test_grid
+        import melvil.ui.grid_list as grid_list
+
+        grid_list._card_rects = [(0, 0, 200, 200, "id-card")]
+        grid_list._button_rects = [(10, 10, 100, 20, "id-btn")]
+
+        ctx = self._make_ctx()
+        op = MELVIL_OT_open_test_grid()
+        event = MagicMock()
+        event.type = "LEFTMOUSE"
+        event.value = "PRESS"
+        event.mouse_x = 150
+        event.mouse_y = 150
+
+        op.modal(ctx, event)
+
+        assert ctx.window_manager.melvil_grid_scroll.selected_id == "id-card"
+        bpy.ops.melvil.load_asset.assert_not_called()
+
+    def test_mousemove_updates_hovered_button_index(self):
+        from melvil.ops.open_test_grid import MELVIL_OT_open_test_grid
+        import melvil.ui.grid_list as grid_list
+
+        grid_list._card_rects = [(0, 0, 200, 200, "id-0")]
+        grid_list._button_rects = [(10, 10, 100, 20, "id-0")]
+
+        ctx = self._make_ctx()
+        op = MELVIL_OT_open_test_grid()
+        event = MagicMock()
+        event.type = "MOUSEMOVE"
+        event.mouse_x = 50
+        event.mouse_y = 15
+
+        op.modal(ctx, event)
+
+        assert ctx.window_manager.melvil_grid_scroll.hovered_button_index == 0
+
+    def test_mousemove_clears_hovered_button_when_off(self):
+        from melvil.ops.open_test_grid import MELVIL_OT_open_test_grid
+        import melvil.ui.grid_list as grid_list
+
+        grid_list._card_rects = [(0, 0, 200, 200, "id-0")]
+        grid_list._button_rects = [(10, 10, 100, 20, "id-0")]
+
+        ctx = self._make_ctx()
+        ctx.window_manager.melvil_grid_scroll.hovered_button_index = 0
+        op = MELVIL_OT_open_test_grid()
+        event = MagicMock()
+        event.type = "MOUSEMOVE"
+        event.mouse_x = 150
+        event.mouse_y = 150
+
+        op.modal(ctx, event)
+
+        assert ctx.window_manager.melvil_grid_scroll.hovered_button_index == -1
 
 
 class TestGenerateFakeItems:

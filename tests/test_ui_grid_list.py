@@ -169,8 +169,8 @@ class TestDrawGrid:
         items = [_make_item(f"id-{i}", f"Item {i}", "MESH") for i in range(3)]
         draw_grid(_make_region(), items, cols=3, rows_visible=4)
 
-        # 2 blf.draw calls per item: name + type label
-        assert blf.draw.call_count == 6
+        # 3 blf.draw calls per item: name + type label + button label
+        assert blf.draw.call_count == 9
 
     def test_card_rects_store_item_id_not_index(self):
         from melvil.ui import grid_list
@@ -464,11 +464,11 @@ class TestDrawGridSelectionAndHover:
 
         colors = self._get_draw_rect_colors()
         # First draw_rect call is the background panel; cards start from index 1.
-        # Per card: bg, border, preview placeholder = 3 color calls.
+        # Per card: bg, border, preview placeholder, button bg = 4 color calls.
         # Card 0 (selected) should use COLOR_CARD_SELECTED.
         assert colors[1] == COLOR_CARD_SELECTED
         # Card 1 (not selected) should use COLOR_CARD_BG.
-        assert colors[4] == COLOR_CARD_BG
+        assert colors[5] == COLOR_CARD_BG
 
     def test_hovered_card_uses_hover_color(self):
         import gpu
@@ -485,11 +485,11 @@ class TestDrawGridSelectionAndHover:
         draw_grid(_make_region(), items, cols=2, rows_visible=4, hovered_index=1)
 
         colors = self._get_draw_rect_colors()
-        # Per card: bg, border, preview placeholder = 3 color calls.
+        # Per card: bg, border, preview placeholder, button bg = 4 color calls.
         # Card 0 (not hovered) → COLOR_CARD_BG
         assert colors[1] == COLOR_CARD_BG
         # Card 1 (hovered) → COLOR_CARD_HOVER
-        assert colors[4] == COLOR_CARD_HOVER
+        assert colors[5] == COLOR_CARD_HOVER
 
     def test_selected_takes_priority_over_hovered(self):
         import gpu
@@ -679,8 +679,8 @@ class TestDrawGridListMode:
         items = [_make_item(f"id-{i}", f"Item {i}", "MESH") for i in range(3)]
         draw_grid(_make_region(), items, cols=1, rows_visible=10)
 
-        # 2 blf.draw calls per item: name + type label
-        assert blf.draw.call_count == 6
+        # 3 blf.draw calls per item: name + type label + button label
+        assert blf.draw.call_count == 9
 
     def test_list_preview_callback_called(self):
         from melvil.ui.grid_list import draw_grid
@@ -727,3 +727,145 @@ class TestDrawGridListMode:
         draw_grid(_make_region(), items, cols=3, rows_visible=4)
 
         assert grid_list._card_rects[0][2] == CARD_W
+
+
+# ---------------------------------------------------------------------------
+# Button rects & button_hit_test
+# ---------------------------------------------------------------------------
+
+
+class TestDrawGridButtons:
+    def test_button_rects_populated_per_visible_item(self):
+        from melvil.ui import grid_list
+        from melvil.ui.grid_list import draw_grid
+
+        items = [_make_item(f"id-{i}", f"Item {i}", "MESH") for i in range(6)]
+        draw_grid(_make_region(), items, cols=3, rows_visible=4)
+
+        assert len(grid_list._button_rects) == 6
+        ids = [r[4] for r in grid_list._button_rects]
+        assert ids == [f"id-{i}" for i in range(6)]
+
+    def test_button_rects_cleared_on_empty(self):
+        from melvil.ui import grid_list
+        from melvil.ui.grid_list import draw_grid
+
+        grid_list._button_rects = [("stale",)]
+        draw_grid(_make_region(), [], cols=3, rows_visible=4)
+
+        assert grid_list._button_rects == []
+
+    def test_button_inside_card_bounds(self):
+        from melvil.ui import grid_list
+        from melvil.ui.grid_list import draw_grid
+
+        items = [_make_item("id-0", "Item", "MESH")]
+        draw_grid(_make_region(), items, cols=1, rows_visible=4)
+
+        card = grid_list._card_rects[0]
+        btn = grid_list._button_rects[0]
+        cx, cy, cw, ch = card[0], card[1], card[2], card[3]
+        bx, by, bw, bh = btn[0], btn[1], btn[2], btn[3]
+
+        assert bx >= cx
+        assert by >= cy
+        assert bx + bw <= cx + cw
+        assert by + bh <= cy + ch
+
+    def test_button_drawn_with_button_bg_color(self):
+        import gpu
+        from melvil.ui.grid_list import draw_grid, COLOR_BUTTON_BG
+
+        gpu.shader.from_builtin.return_value.uniform_float.reset_mock()
+        items = [_make_item("id-0", "Item", "MESH")]
+        draw_grid(_make_region(), items, cols=1, rows_visible=4)
+
+        colors = [
+            c.args[1]
+            for c in gpu.shader.from_builtin.return_value.uniform_float.call_args_list
+            if c.args[0] == "color"
+        ]
+        assert COLOR_BUTTON_BG in colors
+
+    def test_hovered_button_uses_hover_color(self):
+        import gpu
+        from melvil.ui.grid_list import draw_grid, COLOR_BUTTON_HOVER
+
+        gpu.shader.from_builtin.return_value.uniform_float.reset_mock()
+        items = [_make_item("id-0", "Item", "MESH")]
+        draw_grid(
+            _make_region(), items, cols=1, rows_visible=4,
+            hovered_button_index=0,
+        )
+
+        colors = [
+            c.args[1]
+            for c in gpu.shader.from_builtin.return_value.uniform_float.call_args_list
+            if c.args[0] == "color"
+        ]
+        assert COLOR_BUTTON_HOVER in colors
+
+    def test_button_label_drawn(self):
+        import blf
+        from melvil.ui.grid_list import draw_grid
+
+        blf.draw.reset_mock()
+        items = [_make_item("id-0", "Item", "MESH")]
+        draw_grid(_make_region(), items, cols=1, rows_visible=4)
+
+        labels = [c.args[1] for c in blf.draw.call_args_list]
+        assert "Load" in labels
+
+    def test_button_rects_in_list_mode(self):
+        from melvil.ui import grid_list
+        from melvil.ui.grid_list import draw_grid
+
+        items = [_make_item(f"id-{i}", f"Item {i}", "MESH") for i in range(3)]
+        draw_grid(_make_region(), items, cols=1, rows_visible=10)
+
+        assert len(grid_list._button_rects) == 3
+
+
+class TestButtonHitTest:
+    def test_hit_inside_button(self):
+        from melvil.ui import grid_list
+        from melvil.ui.grid_list import button_hit_test
+
+        grid_list._button_rects = [
+            (20, 100, 100, 20, "id-abc"),
+        ]
+
+        result = button_hit_test(50, 110)
+        assert result == ("id-abc", 0)
+
+    def test_miss_outside_button(self):
+        from melvil.ui import grid_list
+        from melvil.ui.grid_list import button_hit_test
+
+        grid_list._button_rects = [
+            (20, 100, 100, 20, "id-abc"),
+        ]
+
+        result = button_hit_test(5, 5)
+        assert result is None
+
+    def test_empty_button_rects(self):
+        from melvil.ui import grid_list
+        from melvil.ui.grid_list import button_hit_test
+
+        grid_list._button_rects = []
+
+        result = button_hit_test(50, 50)
+        assert result is None
+
+    def test_hit_correct_button_among_many(self):
+        from melvil.ui import grid_list
+        from melvil.ui.grid_list import button_hit_test
+
+        grid_list._button_rects = [
+            (20, 100, 100, 20, "id-first"),
+            (20, 200, 100, 20, "id-second"),
+        ]
+
+        result = button_hit_test(50, 210)
+        assert result == ("id-second", 1)

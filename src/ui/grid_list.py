@@ -31,6 +31,8 @@ GRID_ORIGIN_X = 10
 GRID_ORIGIN_Y = 10
 PREVIEW_H = 80
 LIST_CARD_H = 40
+BUTTON_H = 20
+BUTTON_PAD = 2
 
 COLOR_CARD_BG = (0.18, 0.18, 0.18, 1.0)
 COLOR_CARD_HOVER = (0.28, 0.28, 0.28, 1.0)
@@ -40,6 +42,9 @@ COLOR_GRID_BG = (0.12, 0.12, 0.12, 0.90)
 COLOR_PREVIEW_BG = (0.14, 0.14, 0.14, 1.0)
 COLOR_TEXT_PRIMARY = (0.90, 0.90, 0.90, 1.0)
 COLOR_TEXT_SECONDARY = (0.60, 0.60, 0.60, 1.0)
+COLOR_BUTTON_BG = (0.25, 0.25, 0.25, 1.0)
+COLOR_BUTTON_HOVER = (0.35, 0.35, 0.35, 1.0)
+COLOR_BUTTON_TEXT = (0.85, 0.85, 0.85, 1.0)
 
 FONT_ID = 0
 FONT_SIZE_PRIMARY = 12
@@ -54,6 +59,9 @@ _TYPE_LABELS: dict[str, str] = {
 # Card rect cache — written by draw_grid, read by modal operator for hit testing.
 # Each entry: (x, y, w, h, item_id)
 _card_rects: list[tuple[float, float, float, float, str]] = []
+
+# Button rect cache — same shape as _card_rects.
+_button_rects: list[tuple[float, float, float, float, str]] = []
 
 
 # ---------------------------------------------------------------------------
@@ -123,6 +131,7 @@ def draw_grid(
     offset_x: int = 0,
     offset_y: int = 0,
     get_preview_texture=None,
+    hovered_button_index: int = -1,
 ) -> int:
     """Draw a card grid into the current GPU context and return pixel height.
 
@@ -156,14 +165,18 @@ def draw_grid(
         Optional callback ``(item_dict) -> gpu_texture | None``.  Called
         once per visible card.  When it returns a texture, the preview
         area shows the texture; otherwise a placeholder rect is drawn.
+    hovered_button_index:
+        Flat index (into the *visible* slice) of the hovered button, or
+        ``-1`` for none.
 
     Returns
     -------
     int
         Total pixel height consumed by the grid area (including padding).
     """
-    global _card_rects
+    global _card_rects, _button_rects
     _card_rects = []
+    _button_rects = []
 
     if not items:
         return 0
@@ -193,6 +206,8 @@ def draw_grid(
     fsp = round(FONT_SIZE_PRIMARY * scale)
     fss = round(FONT_SIZE_SECONDARY * scale)
     ph = round(PREVIEW_H * scale)
+    bh = round(BUTTON_H * scale)
+    bp = round(BUTTON_PAD * scale)
 
     # In list mode the card spans the full grid-panel width.
     grid_cols_for_width = cols if not is_list else 3
@@ -289,6 +304,20 @@ def draw_grid(
             )
             blf.draw(FONT_ID, type_label)
 
+        # Load button — bottom of card in both modes.
+        btn_w = cw - 2 * cp
+        btn_x = x + cp
+        btn_y = y + bp
+        btn_bg = COLOR_BUTTON_HOVER if slot_idx == hovered_button_index else COLOR_BUTTON_BG
+        draw_rect(btn_x, btn_y, btn_w, bh, btn_bg)
+        _button_rects.append((btn_x, btn_y, btn_w, bh, item["id"]))
+
+        btn_label = "Load"
+        blf.size(FONT_ID, fss)
+        blf.color(FONT_ID, *COLOR_BUTTON_TEXT)
+        blf.position(FONT_ID, btn_x + (btn_w - len(btn_label) * fss * 0.6) / 2, btn_y + bp + 1, 0)
+        blf.draw(FONT_ID, btn_label)
+
     gpu.state.blend_set('NONE')
 
     return actual_rows * (ch + cg) + oy * 2
@@ -337,6 +366,17 @@ def is_over_grid(mx: float, my: float) -> bool:
     return gx <= mx <= gx2 and gy <= my <= gy2
 
 
+def button_hit_test(mx: float, my: float) -> tuple[str, int] | None:
+    """Return ``(item_id, slot_index)`` for the button under (*mx*, *my*).
+
+    Same contract as :func:`hit_test` but checks ``_button_rects``.
+    """
+    for slot_idx, (x, y, w, h, item_id) in enumerate(_button_rects):
+        if x <= mx <= x + w and y <= my <= y + h:
+            return (item_id, slot_idx)
+    return None
+
+
 # ---------------------------------------------------------------------------
 # PropertyGroup — transient scroll / selection state
 # ---------------------------------------------------------------------------
@@ -360,6 +400,12 @@ class MelvilGridScrollProps(bpy.types.PropertyGroup):
     hovered_index: IntProperty(
         name="Hovered Index",
         description="Flat index of the hovered card in the visible slice, or -1",
+        default=-1,
+        options={"HIDDEN", "SKIP_SAVE"},
+    )
+    hovered_button_index: IntProperty(
+        name="Hovered Button Index",
+        description="Flat index of the hovered button in the visible slice, or -1",
         default=-1,
         options={"HIDDEN", "SKIP_SAVE"},
     )
@@ -405,7 +451,3 @@ class MELVIL_OT_grid_scroll_nav(bpy.types.Operator):
         if context.area is not None:
             context.area.tag_redraw()
         return {"FINISHED"}
-
-
-# TODO Phase 3: Selection & hover highlight colors
-# TODO Phase 4: Preview image rendering

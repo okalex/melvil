@@ -20,7 +20,13 @@ from pathlib import Path
 import bpy
 import gpu
 
-from ..ui.grid_list import compute_max_offset, draw_grid, hit_test, is_over_grid
+from ..ui.grid_list import (
+    button_hit_test,
+    compute_max_offset,
+    draw_grid,
+    hit_test,
+    is_over_grid,
+)
 
 _GRID_COLS = 3
 _GRID_ROWS_VISIBLE = 4
@@ -117,6 +123,7 @@ def _draw_callback(state: dict) -> None:
         offset_x=offset_x,
         offset_y=offset_y,
         get_preview_texture=_get_test_preview_texture,
+        hovered_button_index=scroll_props.hovered_button_index,
     )
 
 
@@ -167,6 +174,7 @@ class MELVIL_OT_open_test_grid(bpy.types.Operator):
         scroll_props.scroll_offset = 0
         scroll_props.selected_id = ""
         scroll_props.hovered_index = -1
+        scroll_props.hovered_button_index = -1
         scroll_props.display_mode = "GRID"
 
         _draw_handle = bpy.types.SpaceView3D.draw_handler_add(
@@ -204,13 +212,31 @@ class MELVIL_OT_open_test_grid(bpy.types.Operator):
             scroll_props = context.window_manager.melvil_grid_scroll
             result = hit_test(mx, my)
             new_hover = result[1] if result is not None else -1
+            btn_result = button_hit_test(mx, my)
+            new_btn_hover = btn_result[1] if btn_result is not None else -1
+            changed = False
             if new_hover != scroll_props.hovered_index:
                 scroll_props.hovered_index = new_hover
+                changed = True
+            if new_btn_hover != scroll_props.hovered_button_index:
+                scroll_props.hovered_button_index = new_btn_hover
+                changed = True
+            if changed:
                 context.area.tag_redraw()
             return {"PASS_THROUGH"}
 
-        # Click selection — select the card under the cursor.
+        # Button click — check before card selection so buttons take priority.
         if over and event.type == 'LEFTMOUSE' and event.value == 'PRESS':
+            btn_result = button_hit_test(mx, my)
+            if btn_result is not None:
+                asset_id = btn_result[0]
+                try:
+                    bpy.ops.melvil.load_asset(asset_id=asset_id)
+                except RuntimeError as exc:
+                    self.report({"WARNING"}, str(exc))
+                return {"RUNNING_MODAL"}
+
+            # Card selection — select the card under the cursor.
             scroll_props = context.window_manager.melvil_grid_scroll
             result = hit_test(mx, my)
             if result is not None:
