@@ -11,12 +11,16 @@ See projects/006-gpu-ui.md for the full design spec.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any, Callable
 
 import bpy
 import gpu
 import blf
 from gpu_extras.batch import batch_for_shader
+
+if TYPE_CHECKING:
+    pass
 
 
 # ---------------------------------------------------------------------------
@@ -388,3 +392,460 @@ def measure_text(text: str, size: float) -> tuple[float, float]:
     """Return ``(width, height)`` of *text* at *size* without drawing it."""
     blf.size(FONT_ID, size)
     return blf.dimensions(FONT_ID, text)
+
+
+# ---------------------------------------------------------------------------
+# Hit testing
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class HitResult:
+    """Describes the interactive widget found by :meth:`GpuPanel.hit_test`."""
+
+    widget_type: str  # "operator", "prop", "list_row", "button", "text_field"
+    id: str
+    kwargs: dict[str, Any]
+    rect: tuple[float, float, float, float]  # (x, y, w, h)
+
+
+# ---------------------------------------------------------------------------
+# Layout-tree leaf nodes
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class _Separator:
+    """Vertical (or horizontal) spacer inserted by :meth:`GpuLayout.separator`."""
+
+    factor: float = 1.0
+
+
+# ---------------------------------------------------------------------------
+# GpuLayout
+# ---------------------------------------------------------------------------
+
+
+class GpuLayout:
+    """Immediate-mode layout container mirroring ``bpy.types.UILayout``.
+
+    Callers build a widget tree each frame by calling container methods
+    (``row``, ``column``, ``split``, ``box``, ``separator``).  The tree is
+    then walked in a **measure** pass (bottom-up heights), a **position**
+    pass (top-down coordinate assignment), and a **draw** pass.
+    """
+
+    def __init__(
+        self,
+        panel: GpuPanel,
+        *,
+        direction: str = "COLUMN",
+        align: bool = False,
+        is_box: bool = False,
+        split_factor: float = 0.5,
+    ) -> None:
+        self._panel = panel
+        self._direction = direction
+        self._align = align
+        self._is_box = is_box
+        self._split_factor = split_factor
+        self._children: list[GpuLayout | _Separator] = []
+        self._rect: tuple[float, float, float, float] | None = None
+
+        # Public properties (matching UILayout).
+        self.enabled: bool = True
+        self.alert: bool = False
+        self.alignment: str = "EXPAND"
+        self.scale_x: float = 1.0
+        self.scale_y: float = 1.0
+
+    # -- Container methods ---------------------------------------------------
+
+    def row(self, align: bool = False) -> GpuLayout:
+        child = GpuLayout(self._panel, direction="ROW", align=align)
+        self._children.append(child)
+        return child
+
+    def column(self, align: bool = False) -> GpuLayout:
+        child = GpuLayout(self._panel, direction="COLUMN", align=align)
+        self._children.append(child)
+        return child
+
+    def split(self, *, factor: float = 0.5, align: bool = False) -> GpuLayout:
+        child = GpuLayout(
+            self._panel, direction="SPLIT", align=align, split_factor=factor,
+        )
+        self._children.append(child)
+        return child
+
+    def box(self) -> GpuLayout:
+        child = GpuLayout(self._panel, direction="COLUMN", is_box=True)
+        self._children.append(child)
+        return child
+
+    def separator(self, *, factor: float = 1.0) -> None:
+        self._children.append(_Separator(factor=factor))
+
+    def grid_flow(
+        self,
+        row_major: bool = True,
+        columns: int = 0,
+        even_columns: bool = True,
+        even_rows: bool = True,
+        align: bool = False,
+    ) -> GpuLayout:
+        child = GpuLayout(self._panel, direction="GRID_FLOW", align=align)
+        child._grid_columns = columns
+        child._grid_row_major = row_major
+        child._grid_even_columns = even_columns
+        child._grid_even_rows = even_rows
+        self._children.append(child)
+        return child
+
+    # -- Measure pass (bottom-up) -------------------------------------------
+
+    def _child_height(self, child: GpuLayout | _Separator, s: float) -> float:
+        """Return the measured height of a single child."""
+        if isinstance(child, _Separator):
+            return scaled(SEPARATOR_HEIGHT * child.factor, s)
+        return child._measure_height(s) * child.scale_y
+
+    @staticmethod
+    def _gap_before(
+        children: list[GpuLayout | _Separator], index: int,
+    ) -> bool:
+        """Return ``True`` if a gap should be inserted before *index*.
+
+        Gaps appear between consecutive non-separator children.  Separators
+        provide their own spacing so no extra gap is added adjacent to them.
+        """
+        if index == 0:
+            return False
+        return (
+            not isinstance(children[index], _Separator)
+            and not isinstance(children[index - 1], _Separator)
+        )
+
+    def _measure_height(self, s: float) -> float:
+        """Compute the natural height of this node (children sum/max)."""
+        if not self._children:
+            return 0.0
+
+        gap = scaled(
+            WIDGET_GAP_ALIGNED if self._align else WIDGET_GAP, s,
+        )
+
+        if self._direction in ("COLUMN", "GRID_FLOW"):
+            total = 0.0
+            if self._direction == "GRID_FLOW":
+                cols = max(1, getattr(self, "_grid_columns", 1) or 1)
+                rows_of_items = self._grid_flow_rows(cols)
+                for row_items in rows_of_items:
+                    row_h = max(
+                        (self._child_height(c, s) for c in row_items),
+                        default=0.0,
+                    )
+                    if total > 0:
+                        total += gap
+                    total += row_h
+            else:
+                for i, child in enumerate(self._children):
+                    if self._gap_before(self._children, i):
+                        total += gap
+                    total += self._child_height(child, s)
+        else:
+            # ROW / SPLIT: height = max of children.
+            total = max(
+                (self._child_height(c, s) for c in self._children),
+                default=0.0,
+            )
+
+        if self._is_box:
+            total += scaled(BOX_PAD * 2, s)
+
+        return total
+
+    # -- Position pass (top-down) -------------------------------------------
+
+    def _position(
+        self, x: float, y: float, w: float, h: float, s: float,
+    ) -> None:
+        """Assign ``(x, y, w, h)`` to self and all descendants."""
+        self._rect = (x, y, w, h)
+
+        inner_x, inner_y, inner_w, inner_h = x, y, w, h
+        if self._is_box:
+            pad = scaled(BOX_PAD, s)
+            inner_x += pad
+            inner_y += pad
+            inner_w -= pad * 2
+            inner_h -= pad * 2
+
+        if self._direction == "COLUMN":
+            self._position_column(inner_x, inner_y, inner_w, inner_h, s)
+        elif self._direction == "ROW":
+            self._position_row(inner_x, inner_y, inner_w, inner_h, s)
+        elif self._direction == "SPLIT":
+            self._position_split(inner_x, inner_y, inner_w, inner_h, s)
+        elif self._direction == "GRID_FLOW":
+            self._position_grid_flow(inner_x, inner_y, inner_w, inner_h, s)
+
+    def _position_column(
+        self, x: float, y: float, w: float, h: float, s: float,
+    ) -> None:
+        gap = scaled(
+            WIDGET_GAP_ALIGNED if self._align else WIDGET_GAP, s,
+        )
+        cursor_y = y + h  # start at top
+
+        for i, child in enumerate(self._children):
+            child_h = self._child_height(child, s)
+            if self._gap_before(self._children, i):
+                cursor_y -= gap
+            cursor_y -= child_h
+
+            if isinstance(child, GpuLayout):
+                child._position(x, cursor_y, w, child_h, s)
+
+    def _position_row(
+        self, x: float, y: float, w: float, h: float, s: float,
+    ) -> None:
+        if not self._children:
+            return
+
+        gap = scaled(
+            WIDGET_GAP_ALIGNED if self._align else WIDGET_GAP, s,
+        )
+
+        # Tally separator widths and gaps between non-sep children.
+        sep_w = 0.0
+        n_gaps = 0
+        nonsep: list[GpuLayout] = []
+        for i, child in enumerate(self._children):
+            if isinstance(child, _Separator):
+                sep_w += scaled(SEPARATOR_HEIGHT * child.factor, s)
+            else:
+                nonsep.append(child)
+                if self._gap_before(self._children, i):
+                    n_gaps += 1
+
+        available = w - sep_w - n_gaps * gap
+        total_sx = sum(c.scale_x for c in nonsep) if nonsep else 1.0
+
+        cursor_x = x
+        for i, child in enumerate(self._children):
+            if self._gap_before(self._children, i):
+                cursor_x += gap
+
+            if isinstance(child, _Separator):
+                cursor_x += scaled(SEPARATOR_HEIGHT * child.factor, s)
+            elif isinstance(child, GpuLayout):
+                cw = (
+                    available * (child.scale_x / total_sx)
+                    if total_sx > 0
+                    else 0.0
+                )
+                child._position(cursor_x, y, cw, h, s)
+                cursor_x += cw
+
+    def _position_split(
+        self, x: float, y: float, w: float, h: float, s: float,
+    ) -> None:
+        layouts = [c for c in self._children if isinstance(c, GpuLayout)]
+        if len(layouts) >= 2:
+            left_w = w * self._split_factor
+            right_w = w * (1.0 - self._split_factor)
+            layouts[0]._position(x, y, left_w, h, s)
+            layouts[1]._position(x + left_w, y, right_w, h, s)
+        elif len(layouts) == 1:
+            layouts[0]._position(x, y, w, h, s)
+
+    def _position_grid_flow(
+        self, x: float, y: float, w: float, h: float, s: float,
+    ) -> None:
+        cols = max(1, getattr(self, "_grid_columns", 1) or 1)
+        gap = scaled(
+            WIDGET_GAP_ALIGNED if self._align else WIDGET_GAP, s,
+        )
+        col_w = w / cols
+
+        rows = self._grid_flow_rows(cols)
+        cursor_y = y + h
+        for row_items in rows:
+            row_h = max(
+                (self._child_height(c, s) for c in row_items),
+                default=0.0,
+            )
+            if cursor_y < y + h:
+                cursor_y -= gap
+            cursor_y -= row_h
+
+            for ci, child in enumerate(row_items):
+                cx = x + ci * col_w
+                if isinstance(child, GpuLayout):
+                    child._position(cx, cursor_y, col_w, row_h, s)
+
+    def _grid_flow_rows(
+        self, cols: int,
+    ) -> list[list[GpuLayout | _Separator]]:
+        """Partition children into rows of *cols* items each."""
+        rows: list[list[GpuLayout | _Separator]] = []
+        for i in range(0, len(self._children), cols):
+            rows.append(self._children[i : i + cols])
+        return rows
+
+    # -- Draw pass -----------------------------------------------------------
+
+    def _draw(self, s: float) -> None:
+        """Recursively draw this node and its descendants."""
+        if self._rect is None:
+            return
+
+        if self._is_box:
+            bx, by, bw, bh = self._rect
+            theme = get_theme()
+            r = scaled(4.0, s)
+            draw_rect_rounded(bx, by, bw, bh, r, theme.widget_bg)
+            draw_rect_outline(bx, by, bw, bh, theme.border, thickness=1)
+
+        for child in self._children:
+            if isinstance(child, GpuLayout):
+                child._draw(s)
+
+
+# ---------------------------------------------------------------------------
+# GpuPanel
+# ---------------------------------------------------------------------------
+
+
+class GpuPanel:
+    """Top-level owner of a GPU-drawn UI surface.
+
+    Manages the ``POST_PIXEL`` draw handler lifecycle, drives the
+    per-frame build → layout → draw pipeline, and owns the hit-test
+    registry and texture cache.
+    """
+
+    def __init__(
+        self,
+        width: int,
+        anchor: tuple[int, int] | None = None,
+        build_fn: Callable[[GpuLayout], None] | None = None,
+    ) -> None:
+        self._width = width
+        self._anchor = anchor
+        self._build_fn = build_fn
+
+        self._root: GpuLayout | None = None
+        self._hit_rects: list[HitResult] = []
+        self._handle: object | None = None
+        self._area: object | None = None
+        self._texture_cache: dict[str, object] = {}
+        self._ui_scale: float = 1.0
+        self._panel_rect: tuple[float, float, float, float] | None = None
+
+    # -- Lifecycle -----------------------------------------------------------
+
+    def attach(self, area: Any) -> None:
+        """Register the ``POST_PIXEL`` draw handler on *area*'s WINDOW region."""
+        self._area = area
+        self._handle = bpy.types.SpaceView3D.draw_handler_add(
+            self._draw_callback, (), "WINDOW", "POST_PIXEL",
+        )
+
+    def detach(self) -> None:
+        """Remove the draw handler and release all resources."""
+        if self._handle is not None:
+            bpy.types.SpaceView3D.draw_handler_remove(
+                self._handle, "WINDOW",
+            )
+            self._handle = None
+        self._area = None
+        self._root = None
+        self._hit_rects.clear()
+        self._texture_cache.clear()
+        self._panel_rect = None
+
+    # -- Frame cycle ---------------------------------------------------------
+
+    def begin_frame(self) -> GpuLayout:
+        """Clear the widget tree, reset hit rects, return the root layout."""
+        self._ui_scale = get_ui_scale()
+        self._hit_rects.clear()
+        self._root = GpuLayout(self, direction="COLUMN")
+        return self._root
+
+    def end_frame(self) -> None:
+        """Run the layout pass then the draw pass."""
+        if self._root is None:
+            return
+
+        s = self._ui_scale
+        w = scaled(self._width, s)
+        h = self._root._measure_height(s)
+
+        # Determine anchor (top-left of panel in region pixels).
+        if self._anchor is not None:
+            ax = float(self._anchor[0])
+            ay = float(self._anchor[1])
+        else:
+            try:
+                region = bpy.context.region
+                ax = (region.width - w) / 2
+                ay = (region.height + h) / 2
+            except Exception:
+                ax, ay = 0.0, h
+
+        # Panel rect: (x, y) is bottom-left.
+        panel_x = ax
+        panel_y = ay - h
+        self._panel_rect = (panel_x, panel_y, w, h)
+
+        # Position pass then draw pass.
+        self._root._position(panel_x, panel_y, w, h, s)
+        self._root._draw(s)
+
+    # -- Internal draw handler -----------------------------------------------
+
+    def _draw_callback(self) -> None:
+        """Entry point called by Blender's draw-handler machinery."""
+        gpu.state.blend_set("ALPHA")
+        try:
+            root = self.begin_frame()
+            if self._build_fn is not None:
+                self._build_fn(root)
+            self.end_frame()
+        finally:
+            gpu.state.blend_set("NONE")
+
+    # -- Hit testing ---------------------------------------------------------
+
+    def hit_test(self, mx: int, my: int) -> HitResult | None:
+        """Return the topmost interactive widget at region-local *(mx, my)*."""
+        for hr in reversed(self._hit_rects):
+            rx, ry, rw, rh = hr.rect
+            if rx <= mx <= rx + rw and ry <= my <= ry + rh:
+                return hr
+        return None
+
+    def is_inside(self, mx: int, my: int) -> bool:
+        """Return ``True`` if *(mx, my)* is within the panel bounding box."""
+        if self._panel_rect is None:
+            return False
+        px, py, pw, ph = self._panel_rect
+        return px <= mx <= px + pw and py <= my <= py + ph
+
+    # -- Texture cache -------------------------------------------------------
+
+    def get_texture(self, path: str) -> Any | None:
+        """Load, cache, and return a GPU texture from *path*."""
+        if path in self._texture_cache:
+            return self._texture_cache[path]
+        try:
+            img = bpy.data.images.load(path, check_existing=True)
+            texture = gpu.texture.from_image(img)
+            self._texture_cache[path] = texture
+            return texture
+        except Exception:
+            self._texture_cache[path] = None
+            return None
