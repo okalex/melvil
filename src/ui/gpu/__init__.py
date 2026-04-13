@@ -38,6 +38,7 @@ from .drawing import (
     _get_image_shader,
     _get_uniform_shader,
 )
+from .button import GpuButton, GpuOperatorProps
 from .layout import GpuLayout
 from .label import GpuLabel
 from .panel import GpuPanel, HitResult, get_region_offsets
@@ -87,7 +88,9 @@ __all__ = [
     "get_region_offsets",
     # Widgets
     "GpuWidget",
+    "GpuButton",
     "GpuLabel",
+    "GpuOperatorProps",
     "GpuSeparator",
     # Logger
     "GpuUiLogger",

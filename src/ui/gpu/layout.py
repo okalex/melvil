@@ -11,6 +11,7 @@ from .constants import (
     scaled,
 )
 from .drawing import draw_rect_outline, draw_rect_rounded
+from .button import GpuButton, GpuOperatorProps
 from .label import GpuLabel
 from .separator import GpuSeparator
 from .theme import get_theme
@@ -86,6 +87,29 @@ class GpuLayout:
             text=text, icon=icon,
             enabled=self.enabled, alert=self.alert,
         ))
+
+    def operator(
+        self,
+        operator: str,
+        *,
+        text: str = "",
+        icon: str = "NONE",
+        emboss: bool = True,
+        depress: bool = False,
+    ) -> GpuOperatorProps:
+        """Append a button that invokes *operator* and return its props."""
+        props = GpuOperatorProps()
+        self._children.append(GpuButton(
+            text=text,
+            icon=icon,
+            enabled=self.enabled,
+            alert=self.alert,
+            operator_id=operator,
+            operator_props=props,
+            emboss=emboss,
+            depress=depress,
+        ))
+        return props
 
     def grid_flow(
         self,
@@ -333,4 +357,4 @@ class GpuLayout:
                 child._draw(s)
             elif isinstance(child, GpuWidget):
                 if child.rect is not None:
-                    child.draw(s, self.enabled)
+                    child.draw(s, self.enabled, self._panel)

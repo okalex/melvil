@@ -1261,3 +1261,579 @@ class TestSeparatorGapLogic:
         expected_each = (200 - WIDGET_GAP) / 2
         assert left.rect[2] == pytest.approx(expected_each)
         assert right.rect[2] == pytest.approx(expected_each)
+
+
+# ---------------------------------------------------------------------------
+# GpuOperatorProps
+# ---------------------------------------------------------------------------
+
+
+class TestGpuOperatorProps:
+    def test_set_and_get(self):
+        from melvil.ui.gpu import GpuOperatorProps
+
+        op = GpuOperatorProps()
+        op.asset_id = "abc"
+        assert op.asset_id == "abc"
+
+    def test_get_missing_returns_none(self):
+        from melvil.ui.gpu import GpuOperatorProps
+
+        op = GpuOperatorProps()
+        assert op.nonexistent is None
+
+    def test_internal_attrs_use_normal_setattr(self):
+        from melvil.ui.gpu import GpuOperatorProps
+
+        op = GpuOperatorProps()
+        assert isinstance(op._props, dict)
+
+    def test_internal_attrs_raise_on_missing(self):
+        from melvil.ui.gpu import GpuOperatorProps
+
+        op = GpuOperatorProps()
+        with pytest.raises(AttributeError):
+            _ = op._nonexistent
+
+    def test_multiple_props(self):
+        from melvil.ui.gpu import GpuOperatorProps
+
+        op = GpuOperatorProps()
+        op.asset_id = "abc"
+        op.kit_id = "xyz"
+        op.count = 42
+        assert op._props == {"asset_id": "abc", "kit_id": "xyz", "count": 42}
+
+
+# ---------------------------------------------------------------------------
+# GpuButton — construction
+# ---------------------------------------------------------------------------
+
+
+class TestGpuButton:
+    def test_operator_appends_button(self):
+        from melvil.ui.gpu import GpuButton
+
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.operator("melvil.load_asset", text="Load")
+
+        assert len(root._children) == 1
+        child = root._children[0]
+        assert isinstance(child, GpuButton)
+        assert child.text == "Load"
+        assert child.operator_id == "melvil.load_asset"
+
+    def test_operator_returns_props(self):
+        from melvil.ui.gpu import GpuOperatorProps
+
+        panel = _make_panel()
+        root = panel.begin_frame()
+        props = root.operator("melvil.test_op", text="Test")
+
+        assert isinstance(props, GpuOperatorProps)
+
+    def test_operator_props_stored_on_button(self):
+        from melvil.ui.gpu import GpuButton
+
+        panel = _make_panel()
+        root = panel.begin_frame()
+        props = root.operator("melvil.test_op", text="")
+        props.asset_id = "abc"
+
+        child = root._children[0]
+        assert child.operator_props is props
+        assert child.operator_props._props == {"asset_id": "abc"}
+
+    def test_button_inherits_enabled(self):
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.enabled = False
+        root.operator("melvil.test_op", text="Disabled")
+
+        child = root._children[0]
+        assert child.enabled is False
+
+    def test_button_inherits_alert(self):
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.alert = True
+        root.operator("melvil.test_op", text="Alert!")
+
+        child = root._children[0]
+        assert child.alert is True
+
+    def test_button_emboss_default(self):
+        from melvil.ui.gpu import GpuButton
+
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.operator("melvil.test_op", text="", emboss=True)
+
+        child = root._children[0]
+        assert child.emboss is True
+
+    def test_button_no_emboss(self):
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.operator("melvil.test_op", text="", emboss=False)
+
+        child = root._children[0]
+        assert child.emboss is False
+
+    def test_button_depress(self):
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.operator("melvil.test_op", text="", depress=True)
+
+        child = root._children[0]
+        assert child.depress is True
+
+    def test_button_height_matches_widget_height(self):
+        from melvil.ui.gpu import WIDGET_HEIGHT
+
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.operator("melvil.test_op", text="Click")
+
+        h = root._measure_height(1.0)
+        assert h == pytest.approx(WIDGET_HEIGHT)
+
+    def test_button_gets_rect_after_position(self):
+        panel = _make_panel(width=200, anchor=(0, 200))
+        root = panel.begin_frame()
+        root.operator("melvil.test_op", text="Click")
+        panel.end_frame()
+
+        child = root._children[0]
+        assert child.rect is not None
+        x, y, w, h = child.rect
+        assert w == pytest.approx(200.0)
+
+    def test_icon_stored(self):
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.operator("melvil.test_op", text="", icon="ADD")
+
+        child = root._children[0]
+        assert child.icon == "ADD"
+
+
+# ---------------------------------------------------------------------------
+# GpuButton — drawing
+# ---------------------------------------------------------------------------
+
+
+class TestGpuButtonDraw:
+    def test_embossed_button_draws_background(self):
+        """Embossed button issues draw_rect_rounded + draw_rect_outline."""
+        from gpu_extras.batch import batch_for_shader as bf
+
+        bf.reset_mock()
+
+        panel = _make_panel(width=200, anchor=(0, 200))
+        root = panel.begin_frame()
+        root.operator("melvil.test_op", text="Click")
+        panel.end_frame()
+
+        # At minimum, the panel background + button background were drawn.
+        assert bf.call_count >= 3  # panel bg + button bg + outlines
+
+    def test_unembossed_button_no_idle_background(self):
+        """Unembossed button without hover draws no button background.
+
+        Panel background drawing is still expected.
+        """
+        from gpu_extras.batch import batch_for_shader as bf
+
+        # Baseline: measure panel background draw calls with no children.
+        panel = _make_panel(width=200, anchor=(0, 200))
+        root = panel.begin_frame()
+        root.separator()
+        panel.end_frame()
+        bf.reset_mock()
+        root2 = panel.begin_frame()
+        root2.separator()
+        panel.end_frame()
+        baseline = bf.call_count
+
+        # Now with an unembossed button (not hovered).
+        bf.reset_mock()
+        root3 = panel.begin_frame()
+        root3.operator("melvil.test_op", text="Click", emboss=False)
+        panel.end_frame()
+        assert bf.call_count == baseline  # no extra draws
+
+    def test_depress_button_uses_active_bg(self):
+        """Depressed button draws with widget_bg_active color."""
+        import gpu as _gpu
+        from melvil.ui.gpu import get_theme
+
+        shader = _gpu.shader.from_builtin.return_value
+
+        panel = _make_panel(width=200, anchor=(0, 200))
+        root = panel.begin_frame()
+        root.operator("melvil.test_op", text="Click", depress=True)
+        panel.end_frame()
+
+        theme = get_theme()
+        color_calls = [
+            c.args[1] for c in shader.uniform_float.call_args_list
+            if c.args[0] == "color"
+        ]
+        assert theme.widget_bg_active in color_calls
+
+    def test_button_text_drawn(self):
+        """Button with text calls blf.draw."""
+        import blf
+
+        blf.draw.reset_mock()
+        blf.dimensions = MagicMock(return_value=(40.0, 12.0))
+
+        panel = _make_panel(width=200, anchor=(0, 200))
+        root = panel.begin_frame()
+        root.operator("melvil.test_op", text="Click Me")
+        panel.end_frame()
+
+        drawn_texts = [c.args[1] for c in blf.draw.call_args_list]
+        assert "Click Me" in drawn_texts
+
+    def test_empty_text_no_text_draw(self):
+        """Button with empty text doesn't call blf.draw for empty string."""
+        import blf
+
+        blf.draw.reset_mock()
+
+        panel = _make_panel(width=200, anchor=(0, 200))
+        root = panel.begin_frame()
+        root.operator("melvil.test_op", text="")
+        panel.end_frame()
+
+        drawn_texts = [c.args[1] for c in blf.draw.call_args_list]
+        assert "" not in drawn_texts
+
+    def test_disabled_button_uses_disabled_color(self):
+        """Disabled button uses text_disabled color."""
+        import blf
+        from melvil.ui.gpu import get_theme
+
+        blf.color.reset_mock()
+        blf.dimensions = MagicMock(return_value=(40.0, 12.0))
+
+        panel = _make_panel(width=200, anchor=(0, 200))
+        root = panel.begin_frame()
+        root.enabled = False
+        root.operator("melvil.test_op", text="Disabled")
+        panel.end_frame()
+
+        theme = get_theme()
+        color_calls = [c.args[1:] for c in blf.color.call_args_list]
+        assert theme.text_disabled in color_calls
+
+    def test_alert_button_uses_alert_color(self):
+        """Alert button uses alert text color."""
+        import blf
+        from melvil.ui.gpu import get_theme
+
+        blf.color.reset_mock()
+        blf.dimensions = MagicMock(return_value=(40.0, 12.0))
+
+        panel = _make_panel(width=200, anchor=(0, 200))
+        root = panel.begin_frame()
+        root.alert = True
+        root.operator("melvil.test_op", text="Delete")
+        panel.end_frame()
+
+        theme = get_theme()
+        color_calls = [c.args[1:] for c in blf.color.call_args_list]
+        assert theme.alert in color_calls
+
+
+# ---------------------------------------------------------------------------
+# GpuButton — hit-rect registration
+# ---------------------------------------------------------------------------
+
+
+class TestGpuButtonHitRect:
+    def test_enabled_button_registers_hit_rect(self):
+        panel = _make_panel(width=200, anchor=(0, 200))
+        root = panel.begin_frame()
+        root.operator("melvil.test_op", text="Click")
+        panel.end_frame()
+
+        assert len(panel._hit_rects) == 1
+        hr = panel._hit_rects[0]
+        assert hr.widget_type == "operator"
+        assert hr.id == "melvil.test_op"
+
+    def test_hit_rect_stores_operator_kwargs(self):
+        panel = _make_panel(width=200, anchor=(0, 200))
+        root = panel.begin_frame()
+        op = root.operator("melvil.test_op", text="Click")
+        op.asset_id = "abc"
+        op.count = 5
+        panel.end_frame()
+
+        hr = panel._hit_rects[0]
+        assert hr.kwargs == {"asset_id": "abc", "count": 5}
+
+    def test_disabled_button_no_hit_rect(self):
+        panel = _make_panel(width=200, anchor=(0, 200))
+        root = panel.begin_frame()
+        root.enabled = False
+        root.operator("melvil.test_op", text="Disabled")
+        panel.end_frame()
+
+        assert len(panel._hit_rects) == 0
+
+    def test_disabled_parent_no_hit_rect(self):
+        """Button in a disabled parent layout registers no hit rect."""
+        panel = _make_panel(width=200, anchor=(0, 200))
+        root = panel.begin_frame()
+        col = root.column()
+        col.enabled = False
+        col.operator("melvil.test_op", text="Disabled")
+        panel.end_frame()
+
+        assert len(panel._hit_rects) == 0
+
+    def test_multiple_buttons_register_multiple_rects(self):
+        panel = _make_panel(width=200, anchor=(0, 200))
+        root = panel.begin_frame()
+        root.operator("melvil.op_a", text="A")
+        root.operator("melvil.op_b", text="B")
+        panel.end_frame()
+
+        assert len(panel._hit_rects) == 2
+        ids = {hr.id for hr in panel._hit_rects}
+        assert ids == {"melvil.op_a", "melvil.op_b"}
+
+    def test_hit_test_finds_button(self):
+        panel = _make_panel(width=200, anchor=(0, 200))
+        root = panel.begin_frame()
+        root.operator("melvil.test_op", text="Click")
+        panel.end_frame()
+
+        hr = panel._hit_rects[0]
+        cx = hr.rect[0] + hr.rect[2] / 2
+        cy = hr.rect[1] + hr.rect[3] / 2
+        result = panel.hit_test(int(cx), int(cy))
+        assert result is not None
+        assert result.id == "melvil.test_op"
+
+
+# ---------------------------------------------------------------------------
+# GpuPanel — hover state
+# ---------------------------------------------------------------------------
+
+
+class TestGpuPanelHover:
+    def test_mouse_pos_initially_none(self):
+        panel = _make_panel()
+        assert panel._mouse_pos is None
+
+    def test_update_mouse_stores_position(self):
+        panel = _make_panel()
+        panel.update_mouse(50.0, 75.0)
+        assert panel._mouse_pos == (50.0, 75.0)
+
+    def test_detach_clears_mouse_pos(self):
+        panel = _make_panel()
+        panel.update_mouse(50.0, 75.0)
+        panel.detach()
+        assert panel._mouse_pos is None
+
+
+# ---------------------------------------------------------------------------
+# GpuButton — hover visual
+# ---------------------------------------------------------------------------
+
+
+class TestGpuButtonHover:
+    def setup_method(self):
+        import melvil.ui.gpu.theme as gpu_theme
+        from melvil.ui.gpu import ThemeColors
+
+        gpu_theme._theme = ThemeColors.fallback()
+
+    def teardown_method(self):
+        import melvil.ui.gpu.theme as gpu_theme
+
+        gpu_theme._theme = None
+
+    def test_hovered_embossed_uses_hover_bg(self):
+        """Button with mouse over it uses button_bg_hover color."""
+        import gpu as _gpu
+        from melvil.ui.gpu import get_theme
+
+        shader = _gpu.shader.from_builtin.return_value
+
+        panel = _make_panel(width=200, anchor=(0, 200))
+        root = panel.begin_frame()
+        root.operator("melvil.test_op", text="Click")
+        # Simulate frame cycle with mouse positioned over the button.
+        panel.end_frame()
+
+        # Get button rect and set mouse inside it.
+        btn = root._children[0]
+        cx = btn.rect[0] + btn.rect[2] / 2
+        cy = btn.rect[1] + btn.rect[3] / 2
+        panel.update_mouse(cx, cy)
+
+        # Redraw with hover.
+        shader.uniform_float.reset_mock()
+        root2 = panel.begin_frame()
+        root2.operator("melvil.test_op", text="Click")
+        panel.end_frame()
+
+        theme = get_theme()
+        colors = [
+            c.args[1] for c in shader.uniform_float.call_args_list
+            if c.args[0] == "color"
+        ]
+        assert theme.button_bg_hover in colors
+
+    def test_unhovered_embossed_uses_default_bg(self):
+        """Button without hover uses button_bg color (not active/depress)."""
+        import gpu as _gpu
+        from melvil.ui.gpu import get_theme
+
+        shader = _gpu.shader.from_builtin.return_value
+
+        panel = _make_panel(width=200, anchor=(0, 200))
+        # Mouse far away from button.
+        panel.update_mouse(999.0, 999.0)
+
+        shader.uniform_float.reset_mock()
+        root = panel.begin_frame()
+        root.operator("melvil.test_op", text="Click")
+        panel.end_frame()
+
+        theme = get_theme()
+        colors = [
+            c.args[1] for c in shader.uniform_float.call_args_list
+            if c.args[0] == "color"
+        ]
+        assert theme.button_bg in colors
+        # widget_bg_active should not appear (that's for depress).
+        assert theme.widget_bg_active not in colors
+
+    def test_hovered_unembossed_draws_subtle_bg(self):
+        """Unembossed button under hover draws a half-alpha background."""
+        from gpu_extras.batch import batch_for_shader as bf
+
+        panel = _make_panel(width=200, anchor=(0, 200))
+        # First, find the button rect.
+        root = panel.begin_frame()
+        root.operator("melvil.test_op", text="Hover", emboss=False)
+        panel.end_frame()
+        btn = root._children[0]
+        cx = btn.rect[0] + btn.rect[2] / 2
+        cy = btn.rect[1] + btn.rect[3] / 2
+        panel.update_mouse(cx, cy)
+
+        # Redraw. Unembossed + hovered should draw at least one bg rect.
+        bf.reset_mock()
+        root2 = panel.begin_frame()
+        root2.separator()  # baseline
+        panel.end_frame()
+        baseline = bf.call_count
+
+        bf.reset_mock()
+        root3 = panel.begin_frame()
+        root3.operator("melvil.test_op", text="Hover", emboss=False)
+        panel.end_frame()
+        assert bf.call_count > baseline
+
+
+# ---------------------------------------------------------------------------
+# Shared widget helpers (_resolve_text_color, _draw_text_content)
+# ---------------------------------------------------------------------------
+
+
+class TestResolveTextColor:
+    def test_alert_takes_priority(self):
+        from melvil.ui.gpu import GpuLabel, get_theme
+
+        w = GpuLabel(text="X", alert=True)
+        theme = get_theme()
+        assert w._resolve_text_color(True, theme.text_primary) == theme.alert
+
+    def test_disabled_returns_text_disabled(self):
+        from melvil.ui.gpu import GpuLabel, get_theme
+
+        w = GpuLabel(text="X", enabled=False)
+        theme = get_theme()
+        assert w._resolve_text_color(True, theme.text_primary) == theme.text_disabled
+
+    def test_parent_disabled_returns_text_disabled(self):
+        from melvil.ui.gpu import GpuLabel, get_theme
+
+        w = GpuLabel(text="X", enabled=True)
+        theme = get_theme()
+        assert w._resolve_text_color(False, theme.text_primary) == theme.text_disabled
+
+    def test_enabled_returns_default(self):
+        from melvil.ui.gpu import GpuLabel, get_theme
+
+        w = GpuLabel(text="X")
+        theme = get_theme()
+        assert w._resolve_text_color(True, theme.button_text) == theme.button_text
+
+
+class TestDrawTextContent:
+    def test_left_aligned(self):
+        import blf
+        from melvil.ui.gpu import GpuLabel, WIDGET_PAD_X
+
+        blf.draw.reset_mock()
+        blf.position.reset_mock()
+        blf.dimensions = MagicMock(return_value=(40.0, 12.0))
+
+        w = GpuLabel(text="Hello")
+        w.rect = (10.0, 20.0, 200.0, 20.0)
+        w._draw_text_content(1.0, (1, 1, 1, 1), align="LEFT")
+
+        blf.position.assert_called_once()
+        text_x = blf.position.call_args.args[1]
+        assert text_x == pytest.approx(10.0 + WIDGET_PAD_X)
+
+    def test_center_aligned(self):
+        import blf
+        from melvil.ui.gpu import GpuLabel
+
+        blf.draw.reset_mock()
+        blf.position.reset_mock()
+        blf.dimensions = MagicMock(return_value=(40.0, 12.0))
+
+        w = GpuLabel(text="Center")
+        w.rect = (10.0, 20.0, 200.0, 20.0)
+        w._draw_text_content(1.0, (1, 1, 1, 1), align="CENTER")
+
+        text_x = blf.position.call_args.args[1]
+        expected_x = 10.0 + (200.0 - 40.0) / 2
+        assert text_x == pytest.approx(expected_x)
+
+    def test_no_draw_on_empty_text(self):
+        import blf
+        from melvil.ui.gpu import GpuLabel
+
+        blf.draw.reset_mock()
+
+        w = GpuLabel(text="")
+        w.rect = (0.0, 0.0, 100.0, 20.0)
+        w._draw_text_content(1.0, (1, 1, 1, 1))
+
+        blf.draw.assert_not_called()
+
+    def test_no_draw_on_none_rect(self):
+        import blf
+        from melvil.ui.gpu import GpuLabel
+
+        blf.draw.reset_mock()
+
+        w = GpuLabel(text="Hello")
+        w.rect = None
+        w._draw_text_content(1.0, (1, 1, 1, 1))
+
+        blf.draw.assert_not_called()

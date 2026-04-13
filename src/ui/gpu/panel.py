@@ -82,6 +82,7 @@ class GpuPanel:
         self._texture_cache: dict[str, object] = {}
         self._ui_scale: float = 1.0
         self._panel_rect: tuple[float, float, float, float] | None = None
+        self._mouse_pos: tuple[float, float] | None = None
 
     # -- Lifecycle -----------------------------------------------------------
 
@@ -104,6 +105,11 @@ class GpuPanel:
         self._hit_rects.clear()
         self._texture_cache.clear()
         self._panel_rect = None
+        self._mouse_pos = None
+
+    def update_mouse(self, mx: float, my: float) -> None:
+        """Store the latest mouse position for hover detection."""
+        self._mouse_pos = (mx, my)
 
     # -- Frame cycle ---------------------------------------------------------
 

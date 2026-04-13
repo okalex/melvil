@@ -46,7 +46,7 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
             y = region.height - offset_y - _PANEL_MARGIN_Y
             return (x, y)
         except Exception:
-            return (_PANEL_MARGIN, 800)
+            return (0, 800)
 
     def invoke(self, context, event):
         self._panel = GpuPanel(
@@ -62,8 +62,9 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
     def _build(self, layout):
         """Build the browser widget tree.
 
-        Mirrors the three-column structure of open_browser.py using only
-        the elements implemented so far (labels, separators, containers).
+        Mirrors the three-column structure of ``open_browser.py`` using
+        only implemented GPU UI elements. Unsupported elements (props,
+        template_list, template_icon, operator_menu_enum) are omitted.
         """
         layout.label(text="Melvil Asset Library", icon="ASSET_MANAGER")
         layout.separator()
@@ -76,7 +77,7 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
         middle = inner_split.column()
         right = inner_split.column()
 
-        # -- Left column: filter placeholders --
+        # -- Left column: filters --------------------------------------------
         left.label(text="Search by name/tag", icon="VIEWZOOM")
         # search_query prop — not yet implemented
         left.separator()
@@ -85,38 +86,68 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
         # type_filter prop (expand=True) — not yet implemented
         left.separator()
 
+        # Kit selector header row with New Kit and Rename Kit buttons.
         kit_header = left.row(align=True)
         kit_header.label(text="Kit")
-        # kit_create + kit_rename operators — not yet implemented
+        kit_header.operator("melvil.kit_create", text="New", icon="ADD")
+        rename_sub = kit_header.row()
+        rename_sub.enabled = False  # requires kit selection (no kit_filter yet)
+        rename_sub.operator("melvil.kit_rename", text="Rename", icon="GREASEPENCIL")
 
         # kit_filter prop (expand=True) — not yet implemented
         left.separator()
 
-        left.label(text="Tags", icon="TAG")
+        # Tag filter section.
+        tag_header = left.row(align=True)
+        tag_header.label(text="Tags", icon="TAG")
         # tag template_list — not yet implemented
+        tag_side = left.column(align=True)
+        tag_side.operator("melvil.tag_create", text="New", icon="ADD")
+        delete_col = tag_side.column()
+        delete_col.enabled = False  # requires active tag filter
+        delete_col.operator("melvil.tag_delete", text="Delete", icon="REMOVE")
         left.separator()
 
-        # -- Middle column: asset list --
+        # -- Middle column: asset list ---------------------------------------
         middle.label(text="Assets", icon="ASSET_MANAGER")
         # unified asset section — not yet implemented
         middle.separator()
 
-        # -- Right column: asset details --
+        # -- Right column: asset details -------------------------------------
         right.label(text="Asset details", icon="PROPERTIES")
         right_box = right.box()
         right_box.label(text="No asset selected", icon="INFO")
 
     def modal(self, context, event):
+        # Update hover position every frame.
+        if self._panel is not None:
+            self._panel.update_mouse(
+                event.mouse_region_x, event.mouse_region_y,
+            )
+
         if event.type in {"ESC", "RIGHTMOUSE"} and event.value == "PRESS":
             self._cleanup(context)
             return {"CANCELLED"}
 
         if event.type == "LEFTMOUSE" and event.value == "PRESS":
-            if self._panel and not self._panel.is_inside(
-                event.mouse_region_x, event.mouse_region_y,
-            ):
-                self._cleanup(context)
-                return {"CANCELLED"}
+            if self._panel is not None:
+                if not self._panel.is_inside(
+                    event.mouse_region_x, event.mouse_region_y,
+                ):
+                    self._cleanup(context)
+                    return {"CANCELLED"}
+                # Dispatch hit-tested operator.
+                hit = self._panel.hit_test(
+                    event.mouse_region_x, event.mouse_region_y,
+                )
+                if hit is not None and hit.widget_type == "operator":
+                    try:
+                        op_fn = getattr(bpy.ops, hit.id.split(".", 1)[0])
+                        op_fn = getattr(op_fn, hit.id.split(".", 1)[1])
+                        op_fn(**hit.kwargs)
+                    except Exception:  # noqa: BLE001
+                        pass
+                    return {"RUNNING_MODAL"}
 
         if context.area is not None:
             context.area.tag_redraw()
