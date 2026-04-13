@@ -77,6 +77,7 @@ class TestThemeColorsFromBlender:
             return wcol
 
         ui.wcol_regular = _make_wcol(text=(0.88, 0.88, 0.88, 1.0))
+        ui.wcol_menu_back = _make_wcol(inner=(0.16, 0.16, 0.16, 1.0))
         ui.wcol_box = _make_wcol(inner=(0.15, 0.15, 0.15, 0.8))
         ui.wcol_tool = _make_wcol()
         ui.wcol_option = _make_wcol(inner_sel=(0.2, 0.5, 0.8, 1.0))
@@ -98,8 +99,8 @@ class TestThemeColorsFromBlender:
 
         tc = ThemeColors.from_blender()
 
-        # panel_bg should come from wcol_regular.inner
-        assert tc.panel_bg == (0.2, 0.2, 0.2, 1.0)
+        # panel_bg should come from wcol_menu_back.inner
+        assert tc.panel_bg == (0.16, 0.16, 0.16, 1.0)
         # text_primary from wcol_regular.text
         assert tc.text_primary == (0.88, 0.88, 0.88, 1.0)
         # text_secondary is text_primary at 0.6 alpha
@@ -928,8 +929,12 @@ class TestDrawPass:
         # The shader was bound and draw was called (box bg + outline).
         assert shader.bind.called
 
-    def test_non_box_container_no_draw(self):
-        """Plain column/row containers don't issue draw calls themselves."""
+    def test_non_box_container_no_extra_draw(self):
+        """Plain column/row containers don't issue draw calls themselves.
+
+        The panel background draws (rounded rect + outline), but the
+        inner column and separator produce no additional draw calls.
+        """
         import gpu as _gpu
         from gpu_extras.batch import batch_for_shader as bf
 
@@ -943,8 +948,19 @@ class TestDrawPass:
         col.separator()
         panel.end_frame()
 
-        # Separator and plain column produce no draw calls.
-        assert not bf.called
+        # Panel background issues draw calls (rounded rect + outline).
+        # Record how many calls the panel bg made, then verify no
+        # additional calls came from the column or separator.
+        bg_calls = bf.call_count
+        assert bg_calls > 0  # panel background was drawn
+
+        # A second identical panel should produce the same call count
+        # (no extra draws from col/separator).
+        bf.reset_mock()
+        root2 = panel.begin_frame()
+        root2.column()  # empty column, no separator
+        panel.end_frame()
+        assert bf.call_count == bg_calls
 
     def test_enabled_false_does_not_prevent_drawing(self):
         """enabled=False doesn't suppress draw for now (dimming deferred)."""

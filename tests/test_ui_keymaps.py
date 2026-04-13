@@ -35,7 +35,7 @@ class TestRegister:
             shift=True,
         )
         mock_km.keymap_items.new.assert_any_call(
-            "melvil.open_test_grid",
+            "melvil.gpu_browser",
             type="S",
             value="PRESS",
             ctrl=True,

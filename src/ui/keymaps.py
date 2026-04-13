@@ -40,7 +40,7 @@ def register() -> None:
     _keymaps.append((km, kmi))
 
     kmi = km.keymap_items.new(
-        "melvil.open_test_grid",
+        "melvil.gpu_browser",
         type="S",
         value="PRESS",
         ctrl=True,

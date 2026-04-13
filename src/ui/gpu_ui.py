@@ -11,6 +11,7 @@ See projects/006-gpu-ui.md for the full design spec.
 from __future__ import annotations
 
 import math
+import os
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -21,6 +22,21 @@ from gpu_extras.batch import batch_for_shader
 
 if TYPE_CHECKING:
     pass
+
+
+class GpuUiLogger:
+    """Conditional logger controlled by the ``GPU_UI_LOG`` env var."""
+
+    def __init__(self) -> None:
+        val = os.environ.get("GPU_UI_LOG", "0")
+        self._enabled = val not in ("", "0")
+
+    def log(self, msg: str) -> None:
+        if self._enabled:
+            print(f"[gpu_ui] {msg}")
+
+
+_logger = GpuUiLogger()
 
 
 # ---------------------------------------------------------------------------
@@ -155,11 +171,18 @@ class ThemeColors:
         ui = bpy.context.preferences.themes[0].user_interface
 
         def _rgba(color) -> tuple[float, float, float, float]:
-            return (float(color[0]), float(color[1]),
-                    float(color[2]), float(color[3]))
+            r, g, b = float(color[0]), float(color[1]), float(color[2])
+            try:
+                a = float(color[3])
+            except (IndexError, KeyError):
+                a = 1.0
+            return (r, g, b, a)
 
         text_primary = _rgba(ui.wcol_regular.text)
-        panel_bg = _rgba(ui.wcol_regular.inner)
+        menu_back = _rgba(ui.wcol_menu_back.inner)
+        # Force full opacity — native popups render opaque regardless of
+        # the theme alpha channel.
+        panel_bg = (menu_back[0], menu_back[1], menu_back[2], 1.0)
         box_inner = _rgba(ui.wcol_box.inner)
         panel_header_bg = (box_inner[0], box_inner[1], box_inner[2],
                            min(1.0, box_inner[3] + 0.1))
@@ -237,7 +260,8 @@ def get_theme() -> ThemeColors:
     if _theme is None:
         try:
             _theme = ThemeColors.from_blender()
-        except Exception:
+        except Exception as exc:
+            _logger.log(f"from_blender() failed: {exc}")
             _theme = ThemeColors.fallback()
     return _theme
 
@@ -714,6 +738,29 @@ class GpuLayout:
 
 
 # ---------------------------------------------------------------------------
+# Region helpers
+# ---------------------------------------------------------------------------
+
+
+def get_region_offsets(area: Any) -> tuple[int, int]:
+    """Return ``(offset_x, offset_y)`` to clear toolbar and header overlays.
+
+    The 3D viewport's TOOLS, HEADER, and TOOL_HEADER regions overlay the
+    WINDOW region, so ``POST_PIXEL`` drawing at ``(0, 0)`` sits behind
+    them.  This helper inspects the area's regions and returns pixel
+    offsets that push content past those overlays.
+    """
+    offset_x = 0
+    offset_y = 0
+    for r in area.regions:
+        if r.type == "TOOLS":
+            offset_x = max(offset_x, r.width)
+        elif r.type in {"HEADER", "TOOL_HEADER"}:
+            offset_y += r.height
+    return offset_x, offset_y
+
+
+# ---------------------------------------------------------------------------
 # GpuPanel
 # ---------------------------------------------------------------------------
 
@@ -729,7 +776,7 @@ class GpuPanel:
     def __init__(
         self,
         width: int,
-        anchor: tuple[int, int] | None = None,
+        anchor: tuple[int, int] | Callable[[], tuple[int, int]] | None = None,
         build_fn: Callable[[GpuLayout], None] | None = None,
     ) -> None:
         self._width = width
@@ -785,9 +832,12 @@ class GpuPanel:
         h = self._root._measure_height(s)
 
         # Determine anchor (top-left of panel in region pixels).
-        if self._anchor is not None:
-            ax = float(self._anchor[0])
-            ay = float(self._anchor[1])
+        anchor = self._anchor
+        if callable(anchor):
+            anchor = anchor()
+        if anchor is not None:
+            ax = float(anchor[0])
+            ay = float(anchor[1])
         else:
             try:
                 region = bpy.context.region
@@ -803,6 +853,13 @@ class GpuPanel:
 
         # Position pass then draw pass.
         self._root._position(panel_x, panel_y, w, h, s)
+
+        # Panel background.
+        theme = get_theme()
+        r = scaled(6.0, s)
+        draw_rect_rounded(panel_x, panel_y, w, h, r, theme.panel_bg)
+        draw_rect_outline(panel_x, panel_y, w, h, theme.border, thickness=1)
+
         self._root._draw(s)
 
     # -- Internal draw handler -----------------------------------------------

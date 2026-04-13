@@ -400,8 +400,7 @@ class MELVIL_OT_grid_scroll_nav(bpy.types.Operator):
         default=0,
     )
 
-    # These are set externally by the caller before execute() — see
-    # open_test_grid.py's nav button wiring.
+    # These are set externally by the caller before execute().
     item_count: IntProperty(default=0)
     cols: IntProperty(default=3)
     rows_visible: IntProperty(default=4)

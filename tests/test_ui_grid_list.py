@@ -211,7 +211,7 @@ class TestDrawGrid:
 
 class TestGetRegionOffsets:
     def test_tools_region_sets_offset_x(self):
-        from melvil.ops.open_test_grid import _get_region_offsets
+        from melvil.ui.gpu_ui import get_region_offsets
 
         tools = MagicMock()
         tools.type = "TOOLS"
@@ -221,12 +221,12 @@ class TestGetRegionOffsets:
         area = MagicMock()
         area.regions = [window, tools]
 
-        ox, oy = _get_region_offsets(area)
+        ox, oy = get_region_offsets(area)
         assert ox == 64
         assert oy == 0
 
     def test_header_regions_set_offset_y(self):
-        from melvil.ops.open_test_grid import _get_region_offsets
+        from melvil.ui.gpu_ui import get_region_offsets
 
         header = MagicMock()
         header.type = "HEADER"
@@ -237,12 +237,12 @@ class TestGetRegionOffsets:
         area = MagicMock()
         area.regions = [header, tool_header]
 
-        ox, oy = _get_region_offsets(area)
+        ox, oy = get_region_offsets(area)
         assert ox == 0
         assert oy == 56
 
     def test_combined_offsets(self):
-        from melvil.ops.open_test_grid import _get_region_offsets
+        from melvil.ui.gpu_ui import get_region_offsets
 
         tools = MagicMock()
         tools.type = "TOOLS"
@@ -253,7 +253,7 @@ class TestGetRegionOffsets:
         area = MagicMock()
         area.regions = [tools, header]
 
-        ox, oy = _get_region_offsets(area)
+        ox, oy = get_region_offsets(area)
         assert ox == 48
         assert oy == 26
 
