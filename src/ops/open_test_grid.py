@@ -18,7 +18,7 @@ import uuid
 
 import bpy
 
-from ..ui.grid_list import draw_grid
+from ..ui.grid_list import compute_max_offset, draw_grid, is_over_grid
 
 _GRID_COLS = 3
 _GRID_ROWS_VISIBLE = 4
@@ -43,7 +43,6 @@ _draw_state: dict = {
     "items": [],
     "cols": _GRID_COLS,
     "rows_visible": _GRID_ROWS_VISIBLE,
-    "scroll_offset": 0,
 }
 _draw_handle = None
 
@@ -73,12 +72,15 @@ def _draw_callback(state: dict) -> None:
     area = bpy.context.area
     region = bpy.context.region
     offset_x, offset_y = _get_region_offsets(area)
+
+    # Read scroll state from the transient WM property group.
+    scroll_props = bpy.context.window_manager.melvil_grid_scroll
     draw_grid(
         region,
         state["items"],
         cols=state["cols"],
         rows_visible=state["rows_visible"],
-        scroll_offset=state["scroll_offset"],
+        scroll_offset=scroll_props.scroll_offset,
         offset_x=offset_x,
         offset_y=offset_y,
     )
@@ -122,8 +124,13 @@ class MELVIL_OT_open_test_grid(bpy.types.Operator):
         global _draw_handle
 
         _draw_state["items"] = _generate_fake_items(30)
-        _draw_state["scroll_offset"] = 0
         _draw_state["active"] = True
+
+        # Reset transient scroll state.
+        scroll_props = context.window_manager.melvil_grid_scroll
+        scroll_props.scroll_offset = 0
+        scroll_props.selected_id = ""
+        scroll_props.hovered_index = -1
 
         _draw_handle = bpy.types.SpaceView3D.draw_handler_add(
             _draw_callback, (_draw_state,), 'WINDOW', 'POST_PIXEL',
@@ -136,6 +143,30 @@ class MELVIL_OT_open_test_grid(bpy.types.Operator):
         if event.type in {'RIGHTMOUSE', 'ESC'}:
             _cleanup_draw_handler(context)
             return {"CANCELLED"}
+
+        # Convert window coords to region-local for hit testing.
+        region = context.region
+        mx = event.mouse_x - region.x
+        my = event.mouse_y - region.y
+
+        over = is_over_grid(mx, my)
+
+        if over and event.type == 'WHEELUPMOUSE':
+            scroll_props = context.window_manager.melvil_grid_scroll
+            scroll_props.scroll_offset = max(0, scroll_props.scroll_offset - 1)
+            context.area.tag_redraw()
+            return {"RUNNING_MODAL"}
+
+        if over and event.type == 'WHEELDOWNMOUSE':
+            scroll_props = context.window_manager.melvil_grid_scroll
+            max_off = compute_max_offset(
+                len(_draw_state["items"]),
+                _draw_state["cols"],
+                _draw_state["rows_visible"],
+            )
+            scroll_props.scroll_offset = min(max_off, scroll_props.scroll_offset + 1)
+            context.area.tag_redraw()
+            return {"RUNNING_MODAL"}
 
         return {"PASS_THROUGH"}
 

@@ -12,8 +12,10 @@ from __future__ import annotations
 
 import math
 
+import bpy
 import gpu
 import blf
+from bpy.props import IntProperty, StringProperty
 from gpu_extras.batch import batch_for_shader
 
 
@@ -212,9 +214,110 @@ def draw_grid(
 
     return actual_rows * (ch + cg) + oy * 2
 
-# TODO Phase 2: MelvilGridScrollProps PropertyGroup
-# TODO Phase 2: MELVIL_OT_grid_scroll_nav operator
-# TODO Phase 2: hit_test / is_over_grid helpers
+
+# ---------------------------------------------------------------------------
+# Scroll helpers
+# ---------------------------------------------------------------------------
+
+def compute_max_offset(item_count: int, cols: int, rows_visible: int) -> int:
+    """Return the maximum valid ``scroll_offset`` for the given item count.
+
+    The result is clamped to a minimum of 0 so callers never need to
+    guard against negative values.
+    """
+    if item_count <= 0 or cols <= 0 or rows_visible <= 0:
+        return 0
+    total_rows = math.ceil(item_count / cols)
+    return max(0, total_rows - rows_visible)
+
+
+# ---------------------------------------------------------------------------
+# Hit testing
+# ---------------------------------------------------------------------------
+
+def hit_test(mx: float, my: float) -> tuple[str, int] | None:
+    """Return ``(item_id, slot_index)`` for the card under (*mx*, *my*).
+
+    Coordinates are **region-local** pixels (same space as the card rects
+    written by :func:`draw_grid`).  Returns ``None`` if no card is hit.
+    """
+    for slot_idx, (x, y, w, h, item_id) in enumerate(_card_rects):
+        if x <= mx <= x + w and y <= my <= y + h:
+            return (item_id, slot_idx)
+    return None
+
+
+def is_over_grid(mx: float, my: float) -> bool:
+    """Return ``True`` if region-local (*mx*, *my*) is within the grid bbox."""
+    if not _card_rects:
+        return False
+    gx = min(r[0] for r in _card_rects)
+    gy = min(r[1] for r in _card_rects)
+    gx2 = max(r[0] + r[2] for r in _card_rects)
+    gy2 = max(r[1] + r[3] for r in _card_rects)
+    return gx <= mx <= gx2 and gy <= my <= gy2
+
+
+# ---------------------------------------------------------------------------
+# PropertyGroup — transient scroll / selection state
+# ---------------------------------------------------------------------------
+
+class MelvilGridScrollProps(bpy.types.PropertyGroup):
+    """Scroll, selection, and hover state for the GPU card grid."""
+
+    scroll_offset: IntProperty(
+        name="Scroll Offset",
+        description="Current scroll position in rows",
+        default=0,
+        min=0,
+        options={"HIDDEN", "SKIP_SAVE"},
+    )
+    selected_id: StringProperty(
+        name="Selected ID",
+        description="UUID of the currently selected item",
+        default="",
+        options={"HIDDEN", "SKIP_SAVE"},
+    )
+    hovered_index: IntProperty(
+        name="Hovered Index",
+        description="Flat index of the hovered card in the visible slice, or -1",
+        default=-1,
+        options={"HIDDEN", "SKIP_SAVE"},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Scroll nav operator
+# ---------------------------------------------------------------------------
+
+class MELVIL_OT_grid_scroll_nav(bpy.types.Operator):
+    """Scroll the grid up or down by one row"""
+
+    bl_idname = "melvil.grid_scroll_nav"
+    bl_label = "Scroll Grid"
+    bl_options = {"REGISTER", "INTERNAL"}
+
+    direction: IntProperty(
+        name="Direction",
+        description="+1 to scroll down, -1 to scroll up",
+        default=0,
+    )
+
+    # These are set externally by the caller before execute() — see
+    # open_test_grid.py's nav button wiring.
+    item_count: IntProperty(default=0)
+    cols: IntProperty(default=3)
+    rows_visible: IntProperty(default=4)
+
+    def execute(self, context):
+        props = context.window_manager.melvil_grid_scroll
+        max_off = compute_max_offset(self.item_count, self.cols, self.rows_visible)
+        props.scroll_offset = max(0, min(props.scroll_offset + self.direction, max_off))
+        if context.area is not None:
+            context.area.tag_redraw()
+        return {"FINISHED"}
+
+
 # TODO Phase 3: Selection & hover highlight colors
 # TODO Phase 4: Preview image rendering
 # TODO Phase 5: Grid/list layout toggle

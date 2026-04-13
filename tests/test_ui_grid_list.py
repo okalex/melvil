@@ -256,3 +256,180 @@ class TestGetRegionOffsets:
         ox, oy = _get_region_offsets(area)
         assert ox == 48
         assert oy == 26
+
+
+# ---------------------------------------------------------------------------
+# compute_max_offset
+# ---------------------------------------------------------------------------
+
+
+class TestComputeMaxOffset:
+    def test_zero_items(self):
+        from melvil.ui.grid_list import compute_max_offset
+
+        assert compute_max_offset(0, 3, 4) == 0
+
+    def test_exact_fit(self):
+        from melvil.ui.grid_list import compute_max_offset
+
+        # 12 items, 3 cols → 4 rows; 4 visible → max_offset = 0
+        assert compute_max_offset(12, 3, 4) == 0
+
+    def test_one_extra_item(self):
+        from melvil.ui.grid_list import compute_max_offset
+
+        # 13 items, 3 cols → 5 rows; 4 visible → max_offset = 1
+        assert compute_max_offset(13, 3, 4) == 1
+
+    def test_many_items(self):
+        from melvil.ui.grid_list import compute_max_offset
+
+        # 30 items, 3 cols → 10 rows; 4 visible → max_offset = 6
+        assert compute_max_offset(30, 3, 4) == 6
+
+    def test_fewer_than_one_page(self):
+        from melvil.ui.grid_list import compute_max_offset
+
+        # 5 items, 3 cols → 2 rows; 4 visible → fits, max_offset = 0
+        assert compute_max_offset(5, 3, 4) == 0
+
+    def test_single_column(self):
+        from melvil.ui.grid_list import compute_max_offset
+
+        # 10 items, 1 col → 10 rows; 4 visible → max_offset = 6
+        assert compute_max_offset(10, 1, 4) == 6
+
+    def test_zero_cols_returns_zero(self):
+        from melvil.ui.grid_list import compute_max_offset
+
+        assert compute_max_offset(10, 0, 4) == 0
+
+    def test_zero_rows_visible_returns_zero(self):
+        from melvil.ui.grid_list import compute_max_offset
+
+        assert compute_max_offset(10, 3, 0) == 0
+
+
+# ---------------------------------------------------------------------------
+# hit_test
+# ---------------------------------------------------------------------------
+
+
+class TestHitTest:
+    def test_hit_inside_card(self):
+        from melvil.ui import grid_list
+        from melvil.ui.grid_list import hit_test
+
+        grid_list._card_rects = [
+            (10, 100, 120, 80, "id-abc"),
+            (136, 100, 120, 80, "id-def"),
+        ]
+
+        result = hit_test(50, 120)
+        assert result == ("id-abc", 0)
+
+    def test_hit_second_card(self):
+        from melvil.ui import grid_list
+        from melvil.ui.grid_list import hit_test
+
+        grid_list._card_rects = [
+            (10, 100, 120, 80, "id-abc"),
+            (136, 100, 120, 80, "id-def"),
+        ]
+
+        result = hit_test(200, 120)
+        assert result == ("id-def", 1)
+
+    def test_miss_in_gap(self):
+        from melvil.ui import grid_list
+        from melvil.ui.grid_list import hit_test
+
+        grid_list._card_rects = [
+            (10, 100, 120, 80, "id-abc"),
+            (136, 100, 120, 80, "id-def"),
+        ]
+
+        # X=132 is in the gap between cards.
+        result = hit_test(132, 120)
+        assert result is None
+
+    def test_miss_outside_grid(self):
+        from melvil.ui import grid_list
+        from melvil.ui.grid_list import hit_test
+
+        grid_list._card_rects = [
+            (10, 100, 120, 80, "id-abc"),
+        ]
+
+        result = hit_test(500, 500)
+        assert result is None
+
+    def test_empty_card_rects(self):
+        from melvil.ui import grid_list
+        from melvil.ui.grid_list import hit_test
+
+        grid_list._card_rects = []
+
+        result = hit_test(50, 50)
+        assert result is None
+
+    def test_returns_slot_index_not_real_index(self):
+        from melvil.ui import grid_list
+        from melvil.ui.grid_list import hit_test
+
+        grid_list._card_rects = [
+            (10, 100, 120, 80, "id-third"),
+        ]
+
+        # Even though this is the "third" item, it's the first card rect
+        # so slot_index should be 0.
+        result = hit_test(50, 120)
+        assert result == ("id-third", 0)
+
+
+# ---------------------------------------------------------------------------
+# is_over_grid
+# ---------------------------------------------------------------------------
+
+
+class TestIsOverGrid:
+    def test_inside_grid(self):
+        from melvil.ui import grid_list
+        from melvil.ui.grid_list import is_over_grid
+
+        grid_list._card_rects = [
+            (10, 100, 120, 80, "id-0"),
+            (136, 100, 120, 80, "id-1"),
+        ]
+
+        assert is_over_grid(50, 140) is True
+
+    def test_outside_grid(self):
+        from melvil.ui import grid_list
+        from melvil.ui.grid_list import is_over_grid
+
+        grid_list._card_rects = [
+            (10, 100, 120, 80, "id-0"),
+        ]
+
+        assert is_over_grid(500, 500) is False
+
+    def test_empty_card_rects(self):
+        from melvil.ui import grid_list
+        from melvil.ui.grid_list import is_over_grid
+
+        grid_list._card_rects = []
+
+        assert is_over_grid(50, 50) is False
+
+    def test_on_edge(self):
+        from melvil.ui import grid_list
+        from melvil.ui.grid_list import is_over_grid
+
+        grid_list._card_rects = [
+            (10, 100, 120, 80, "id-0"),
+        ]
+
+        # Exactly on the boundary should be considered "over".
+        assert is_over_grid(10, 100) is True
+        assert is_over_grid(130, 180) is True

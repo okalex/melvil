@@ -34,8 +34,10 @@ melvil_pending_name_asset_id : str
 from __future__ import annotations
 
 import bpy
-from bpy.props import BoolProperty, CollectionProperty, IntProperty, StringProperty
+from bpy.props import BoolProperty, CollectionProperty, IntProperty, PointerProperty, StringProperty
 from bpy.types import PropertyGroup
+
+from .grid_list import MelvilGridScrollProps
 
 
 # Guard flag: set True while draw() rebuilds melvil_filter_tags so that the
@@ -151,6 +153,7 @@ def register() -> None:
     bpy.utils.register_class(MelvilFilterTagItem)
     bpy.utils.register_class(MelvilTagItem)
     bpy.utils.register_class(MelvilBrowserAssetItem)
+    bpy.utils.register_class(MelvilGridScrollProps)
     bpy.types.Scene.melvil_active_kit_id = StringProperty(
         name="Active Kit",
         description="Kit used to filter Melvil items in the Add menus",
@@ -223,9 +226,16 @@ def register() -> None:
         options={"HIDDEN", "SKIP_SAVE"},
         update=_update_browser_assets_index,
     )
+    bpy.types.WindowManager.melvil_grid_scroll = PointerProperty(
+        name="Grid Scroll State",
+        description="Transient scroll, selection, and hover state for the GPU card grid",
+        type=MelvilGridScrollProps,
+        options=set(),
+    )
 
 
 def unregister() -> None:
+    del bpy.types.WindowManager.melvil_grid_scroll
     del bpy.types.Scene.melvil_active_kit_id
     del bpy.types.Scene.melvil_mru_kit_id
     del bpy.types.WindowManager.melvil_active_tag_filters
@@ -241,3 +251,4 @@ def unregister() -> None:
     bpy.utils.unregister_class(MelvilBrowserAssetItem)
     bpy.utils.unregister_class(MelvilTagItem)
     bpy.utils.unregister_class(MelvilFilterTagItem)
+    bpy.utils.unregister_class(MelvilGridScrollProps)

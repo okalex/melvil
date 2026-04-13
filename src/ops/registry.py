@@ -24,6 +24,7 @@ from .open_blend_file import MELVIL_OT_open_blend_file, MELVIL_OT_reveal_blend_f
 from .open_browser import MELVIL_OT_open_browser
 from .open_test_grid import MELVIL_OT_open_test_grid
 from .save import MELVIL_OT_save_asset, MELVIL_OT_save_nodes_as_asset
+from ..ui.grid_list import MELVIL_OT_grid_scroll_nav
 from .set_active_kit import MELVIL_OT_set_active_kit
 from .set_preview_object import MELVIL_OT_set_preview_object
 from .tag_add import MELVIL_OT_tag_add
@@ -54,6 +55,7 @@ _classes = (
     MELVIL_OT_reveal_blend_file,
     MELVIL_OT_open_browser,
     MELVIL_OT_open_test_grid,
+    MELVIL_OT_grid_scroll_nav,
     MELVIL_OT_set_active_kit,
     MELVIL_OT_set_preview_object,
     MELVIL_OT_tag_add,

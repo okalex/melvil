@@ -120,8 +120,23 @@ class TestModal:
         import melvil.ops.open_test_grid as mod
         mod._draw_handle = "FAKE_HANDLE"
         mod._draw_state["active"] = True
-        mod._draw_state["items"] = [{"id": "x", "name": "x", "type": "MESH"}]
+        mod._draw_state["items"] = [
+            {"id": f"id-{i}", "name": f"Item {i}", "type": "MESH"}
+            for i in range(30)
+        ]
         bpy.types.SpaceView3D.draw_handler_remove.reset_mock()
+
+    def _make_ctx(self, scroll_offset=0):
+        """Build a mock context with a melvil_grid_scroll PropertyGroup stub."""
+        ctx = MagicMock()
+        scroll_props = MagicMock()
+        scroll_props.scroll_offset = scroll_offset
+        scroll_props.selected_id = ""
+        scroll_props.hovered_index = -1
+        ctx.window_manager.melvil_grid_scroll = scroll_props
+        ctx.region.x = 0
+        ctx.region.y = 0
+        return ctx
 
     def test_esc_cancels_and_cleans_up(self):
         from melvil.ops.open_test_grid import (
@@ -130,7 +145,7 @@ class TestModal:
         )
 
         op = MELVIL_OT_open_test_grid()
-        ctx = MagicMock()
+        ctx = self._make_ctx()
         event = MagicMock()
         event.type = "ESC"
 
@@ -144,7 +159,7 @@ class TestModal:
         from melvil.ops.open_test_grid import MELVIL_OT_open_test_grid
 
         op = MELVIL_OT_open_test_grid()
-        ctx = MagicMock()
+        ctx = self._make_ctx()
         event = MagicMock()
         event.type = "RIGHTMOUSE"
 
@@ -156,9 +171,101 @@ class TestModal:
         from melvil.ops.open_test_grid import MELVIL_OT_open_test_grid
 
         op = MELVIL_OT_open_test_grid()
-        ctx = MagicMock()
+        ctx = self._make_ctx()
         event = MagicMock()
         event.type = "MOUSEMOVE"
+        event.mouse_x = 0
+        event.mouse_y = 0
+
+        result = op.modal(ctx, event)
+
+        assert result == {"PASS_THROUGH"}
+
+    def test_wheelup_over_grid_decrements_scroll(self):
+        from melvil.ops.open_test_grid import MELVIL_OT_open_test_grid
+        import melvil.ui.grid_list as grid_list
+
+        # Seed _card_rects so is_over_grid returns True at (50, 50).
+        grid_list._card_rects = [(0, 0, 200, 200, "id-0")]
+
+        ctx = self._make_ctx(scroll_offset=2)
+        op = MELVIL_OT_open_test_grid()
+        event = MagicMock()
+        event.type = "WHEELUPMOUSE"
+        event.mouse_x = 50
+        event.mouse_y = 50
+
+        result = op.modal(ctx, event)
+
+        assert result == {"RUNNING_MODAL"}
+        assert ctx.window_manager.melvil_grid_scroll.scroll_offset == 1
+
+    def test_wheelup_clamps_at_zero(self):
+        from melvil.ops.open_test_grid import MELVIL_OT_open_test_grid
+        import melvil.ui.grid_list as grid_list
+
+        grid_list._card_rects = [(0, 0, 200, 200, "id-0")]
+
+        ctx = self._make_ctx(scroll_offset=0)
+        op = MELVIL_OT_open_test_grid()
+        event = MagicMock()
+        event.type = "WHEELUPMOUSE"
+        event.mouse_x = 50
+        event.mouse_y = 50
+
+        op.modal(ctx, event)
+
+        assert ctx.window_manager.melvil_grid_scroll.scroll_offset == 0
+
+    def test_wheeldown_over_grid_increments_scroll(self):
+        from melvil.ops.open_test_grid import MELVIL_OT_open_test_grid
+        import melvil.ui.grid_list as grid_list
+
+        grid_list._card_rects = [(0, 0, 200, 200, "id-0")]
+
+        ctx = self._make_ctx(scroll_offset=0)
+        op = MELVIL_OT_open_test_grid()
+        event = MagicMock()
+        event.type = "WHEELDOWNMOUSE"
+        event.mouse_x = 50
+        event.mouse_y = 50
+
+        result = op.modal(ctx, event)
+
+        assert result == {"RUNNING_MODAL"}
+        assert ctx.window_manager.melvil_grid_scroll.scroll_offset == 1
+
+    def test_wheeldown_clamps_at_max_offset(self):
+        from melvil.ops.open_test_grid import MELVIL_OT_open_test_grid
+        import melvil.ui.grid_list as grid_list
+
+        grid_list._card_rects = [(0, 0, 200, 200, "id-0")]
+
+        # 30 items, 3 cols, 4 visible rows → max_offset = ceil(30/3) - 4 = 6
+        ctx = self._make_ctx(scroll_offset=6)
+        op = MELVIL_OT_open_test_grid()
+        event = MagicMock()
+        event.type = "WHEELDOWNMOUSE"
+        event.mouse_x = 50
+        event.mouse_y = 50
+
+        op.modal(ctx, event)
+
+        assert ctx.window_manager.melvil_grid_scroll.scroll_offset == 6
+
+    def test_wheel_outside_grid_passes_through(self):
+        from melvil.ops.open_test_grid import MELVIL_OT_open_test_grid
+        import melvil.ui.grid_list as grid_list
+
+        # No card rects → cursor can't be over grid.
+        grid_list._card_rects = []
+
+        ctx = self._make_ctx(scroll_offset=0)
+        op = MELVIL_OT_open_test_grid()
+        event = MagicMock()
+        event.type = "WHEELDOWNMOUSE"
+        event.mouse_x = 50
+        event.mouse_y = 50
 
         result = op.modal(ctx, event)
 
