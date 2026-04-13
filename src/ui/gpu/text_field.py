@@ -121,10 +121,12 @@ class GpuTextField(GpuWidget):
                     scaled(2.0, s), theme.selection_bg,
                 )
 
-        # Draw the text itself.
+        # Draw the text itself.  Use a fixed reference height so the
+        # baseline stays stable regardless of which glyphs are present
+        # (e.g. "aeco" vs "aleco" would otherwise shift vertically).
+        _, ref_h = measure_text("Ag", font_size)
         if current_text:
-            text_w, text_h = measure_text(current_text, font_size)
-            text_y = y + (h - text_h) / 2
+            text_y = y + (h - ref_h) / 2
             draw_text(current_text, text_x, text_y, font_size, text_color)
 
         # -- Blinking cursor -------------------------------------------------
