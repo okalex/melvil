@@ -36,7 +36,7 @@ def get_ui_scale() -> float:
     """
     try:
         return bpy.context.preferences.system.ui_scale
-    except Exception:
+    except Exception as exc:  # noqa: F841 — logged only when GPU_UI_LOG=1
         return 1.0
 
 

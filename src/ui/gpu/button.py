@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 from .constants import WIDGET_HEIGHT, scaled
 from .drawing import draw_rect_outline, draw_rect_rounded
 from .theme import get_theme
-from .widget import GpuWidget
+from .widget import GpuWidget, point_in_rect
 
 if TYPE_CHECKING:
     from .panel import GpuPanel
@@ -68,7 +68,7 @@ class GpuButton(GpuWidget):
         x, y, w, h = self.rect
         theme = get_theme()
         is_enabled = self.enabled and parent_enabled
-        hovered = is_enabled and _point_in_rect(panel._mouse_pos, self.rect)
+        hovered = is_enabled and point_in_rect(panel._mouse_pos, self.rect)
         r = scaled(4.0, s)
 
         # -- Background ------------------------------------------------------
@@ -104,20 +104,3 @@ class GpuButton(GpuWidget):
                 kwargs=dict(self.operator_props._props),
                 rect=self.rect,
             ))
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _point_in_rect(
-    pos: tuple[float, float] | None,
-    rect: tuple[float, float, float, float],
-) -> bool:
-    """Return ``True`` if *pos* lies inside *rect*."""
-    if pos is None:
-        return False
-    mx, my = pos
-    x, y, w, h = rect
-    return x <= mx <= x + w and y <= my <= y + h

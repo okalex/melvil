@@ -12,6 +12,7 @@ from .constants import get_ui_scale, scaled
 from .drawing import draw_rect_outline, draw_rect_rounded
 from .layout import GpuLayout
 from .theme import get_theme
+from ._logger import _logger
 
 
 # ---------------------------------------------------------------------------
@@ -141,7 +142,8 @@ class GpuPanel:
                 region = bpy.context.region
                 ax = (region.width - w) / 2
                 ay = (region.height + h) / 2
-            except Exception:
+            except Exception as exc:
+                _logger.log(f"region fallback anchor failed: {exc}")
                 ax, ay = 0.0, h
 
         # Panel rect: (x, y) is bottom-left.
@@ -201,6 +203,7 @@ class GpuPanel:
             texture = gpu.texture.from_image(img)
             self._texture_cache[path] = texture
             return texture
-        except Exception:
+        except Exception as exc:
+            _logger.log(f"get_texture() failed for {path!r}: {exc}")
             self._texture_cache[path] = None
             return None

@@ -39,6 +39,7 @@ from .drawing import (
     _get_uniform_shader,
 )
 from .button import GpuButton, GpuOperatorProps
+from .enum_buttons import GpuEnumButtons
 from .layout import GpuLayout
 from .label import GpuLabel
 from .panel import GpuPanel, HitResult, get_region_offsets
@@ -49,7 +50,7 @@ from .theme import (
     get_theme,
     reset_theme,
 )
-from .widget import GpuWidget
+from .widget import GpuWidget, draw_text_in_rect, point_in_rect
 from ._logger import GpuUiLogger
 
 __all__ = [
@@ -89,9 +90,13 @@ __all__ = [
     # Widgets
     "GpuWidget",
     "GpuButton",
+    "GpuEnumButtons",
     "GpuLabel",
     "GpuOperatorProps",
     "GpuSeparator",
+    # Helpers
+    "draw_text_in_rect",
+    "point_in_rect",
     # Logger
     "GpuUiLogger",
 ]

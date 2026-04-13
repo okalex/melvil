@@ -9,11 +9,11 @@ This operator is the incremental replacement for the popup-based browser.
 Widgets and functionality are added as each GPU UI phase lands.
 """
 
-from __future__ import annotations
-
 import bpy
+from bpy.props import EnumProperty
 
 from ..ui.gpu import GpuPanel, get_region_offsets
+from .open_browser import _TYPE_ENUM_ITEMS, _get_kit_filter_items
 
 _PANEL_MARGIN_X = 0
 _PANEL_MARGIN_Y = 18
@@ -24,7 +24,21 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
     bl_label = "Melvil Browser (GPU)"
     bl_options = {"REGISTER", "INTERNAL"}
 
-    _panel: GpuPanel | None = None
+    type_filter: EnumProperty(
+        name="Category",
+        items=_TYPE_ENUM_ITEMS,
+        default="ALL",
+        options={"HIDDEN"},
+    )
+
+    kit_filter: EnumProperty(
+        name="Kit",
+        items=_get_kit_filter_items,
+        default=0,
+        options={"HIDDEN"},
+    )
+
+    _panel = None
 
     @classmethod
     def poll(cls, context):
@@ -63,8 +77,8 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
         """Build the browser widget tree.
 
         Mirrors the three-column structure of ``open_browser.py`` using
-        only implemented GPU UI elements. Unsupported elements (props,
-        template_list, template_icon, operator_menu_enum) are omitted.
+        only implemented GPU UI elements. Unsupported elements
+        (template_list, template_icon, operator_menu_enum) are omitted.
         """
         layout.label(text="Melvil Asset Library", icon="ASSET_MANAGER")
         layout.separator()
@@ -79,11 +93,11 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
 
         # -- Left column: filters --------------------------------------------
         left.label(text="Search by name/tag", icon="VIEWZOOM")
-        # search_query prop — not yet implemented
+        # search_query prop — not yet implemented (STRING)
         left.separator()
 
         left.label(text="Asset type")
-        # type_filter prop (expand=True) — not yet implemented
+        left.prop(self, "type_filter", expand=True)
         left.separator()
 
         # Kit selector header row with New Kit and Rename Kit buttons.
@@ -91,10 +105,15 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
         kit_header.label(text="Kit")
         kit_header.operator("melvil.kit_create", text="New", icon="ADD")
         rename_sub = kit_header.row()
-        rename_sub.enabled = False  # requires kit selection (no kit_filter yet)
-        rename_sub.operator("melvil.kit_rename", text="Rename", icon="GREASEPENCIL")
+        rename_sub.enabled = self.kit_filter != "ALL_KITS"
+        rename_op = rename_sub.operator(
+            "melvil.kit_rename", text="Rename", icon="GREASEPENCIL",
+        )
+        rename_op.kit_id = (
+            self.kit_filter if self.kit_filter != "ALL_KITS" else ""
+        )
 
-        # kit_filter prop (expand=True) — not yet implemented
+        left.prop(self, "kit_filter", expand=True)
         left.separator()
 
         # Tag filter section.
@@ -136,7 +155,7 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
                 ):
                     self._cleanup(context)
                     return {"CANCELLED"}
-                # Dispatch hit-tested operator.
+                # Dispatch hit-tested widget.
                 hit = self._panel.hit_test(
                     event.mouse_region_x, event.mouse_region_y,
                 )
@@ -147,6 +166,15 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
                         op_fn(**hit.kwargs)
                     except Exception:  # noqa: BLE001
                         pass
+                    return {"RUNNING_MODAL"}
+                if hit is not None and hit.widget_type == "prop":
+                    data = hit.kwargs.get("data")
+                    value = hit.kwargs.get("value")
+                    if data is not None and value is not None:
+                        try:
+                            setattr(data, hit.id, value)
+                        except Exception:  # noqa: BLE001
+                            pass
                     return {"RUNNING_MODAL"}
 
         if context.area is not None:

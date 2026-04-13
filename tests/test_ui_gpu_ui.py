@@ -1837,3 +1837,607 @@ class TestDrawTextContent:
         w._draw_text_content(1.0, (1, 1, 1, 1))
 
         blf.draw.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# point_in_rect (shared helper)
+# ---------------------------------------------------------------------------
+
+
+class TestPointInRect:
+    def test_inside(self):
+        from melvil.ui.gpu import point_in_rect
+
+        assert point_in_rect((50, 50), (0, 0, 100, 100)) is True
+
+    def test_outside(self):
+        from melvil.ui.gpu import point_in_rect
+
+        assert point_in_rect((150, 50), (0, 0, 100, 100)) is False
+
+    def test_none_pos(self):
+        from melvil.ui.gpu import point_in_rect
+
+        assert point_in_rect(None, (0, 0, 100, 100)) is False
+
+    def test_on_edge(self):
+        from melvil.ui.gpu import point_in_rect
+
+        assert point_in_rect((100, 100), (0, 0, 100, 100)) is True
+
+
+# ---------------------------------------------------------------------------
+# draw_text_in_rect (shared helper)
+# ---------------------------------------------------------------------------
+
+
+class TestDrawTextInRect:
+    def test_center_aligned(self):
+        import blf
+        from melvil.ui.gpu import draw_text_in_rect
+
+        blf.draw.reset_mock()
+        blf.position.reset_mock()
+        blf.dimensions = MagicMock(return_value=(40.0, 12.0))
+
+        draw_text_in_rect("Hello", (10.0, 20.0, 200.0, 20.0), 1.0, (1, 1, 1, 1))
+
+        blf.position.assert_called_once()
+        text_x = blf.position.call_args.args[1]
+        expected_x = 10.0 + (200.0 - 40.0) / 2
+        assert text_x == pytest.approx(expected_x)
+
+    def test_left_aligned(self):
+        import blf
+        from melvil.ui.gpu import draw_text_in_rect, WIDGET_PAD_X
+
+        blf.draw.reset_mock()
+        blf.position.reset_mock()
+        blf.dimensions = MagicMock(return_value=(40.0, 12.0))
+
+        draw_text_in_rect("Hello", (10.0, 20.0, 200.0, 20.0), 1.0, (1, 1, 1, 1), align="LEFT")
+
+        text_x = blf.position.call_args.args[1]
+        assert text_x == pytest.approx(10.0 + WIDGET_PAD_X)
+
+    def test_empty_text_no_draw(self):
+        import blf
+        from melvil.ui.gpu import draw_text_in_rect
+
+        blf.draw.reset_mock()
+        draw_text_in_rect("", (10.0, 20.0, 200.0, 20.0), 1.0, (1, 1, 1, 1))
+        blf.draw.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# GpuEnumButtons — construction
+# ---------------------------------------------------------------------------
+
+
+_MOCK_ENUM_ITEMS = [
+    ("ALL", "All", "", "ASSET_MANAGER"),
+    ("MATERIAL", "Materials", "", "MATERIAL"),
+    ("MESH", "Meshes", "", "MESH_DATA"),
+    ("NODE_GROUP", "Node Groups", "", "NODETREE"),
+]
+
+
+class TestGpuEnumButtons:
+    def test_construction(self):
+        from melvil.ui.gpu import GpuEnumButtons
+
+        w = GpuEnumButtons(
+            items=_MOCK_ENUM_ITEMS,
+            active_value="ALL",
+            property_name="type_filter",
+        )
+        assert len(w.items) == 4
+        assert w.active_value == "ALL"
+        assert w.property_name == "type_filter"
+
+    def test_height_matches_item_count(self):
+        from melvil.ui.gpu import GpuEnumButtons, WIDGET_HEIGHT, WIDGET_GAP_ALIGNED
+
+        w = GpuEnumButtons(items=_MOCK_ENUM_ITEMS)
+        h = w.measure_height(1.0)
+        expected = 4 * WIDGET_HEIGHT + 3 * WIDGET_GAP_ALIGNED
+        assert h == pytest.approx(expected)
+
+    def test_empty_items_zero_height(self):
+        from melvil.ui.gpu import GpuEnumButtons
+
+        w = GpuEnumButtons(items=[])
+        assert w.measure_height(1.0) == 0.0
+
+    def test_single_item_no_gap(self):
+        from melvil.ui.gpu import GpuEnumButtons, WIDGET_HEIGHT
+
+        w = GpuEnumButtons(items=[("ONLY", "Only", "", "NONE")])
+        assert w.measure_height(1.0) == pytest.approx(WIDGET_HEIGHT)
+
+    def test_inherits_from_gpu_widget(self):
+        from melvil.ui.gpu import GpuEnumButtons, GpuWidget
+
+        assert issubclass(GpuEnumButtons, GpuWidget)
+
+
+# ---------------------------------------------------------------------------
+# GpuEnumButtons — drawing
+# ---------------------------------------------------------------------------
+
+
+class TestGpuEnumButtonsDraw:
+    def test_active_item_uses_active_bg(self):
+        """Active item draws with widget_bg_active background color."""
+        import gpu as _gpu
+        from melvil.ui.gpu import get_theme
+
+        shader = _gpu.shader.from_builtin.return_value
+
+        panel = _make_panel(width=200, anchor=(0, 400))
+        root = panel.begin_frame()
+        root._children.append(
+            _make_enum_widget(active_value="MATERIAL"),
+        )
+        panel.end_frame()
+
+        theme = get_theme()
+        colors = [
+            c.args[1] for c in shader.uniform_float.call_args_list
+            if c.args[0] == "color"
+        ]
+        assert theme.widget_bg_active in colors
+
+    def test_inactive_item_uses_button_bg(self):
+        """Non-active items draw with button_bg background color."""
+        import gpu as _gpu
+        from melvil.ui.gpu import get_theme
+
+        shader = _gpu.shader.from_builtin.return_value
+
+        panel = _make_panel(width=200, anchor=(0, 400))
+        root = panel.begin_frame()
+        root._children.append(
+            _make_enum_widget(active_value="ALL"),
+        )
+        panel.end_frame()
+
+        theme = get_theme()
+        colors = [
+            c.args[1] for c in shader.uniform_float.call_args_list
+            if c.args[0] == "color"
+        ]
+        # "ALL" is active; MATERIAL, MESH, NODE_GROUP should use button_bg.
+        assert theme.button_bg in colors
+
+    def test_item_text_drawn(self):
+        """Each enum item name is drawn via blf."""
+        import blf
+
+        blf.draw.reset_mock()
+        blf.dimensions = MagicMock(return_value=(40.0, 12.0))
+
+        panel = _make_panel(width=200, anchor=(0, 400))
+        root = panel.begin_frame()
+        root._children.append(_make_enum_widget())
+        panel.end_frame()
+
+        drawn_texts = [c.args[1] for c in blf.draw.call_args_list]
+        assert "All" in drawn_texts
+        assert "Materials" in drawn_texts
+        assert "Meshes" in drawn_texts
+        assert "Node Groups" in drawn_texts
+
+    def test_active_item_uses_selection_text_color(self):
+        """Active item text uses selection_text for contrast."""
+        import blf
+        from melvil.ui.gpu import get_theme
+
+        blf.color.reset_mock()
+        blf.dimensions = MagicMock(return_value=(40.0, 12.0))
+
+        panel = _make_panel(width=200, anchor=(0, 400))
+        root = panel.begin_frame()
+        root._children.append(_make_enum_widget(active_value="ALL"))
+        panel.end_frame()
+
+        theme = get_theme()
+        color_calls = [c.args[1:] for c in blf.color.call_args_list]
+        assert theme.selection_text in color_calls
+
+    def test_disabled_uses_disabled_color(self):
+        """Disabled enum buttons use text_disabled for all items."""
+        import blf
+        from melvil.ui.gpu import get_theme, GpuEnumButtons
+
+        blf.color.reset_mock()
+        blf.dimensions = MagicMock(return_value=(40.0, 12.0))
+
+        w = GpuEnumButtons(
+            items=_MOCK_ENUM_ITEMS,
+            active_value="ALL",
+            enabled=False,
+        )
+
+        panel = _make_panel(width=200, anchor=(0, 400))
+        root = panel.begin_frame()
+        root._children.append(w)
+        panel.end_frame()
+
+        theme = get_theme()
+        color_calls = [c.args[1:] for c in blf.color.call_args_list]
+        # All item text should be disabled color.
+        item_colors = color_calls[-4:]  # last 4 items
+        assert all(c == theme.text_disabled for c in item_colors)
+
+    def test_empty_items_no_draw(self):
+        """Widget with no items draws nothing extra."""
+        import blf
+        from melvil.ui.gpu import GpuEnumButtons
+
+        panel = _make_panel(width=200, anchor=(0, 200))
+        root = panel.begin_frame()
+        root._children.append(GpuEnumButtons(items=[]))
+        blf.draw.reset_mock()
+        panel.end_frame()
+
+        drawn_texts = [c.args[1] for c in blf.draw.call_args_list]
+        assert "All" not in drawn_texts
+        assert "Materials" not in drawn_texts
+
+
+# ---------------------------------------------------------------------------
+# GpuEnumButtons — hit-rect registration
+# ---------------------------------------------------------------------------
+
+
+class TestGpuEnumButtonsHitRect:
+    def test_registers_hit_rects_per_item(self):
+        panel = _make_panel(width=200, anchor=(0, 400))
+        root = panel.begin_frame()
+        root._children.append(
+            _make_enum_widget(property_name="type_filter"),
+        )
+        panel.end_frame()
+
+        prop_hits = [h for h in panel._hit_rects if h.widget_type == "prop"]
+        assert len(prop_hits) == 4
+
+    def test_hit_rect_has_correct_property_name(self):
+        panel = _make_panel(width=200, anchor=(0, 400))
+        root = panel.begin_frame()
+        root._children.append(
+            _make_enum_widget(property_name="type_filter"),
+        )
+        panel.end_frame()
+
+        prop_hits = [h for h in panel._hit_rects if h.widget_type == "prop"]
+        assert all(h.id == "type_filter" for h in prop_hits)
+
+    def test_hit_rect_has_correct_value(self):
+        panel = _make_panel(width=200, anchor=(0, 400))
+        root = panel.begin_frame()
+        root._children.append(
+            _make_enum_widget(property_name="type_filter"),
+        )
+        panel.end_frame()
+
+        prop_hits = [h for h in panel._hit_rects if h.widget_type == "prop"]
+        values = [h.kwargs["value"] for h in prop_hits]
+        assert set(values) == {"ALL", "MATERIAL", "MESH", "NODE_GROUP"}
+
+    def test_disabled_registers_no_hit_rects(self):
+        from melvil.ui.gpu import GpuEnumButtons
+
+        panel = _make_panel(width=200, anchor=(0, 400))
+        root = panel.begin_frame()
+        root._children.append(GpuEnumButtons(
+            items=_MOCK_ENUM_ITEMS,
+            active_value="ALL",
+            enabled=False,
+            property_name="type_filter",
+        ))
+        panel.end_frame()
+
+        prop_hits = [h for h in panel._hit_rects if h.widget_type == "prop"]
+        assert len(prop_hits) == 0
+
+    def test_hit_test_finds_enum_button(self):
+        """hit_test() on an enum button returns the correct HitResult."""
+        panel = _make_panel(width=200, anchor=(0, 400))
+        root = panel.begin_frame()
+        root._children.append(
+            _make_enum_widget(property_name="type_filter"),
+        )
+        panel.end_frame()
+
+        # Find the first prop hit rect and click its center.
+        prop_hits = [h for h in panel._hit_rects if h.widget_type == "prop"]
+        hit_rect = prop_hits[0].rect
+        cx = hit_rect[0] + hit_rect[2] / 2
+        cy = hit_rect[1] + hit_rect[3] / 2
+        result = panel.hit_test(cx, cy)
+
+        assert result is not None
+        assert result.widget_type == "prop"
+
+
+# ---------------------------------------------------------------------------
+# GpuEnumButtons — hover
+# ---------------------------------------------------------------------------
+
+
+class TestGpuEnumButtonsHover:
+    def setup_method(self):
+        from melvil.ui.gpu import reset_theme, ThemeColors
+
+        reset_theme()
+        self._orig = ThemeColors.fallback
+
+    def teardown_method(self):
+        from melvil.ui.gpu import reset_theme, ThemeColors
+
+        ThemeColors.fallback = self._orig
+        reset_theme()
+
+    def test_hovered_inactive_uses_hover_bg(self):
+        """Non-active enum button under hover uses button_bg_hover."""
+        import gpu as _gpu
+        from melvil.ui.gpu import get_theme
+
+        theme = get_theme()
+        shader = _gpu.shader.from_builtin.return_value
+
+        panel = _make_panel(width=200, anchor=(0, 400))
+        # First pass: find the last item's rect (it's not active).
+        root = panel.begin_frame()
+        w = _make_enum_widget(active_value="ALL")
+        root._children.append(w)
+        panel.end_frame()
+
+        # The widget has been positioned — grab the bottom-most item rect.
+        # Items draw top-to-bottom in the widget rect.  The last enum item
+        # ("NODE_GROUP") is at the bottom.
+        prop_hits = [h for h in panel._hit_rects if h.widget_type == "prop"]
+        # Find the NODE_GROUP hit rect.
+        ng_hit = next(h for h in prop_hits if h.kwargs["value"] == "NODE_GROUP")
+        cx = ng_hit.rect[0] + ng_hit.rect[2] / 2
+        cy = ng_hit.rect[1] + ng_hit.rect[3] / 2
+        panel.update_mouse(cx, cy)
+
+        # Second pass: redraw with hover.
+        shader.uniform_float.reset_mock()
+        root2 = panel.begin_frame()
+        root2._children.append(_make_enum_widget(active_value="ALL"))
+        panel.end_frame()
+
+        colors = [
+            c.args[1] for c in shader.uniform_float.call_args_list
+            if c.args[0] == "color"
+        ]
+        assert theme.button_bg_hover in colors
+
+
+# ---------------------------------------------------------------------------
+# GpuLayout.prop() — dispatch
+# ---------------------------------------------------------------------------
+
+
+def _mock_enum_rna(items, current_value="ALL"):
+    """Create a mock data object with an ENUM property for testing prop().
+
+    The ``prop()`` method first checks ``type(data).bl_rna.properties``
+    using ``in`` then ``[]``, so the mock properties collection must
+    support both ``__contains__`` and ``__getitem__``.
+    """
+
+    prop_rna = MagicMock()
+    prop_rna.type = "ENUM"
+    mock_items = []
+    for ident, name, desc, icon in items:
+        item = MagicMock()
+        item.identifier = ident
+        item.name = name
+        item.description = desc
+        item.icon = icon
+        mock_items.append(item)
+    prop_rna.enum_items = mock_items
+
+    props_coll = MagicMock()
+    props_coll.__contains__ = MagicMock(return_value=True)
+    props_coll.__getitem__ = MagicMock(return_value=prop_rna)
+    props_coll.keys = MagicMock(return_value=["type_filter"])
+
+    bl_rna = MagicMock()
+    bl_rna.properties = props_coll
+
+    class MockData:
+        pass
+
+    MockData.bl_rna = bl_rna
+
+    mock_data = MockData()
+    mock_data.type_filter = current_value
+
+    return mock_data
+
+
+def _mock_string_rna():
+    """Create a mock data object with a STRING property for testing prop()."""
+    prop_rna = MagicMock()
+    prop_rna.type = "STRING"
+
+    props_coll = MagicMock()
+    props_coll.__contains__ = MagicMock(return_value=True)
+    props_coll.__getitem__ = MagicMock(return_value=prop_rna)
+    props_coll.keys = MagicMock(return_value=["some_string"])
+
+    bl_rna = MagicMock()
+    bl_rna.properties = props_coll
+
+    class MockStringData:
+        pass
+
+    MockStringData.bl_rna = bl_rna
+    return MockStringData()
+
+
+class TestGpuLayoutProp:
+    def test_enum_expand_appends_enum_buttons(self):
+        from melvil.ui.gpu import GpuEnumButtons
+
+        mock_data = _mock_enum_rna(_MOCK_ENUM_ITEMS, "ALL")
+
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.prop(mock_data, "type_filter", expand=True)
+
+        assert len(root._children) == 1
+        child = root._children[0]
+        assert isinstance(child, GpuEnumButtons)
+        assert len(child.items) == 4
+        assert child.active_value == "ALL"
+        assert child.property_name == "type_filter"
+
+    def test_enum_expand_reads_current_value(self):
+        mock_data = _mock_enum_rna(_MOCK_ENUM_ITEMS, "MESH")
+
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.prop(mock_data, "type_filter", expand=True)
+
+        child = root._children[0]
+        assert child.active_value == "MESH"
+
+    def test_enum_no_expand_falls_back_to_label(self):
+        """Enum without expand=True falls back to label stub."""
+        from melvil.ui.gpu import GpuLabel
+
+        mock_data = _mock_enum_rna(_MOCK_ENUM_ITEMS)
+
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.prop(mock_data, "type_filter", expand=False)
+
+        assert len(root._children) == 1
+        child = root._children[0]
+        assert isinstance(child, GpuLabel)
+
+    def test_non_enum_falls_back_to_label(self):
+        """Non-enum property type falls back to label stub."""
+        from melvil.ui.gpu import GpuLabel
+
+        mock_data = _mock_string_rna()
+
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.prop(mock_data, "search_query")
+
+        assert len(root._children) == 1
+        child = root._children[0]
+        assert isinstance(child, GpuLabel)
+
+    def test_label_stub_uses_text_param(self):
+        """Label stub uses the text parameter when provided."""
+        from melvil.ui.gpu import GpuLabel
+
+        mock_data = _mock_string_rna()
+
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.prop(mock_data, "search_query", text="Search")
+
+        child = root._children[0]
+        assert isinstance(child, GpuLabel)
+        assert child.text == "Search"
+
+    def test_label_stub_uses_property_name_when_no_text(self):
+        """Label stub defaults to the property name when text is None."""
+        from melvil.ui.gpu import GpuLabel
+
+        mock_data = _mock_string_rna()
+
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.prop(mock_data, "search_query")
+
+        child = root._children[0]
+        assert child.text == "search_query"
+
+    def test_bl_rna_missing_falls_back_to_label(self):
+        """If bl_rna access fails, falls back to label gracefully."""
+        from melvil.ui.gpu import GpuLabel
+
+        bl_rna = MagicMock()
+        bl_rna.properties.__getitem__.side_effect = KeyError("no")
+
+        class BrokenData:
+            pass
+
+        BrokenData.bl_rna = bl_rna
+        mock_data = BrokenData()
+
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.prop(mock_data, "missing_prop")
+
+        assert len(root._children) == 1
+        assert isinstance(root._children[0], GpuLabel)
+
+    def test_inherits_enabled_false(self):
+        """Enum buttons inherit enabled=False from parent layout."""
+        from melvil.ui.gpu import GpuEnumButtons
+
+        mock_data = _mock_enum_rna(_MOCK_ENUM_ITEMS)
+
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.enabled = False
+        root.prop(mock_data, "type_filter", expand=True)
+
+        child = root._children[0]
+        assert isinstance(child, GpuEnumButtons)
+        assert child.enabled is False
+
+    def test_inherits_alert(self):
+        """Enum buttons inherit alert from parent layout."""
+        from melvil.ui.gpu import GpuEnumButtons
+
+        mock_data = _mock_enum_rna(_MOCK_ENUM_ITEMS)
+
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.alert = True
+        root.prop(mock_data, "type_filter", expand=True)
+
+        child = root._children[0]
+        assert child.alert is True
+
+    def test_data_stored_on_widget(self):
+        """The data object reference is stored on the widget for hit dispatch."""
+        mock_data = _mock_enum_rna(_MOCK_ENUM_ITEMS)
+
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.prop(mock_data, "type_filter", expand=True)
+
+        child = root._children[0]
+        assert child.data is mock_data
+
+
+# ---------------------------------------------------------------------------
+# Helper for building GpuEnumButtons used by multiple test classes
+# ---------------------------------------------------------------------------
+
+
+def _make_enum_widget(**overrides):
+    """Return a GpuEnumButtons with sensible defaults."""
+    from melvil.ui.gpu import GpuEnumButtons
+
+    defaults = {
+        "items": list(_MOCK_ENUM_ITEMS),
+        "active_value": "ALL",
+        "property_name": "type_filter",
+    }
+    defaults.update(overrides)
+    return GpuEnumButtons(**defaults)

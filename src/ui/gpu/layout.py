@@ -12,14 +12,56 @@ from .constants import (
 )
 from .drawing import draw_rect_outline, draw_rect_rounded
 from .button import GpuButton, GpuOperatorProps
+from .enum_buttons import GpuEnumButtons
 from .label import GpuLabel
 from .separator import GpuSeparator
 from .theme import get_theme
 from .widget import GpuWidget
+from ._logger import _logger
 
 if TYPE_CHECKING:
     from .panel import GpuPanel
 
+
+def _resolve_dynamic_enum(
+    data: object, property: str,
+) -> list[tuple[str, str, str, str]]:
+    """Resolve items for a dynamic-callback EnumProperty.
+
+    Blender's ``_PropertyDeferred`` stores the keyword arguments passed to
+    ``EnumProperty()``.  If ``items`` is a callable we invoke it with
+    ``(data, context)`` to retrieve the current item list.
+    """
+    try:
+        import bpy  # noqa: delayed – only needed at runtime in Blender
+
+        ann = getattr(type(data), "__annotations__", {}).get(property)
+        if ann is None:
+            return []
+        # _PropertyDeferred exposes .keywords (the kwargs dict).
+        kw = getattr(ann, "keywords", None)
+        if kw is None:
+            return []
+        items_src = kw.get("items")
+        if items_src is None:
+            return []
+        if callable(items_src):
+            raw = items_src(data, bpy.context)
+        else:
+            raw = items_src
+        # Items may be 4-tuples or 5-tuples (with a numeric value).
+        result = []
+        for entry in raw:
+            if len(entry) >= 5:
+                result.append((entry[0], entry[1], entry[2], entry[3]))
+            elif len(entry) >= 4:
+                result.append((entry[0], entry[1], entry[2], entry[3]))
+            else:
+                result.append((entry[0], entry[1], "", "NONE"))
+        return result
+    except Exception as exc:
+        _logger.log(f"_resolve_dynamic_enum({property!r}): {exc}")
+        return []
 
 class GpuLayout:
     """Immediate-mode layout container mirroring ``bpy.types.UILayout``.
@@ -110,6 +152,88 @@ class GpuLayout:
             depress=depress,
         ))
         return props
+
+    def prop(
+        self,
+        data: object,
+        property: str,
+        *,
+        text: str | None = None,
+        expand: bool = False,
+    ) -> None:
+        """Append a property widget.
+
+        Currently only ``ENUM`` properties with ``expand=True`` are
+        implemented.  Other property types are rendered as a stub label.
+        """
+        try:
+            prop_rna = None
+            # Strategy 1: direct bl_rna.properties (works for PropertyGroup,
+            # AddonPreferences, etc.)
+            cls = type(data)
+            bl_rna = getattr(cls, "bl_rna", None)
+            if bl_rna is not None:
+                props_coll = getattr(bl_rna, "properties", None)
+                if props_coll is not None and property in props_coll:
+                    prop_rna = props_coll[property]
+
+            # Strategy 2: operator .properties sub-struct
+            if prop_rna is None and hasattr(data, "properties"):
+                op_props = data.properties
+                op_bl_rna = getattr(type(op_props), "bl_rna", None)
+                if op_bl_rna is None:
+                    op_bl_rna = getattr(op_props, "bl_rna", None)
+                if op_bl_rna is not None:
+                    op_props_coll = getattr(op_bl_rna, "properties", None)
+                    if op_props_coll is not None and property in op_props_coll:
+                        prop_rna = op_props_coll[property]
+
+            if prop_rna is None:
+                label_text = text if text is not None else property
+                self.label(text=label_text)
+                return
+
+            prop_type = prop_rna.type
+        except Exception as exc:
+            _logger.log(
+                f"prop() bl_rna lookup failed for {property!r} on "
+                f"{type(data).__name__}: {exc}",
+            )
+            label_text = text if text is not None else property
+            self.label(text=label_text)
+            return
+
+        if prop_type == "ENUM" and expand:
+            try:
+                items = [
+                    (item.identifier, item.name, item.description, item.icon)
+                    for item in prop_rna.enum_items
+                ]
+            except Exception:  # noqa: BLE001
+                items = []
+
+            # Dynamic enum callbacks (items=func) are not pre-populated
+            # in prop_rna.enum_items — resolve them from the annotation.
+            if not items:
+                items = _resolve_dynamic_enum(data, property)
+
+            if not items:
+                label_text = text if text is not None else property
+                self.label(text=label_text)
+                return
+            active_value = getattr(data, property, "")
+            self._children.append(GpuEnumButtons(
+                items=items,
+                active_value=active_value,
+                data=data,
+                property_name=property,
+                enabled=self.enabled,
+                alert=self.alert,
+            ))
+        else:
+            # Unsupported property type — render a stub label.
+            label_text = text if text is not None else property
+            self.label(text=label_text)
 
     def grid_flow(
         self,

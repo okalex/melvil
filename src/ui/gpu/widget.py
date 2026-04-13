@@ -13,6 +13,59 @@ if TYPE_CHECKING:
     from .panel import GpuPanel
 
 
+# ---------------------------------------------------------------------------
+# Shared geometry / drawing helpers
+# ---------------------------------------------------------------------------
+
+
+def point_in_rect(
+    pos: tuple[float, float] | None,
+    rect: tuple[float, float, float, float],
+) -> bool:
+    """Return ``True`` if *pos* lies inside *rect*."""
+    if pos is None:
+        return False
+    mx, my = pos
+    x, y, w, h = rect
+    return x <= mx <= x + w and y <= my <= y + h
+
+
+def draw_text_in_rect(
+    text: str,
+    rect: tuple[float, float, float, float],
+    s: float,
+    color: tuple[float, float, float, float],
+    *,
+    align: str = "CENTER",
+) -> None:
+    """Draw *text* within *rect* with vertical centering.
+
+    *align* controls horizontal placement: ``"LEFT"`` (with padding),
+    ``"CENTER"``, or ``"RIGHT"`` (with padding).
+    """
+    if not text:
+        return
+    x, y, w, h = rect
+    font_size = scaled(FONT_SIZE_PRIMARY, s)
+    pad = scaled(WIDGET_PAD_X, s)
+    text_w, text_h = measure_text(text, font_size)
+    text_y = y + (h - text_h) / 2
+
+    if align == "CENTER":
+        text_x = x + (w - text_w) / 2
+    elif align == "RIGHT":
+        text_x = x + w - pad - text_w
+    else:  # LEFT
+        text_x = x + pad
+
+    draw_text(text, text_x, text_y, font_size, color)
+
+
+# ---------------------------------------------------------------------------
+# Base widget
+# ---------------------------------------------------------------------------
+
+
 @dataclass
 class GpuWidget:
     """Base class for leaf widgets stored as children of :class:`GpuLayout`.
@@ -69,17 +122,4 @@ class GpuWidget:
         """
         if self.rect is None or not self.text:
             return
-        x, y, w, h = self.rect
-        font_size = scaled(FONT_SIZE_PRIMARY, s)
-        pad = scaled(WIDGET_PAD_X, s)
-        text_w, text_h = measure_text(self.text, font_size)
-        text_y = y + (h - text_h) / 2
-
-        if align == "CENTER":
-            text_x = x + (w - text_w) / 2
-        elif align == "RIGHT":
-            text_x = x + w - pad - text_w
-        else:  # LEFT
-            text_x = x + pad
-
-        draw_text(self.text, text_x, text_y, font_size, color)
+        draw_text_in_rect(self.text, self.rect, s, color, align=align)
