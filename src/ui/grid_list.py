@@ -24,17 +24,19 @@ from gpu_extras.batch import batch_for_shader
 # ---------------------------------------------------------------------------
 
 CARD_W = 120
-CARD_H = 80
+CARD_H = 140
 CARD_PAD = 8
 CARD_GAP = 6
 GRID_ORIGIN_X = 10
 GRID_ORIGIN_Y = 10
+PREVIEW_H = 80
 
 COLOR_CARD_BG = (0.18, 0.18, 0.18, 1.0)
 COLOR_CARD_HOVER = (0.28, 0.28, 0.28, 1.0)
 COLOR_CARD_SELECTED = (0.20, 0.45, 0.75, 1.0)
 COLOR_CARD_BORDER = (0.35, 0.35, 0.35, 1.0)
 COLOR_GRID_BG = (0.12, 0.12, 0.12, 0.90)
+COLOR_PREVIEW_BG = (0.14, 0.14, 0.14, 1.0)
 COLOR_TEXT_PRIMARY = (0.90, 0.90, 0.90, 1.0)
 COLOR_TEXT_SECONDARY = (0.60, 0.60, 0.60, 1.0)
 
@@ -89,6 +91,22 @@ def draw_rect_outline(
         batch.draw(shader)
 
 
+def draw_texture(texture, x: float, y: float, w: float, h: float) -> None:
+    """Draw a GPU texture at (*x*, *y*) with size *w* × *h*."""
+    shader = gpu.shader.from_builtin('IMAGE')
+    verts = [(x, y), (x + w, y), (x + w, y + h), (x, y + h)]
+    uvs = [(0, 0), (1, 0), (1, 1), (0, 1)]
+    indices = [(0, 1, 2), (0, 2, 3)]
+    batch = batch_for_shader(
+        shader, 'TRIS',
+        {"pos": verts, "texCoord": uvs},
+        indices=indices,
+    )
+    shader.bind()
+    shader.uniform_sampler("image", texture)
+    batch.draw(shader)
+
+
 # ---------------------------------------------------------------------------
 # Main draw function
 # ---------------------------------------------------------------------------
@@ -103,6 +121,7 @@ def draw_grid(
     hovered_index: int = -1,
     offset_x: int = 0,
     offset_y: int = 0,
+    get_preview_texture=None,
 ) -> int:
     """Draw a card grid into the current GPU context and return pixel height.
 
@@ -132,6 +151,10 @@ def draw_grid(
     offset_y:
         Additional vertical offset from the top in pixels (e.g. to clear
         the header).
+    get_preview_texture:
+        Optional callback ``(item_dict) -> gpu_texture | None``.  Called
+        once per visible card.  When it returns a texture, the preview
+        area shows the texture; otherwise a placeholder rect is drawn.
 
     Returns
     -------
@@ -166,6 +189,7 @@ def draw_grid(
     oy = round(GRID_ORIGIN_Y * scale)
     fsp = round(FONT_SIZE_PRIMARY * scale)
     fss = round(FONT_SIZE_SECONDARY * scale)
+    ph = round(PREVIEW_H * scale)
 
     region_h = region.height
     actual_rows = math.ceil(len(visible_items) / cols)
@@ -199,10 +223,24 @@ def draw_grid(
         draw_rect(x, y, cw, ch, bg)
         draw_rect_outline(x, y, cw, ch, COLOR_CARD_BORDER)
 
-        # Primary text — asset name
+        # Preview area
+        pw = cw - 2 * cp
+        preview_x = x + cp
+        preview_y = y + ch - cp - ph
+
+        texture = None
+        if get_preview_texture is not None:
+            texture = get_preview_texture(item)
+        if texture is not None:
+            draw_texture(texture, preview_x, preview_y, pw, ph)
+        else:
+            draw_rect(preview_x, preview_y, pw, ph, COLOR_PREVIEW_BG)
+
+        # Primary text — asset name (below preview)
+        gap = round(4 * scale)
         blf.size(FONT_ID, fsp)
         blf.color(FONT_ID, *COLOR_TEXT_PRIMARY)
-        blf.position(FONT_ID, x + cp, y + ch - cp - fsp, 0)
+        blf.position(FONT_ID, x + cp, preview_y - gap - fsp, 0)
         blf.draw(FONT_ID, item["name"])
 
         # Secondary text — type label
@@ -212,7 +250,7 @@ def draw_grid(
         blf.position(
             FONT_ID,
             x + cp,
-            y + ch - cp - fsp - round(4 * scale) - fss,
+            preview_y - gap - fsp - gap - fss,
             0,
         )
         blf.draw(FONT_ID, type_label)

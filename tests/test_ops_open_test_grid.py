@@ -437,3 +437,68 @@ class TestGenerateFakeItems:
             "MATERIAL", "MESH", "NODE_GROUP",
             "MATERIAL", "MESH", "NODE_GROUP",
         ]
+
+    def test_items_have_preview_paths(self):
+        from melvil.ops.open_test_grid import _generate_fake_items
+
+        items = _generate_fake_items(3)
+        for item in items:
+            assert "preview_path" in item
+            assert item["preview_path"] is not None
+            assert item["preview_path"].endswith(".png")
+
+
+class TestGetTestPreviewTexture:
+    def setup_method(self):
+        import melvil.ops.open_test_grid as mod
+        mod._texture_cache.clear()
+
+    def test_returns_none_for_no_preview_path(self):
+        from melvil.ops.open_test_grid import _get_test_preview_texture
+
+        item = {"id": "test", "name": "Test", "type": "MESH", "preview_path": None}
+        assert _get_test_preview_texture(item) is None
+
+    def test_returns_none_for_missing_key(self):
+        from melvil.ops.open_test_grid import _get_test_preview_texture
+
+        item = {"id": "test", "name": "Test", "type": "MESH"}
+        assert _get_test_preview_texture(item) is None
+
+    def test_returns_texture_for_valid_path(self):
+        import gpu
+        from melvil.ops.open_test_grid import _get_test_preview_texture
+
+        bpy.data.images.load.reset_mock()
+        gpu.texture.from_image.reset_mock()
+
+        item = {"id": "test", "name": "Test", "type": "MESH",
+                "preview_path": "/tmp/test.png"}
+        result = _get_test_preview_texture(item)
+
+        bpy.data.images.load.assert_called_once()
+        gpu.texture.from_image.assert_called_once()
+        assert result is not None
+
+    def test_caches_texture(self):
+        import gpu
+        from melvil.ops.open_test_grid import _get_test_preview_texture, _texture_cache
+
+        item = {"id": "test", "name": "Test", "type": "MESH",
+                "preview_path": "/tmp/cached.png"}
+
+        result1 = _get_test_preview_texture(item)
+        result2 = _get_test_preview_texture(item)
+
+        assert result1 is result2
+        assert "/tmp/cached.png" in _texture_cache
+
+
+class TestCleanup:
+    def test_cleanup_clears_texture_cache(self):
+        from melvil.ops.open_test_grid import _cleanup_draw_handler, _texture_cache
+
+        _texture_cache["some_path"] = MagicMock()
+        _cleanup_draw_handler()
+
+        assert len(_texture_cache) == 0

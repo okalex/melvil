@@ -464,10 +464,11 @@ class TestDrawGridSelectionAndHover:
 
         colors = self._get_draw_rect_colors()
         # First draw_rect call is the background panel; cards start from index 1.
+        # Per card: bg, border, preview placeholder = 3 color calls.
         # Card 0 (selected) should use COLOR_CARD_SELECTED.
         assert colors[1] == COLOR_CARD_SELECTED
         # Card 1 (not selected) should use COLOR_CARD_BG.
-        assert colors[3] == COLOR_CARD_BG
+        assert colors[4] == COLOR_CARD_BG
 
     def test_hovered_card_uses_hover_color(self):
         import gpu
@@ -484,10 +485,11 @@ class TestDrawGridSelectionAndHover:
         draw_grid(_make_region(), items, cols=2, rows_visible=4, hovered_index=1)
 
         colors = self._get_draw_rect_colors()
+        # Per card: bg, border, preview placeholder = 3 color calls.
         # Card 0 (not hovered) → COLOR_CARD_BG
         assert colors[1] == COLOR_CARD_BG
         # Card 1 (hovered) → COLOR_CARD_HOVER
-        assert colors[3] == COLOR_CARD_HOVER
+        assert colors[4] == COLOR_CARD_HOVER
 
     def test_selected_takes_priority_over_hovered(self):
         import gpu
@@ -516,3 +518,117 @@ class TestDrawGridSelectionAndHover:
 
         colors = self._get_draw_rect_colors()
         assert colors[1] == COLOR_CARD_BG
+
+
+# ---------------------------------------------------------------------------
+# draw_texture
+# ---------------------------------------------------------------------------
+
+
+class TestDrawTexture:
+    def test_calls_image_shader(self):
+        import gpu
+        from melvil.ui.grid_list import draw_texture
+
+        gpu.shader.from_builtin.reset_mock()
+        texture = MagicMock()
+        draw_texture(texture, 10, 20, 100, 80)
+
+        gpu.shader.from_builtin.assert_called_with('IMAGE')
+
+    def test_binds_texture_uniform(self):
+        import gpu
+        from melvil.ui.grid_list import draw_texture
+
+        shader_mock = gpu.shader.from_builtin.return_value
+        shader_mock.uniform_sampler.reset_mock()
+
+        texture = MagicMock()
+        draw_texture(texture, 10, 20, 100, 80)
+
+        shader_mock.uniform_sampler.assert_called_with("image", texture)
+
+
+# ---------------------------------------------------------------------------
+# draw_grid preview support
+# ---------------------------------------------------------------------------
+
+
+class TestDrawGridPreviews:
+    def test_callback_called_for_each_visible_item(self):
+        from melvil.ui.grid_list import draw_grid
+
+        items = [_make_item(f"id-{i}", f"Item {i}", "MESH") for i in range(3)]
+        callback = MagicMock(return_value=None)
+        draw_grid(
+            _make_region(), items, cols=3, rows_visible=4,
+            get_preview_texture=callback,
+        )
+
+        assert callback.call_count == 3
+        for i, call_args in enumerate(callback.call_args_list):
+            assert call_args.args[0] == items[i]
+
+    def test_preview_texture_drawn_when_callback_returns_texture(self):
+        import gpu
+        from melvil.ui.grid_list import draw_grid
+
+        gpu.shader.from_builtin.reset_mock()
+        texture = MagicMock()
+        callback = MagicMock(return_value=texture)
+        items = [_make_item("id-0", "Item", "MESH")]
+        draw_grid(
+            _make_region(), items, cols=1, rows_visible=4,
+            get_preview_texture=callback,
+        )
+
+        # IMAGE shader should have been used for the preview.
+        builtin_calls = [c.args[0] for c in gpu.shader.from_builtin.call_args_list]
+        assert 'IMAGE' in builtin_calls
+
+    def test_placeholder_drawn_when_callback_returns_none(self):
+        import gpu
+        from melvil.ui.grid_list import draw_grid, COLOR_PREVIEW_BG
+
+        gpu.shader.from_builtin.return_value.uniform_float.reset_mock()
+        callback = MagicMock(return_value=None)
+        items = [_make_item("id-0", "Item", "MESH")]
+        draw_grid(
+            _make_region(), items, cols=1, rows_visible=4,
+            get_preview_texture=callback,
+        )
+
+        colors = [
+            c.args[1]
+            for c in gpu.shader.from_builtin.return_value.uniform_float.call_args_list
+            if c.args[0] == "color"
+        ]
+        assert COLOR_PREVIEW_BG in colors
+
+    def test_placeholder_drawn_when_no_callback(self):
+        import gpu
+        from melvil.ui.grid_list import draw_grid, COLOR_PREVIEW_BG
+
+        gpu.shader.from_builtin.return_value.uniform_float.reset_mock()
+        items = [_make_item("id-0", "Item", "MESH")]
+        draw_grid(_make_region(), items, cols=1, rows_visible=4)
+
+        colors = [
+            c.args[1]
+            for c in gpu.shader.from_builtin.return_value.uniform_float.call_args_list
+            if c.args[0] == "color"
+        ]
+        assert COLOR_PREVIEW_BG in colors
+
+    def test_callback_not_called_for_offscreen_items(self):
+        from melvil.ui.grid_list import draw_grid
+
+        items = [_make_item(f"id-{i}", f"Item {i}", "MESH") for i in range(12)]
+        callback = MagicMock(return_value=None)
+        # cols=3, rows_visible=2 → 6 visible items, scroll_offset=0
+        draw_grid(
+            _make_region(), items, cols=3, rows_visible=2,
+            get_preview_texture=callback,
+        )
+
+        assert callback.call_count == 6

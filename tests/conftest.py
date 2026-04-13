@@ -237,6 +237,7 @@ if "gpu" not in sys.modules:
     _gpu = types.ModuleType("gpu")
     _gpu.shader = MagicMock()
     _gpu.state = MagicMock()
+    _gpu.texture = MagicMock()
     sys.modules["gpu"] = _gpu
 
 if "blf" not in sys.modules:

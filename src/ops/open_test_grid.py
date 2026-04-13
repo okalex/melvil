@@ -15,8 +15,10 @@ This operator and its keymap will be removed after Phase 7.
 from __future__ import annotations
 
 import uuid
+from pathlib import Path
 
 import bpy
+import gpu
 
 from ..ui.grid_list import compute_max_offset, draw_grid, hit_test, is_over_grid
 
@@ -32,6 +34,18 @@ _TYPE_LABELS: dict[str, str] = {
     "NODE_GROUP": "Node Group",
 }
 
+_RESOURCE_DIR = Path(__file__).resolve().parent.parent / "resources" / "img"
+
+_PLACEHOLDER_FILES: dict[str, str] = {
+    "MATERIAL": "placeholder_material.png",
+    "MESH": "placeholder_mesh.png",
+    "NODE_GROUP": "placeholder_node_group.png",
+}
+
+# Preview textures are cached for the lifetime of the overlay to avoid
+# reloading images every frame.
+_texture_cache: dict[str, object] = {}
+
 # ---------------------------------------------------------------------------
 # Module-level draw handler state
 # ---------------------------------------------------------------------------
@@ -45,7 +59,6 @@ _draw_state: dict = {
     "rows_visible": _GRID_ROWS_VISIBLE,
 }
 _draw_handle = None
-
 
 def _get_region_offsets(area) -> tuple[int, int]:
     """Return (offset_x, offset_y) to clear the toolbar and header overlays.
@@ -63,6 +76,22 @@ def _get_region_offsets(area) -> tuple[int, int]:
         elif r.type in {"HEADER", "TOOL_HEADER"}:
             offset_y += r.height
     return offset_x, offset_y
+
+
+def _get_test_preview_texture(item: dict):
+    """Load and cache a GPU texture for the item's preview placeholder."""
+    preview_path = item.get("preview_path")
+    if not preview_path:
+        return None
+    if preview_path in _texture_cache:
+        return _texture_cache[preview_path]
+    try:
+        img = bpy.data.images.load(str(preview_path), check_existing=True)
+        texture = gpu.texture.from_image(img)
+        _texture_cache[preview_path] = texture
+        return texture
+    except Exception:
+        return None
 
 
 def _draw_callback(state: dict) -> None:
@@ -85,6 +114,7 @@ def _draw_callback(state: dict) -> None:
         hovered_index=scroll_props.hovered_index,
         offset_x=offset_x,
         offset_y=offset_y,
+        get_preview_texture=_get_test_preview_texture,
     )
 
 
@@ -97,11 +127,13 @@ def _generate_fake_items(count: int = 30) -> list[dict]:
     items = []
     for i in range(count):
         asset_type = _FAKE_TYPES[i % len(_FAKE_TYPES)]
+        placeholder = _PLACEHOLDER_FILES.get(asset_type)
+        preview_path = str(_RESOURCE_DIR / placeholder) if placeholder else None
         items.append({
             "id": str(uuid.uuid4()),
             "name": f"Fake {_TYPE_LABELS[asset_type]} {i + 1}",
             "type": asset_type,
-            "preview_path": None,
+            "preview_path": preview_path,
             "blend_path": "",
         })
     return items
@@ -203,6 +235,7 @@ def _cleanup_draw_handler(context=None) -> None:
         _draw_handle = None
     _draw_state["active"] = False
     _draw_state["items"] = []
+    _texture_cache.clear()
     if context is not None and context.area is not None:
         context.area.tag_redraw()
 
