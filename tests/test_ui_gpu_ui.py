@@ -3717,6 +3717,7 @@ class TestGpuGridListDraw:
         )
         panel = _make_panel()
         panel.begin_frame()
+        panel._list_selections["cb_test"] = 2
         gl.rect = (0, 0, 300, gl.measure_height(1.0))
 
         with patch("melvil.ui.gpu.grid_list.gpu"):
@@ -3772,6 +3773,7 @@ class TestGpuGridListDraw:
         )
         panel = _make_panel()
         panel.begin_frame()
+        panel._list_selections["sel_test"] = 1
         gl.rect = (0, 0, 300, gl.measure_height(1.0))
 
         sel_bg = get_theme().selection_bg
@@ -3816,6 +3818,122 @@ class TestGpuGridListDraw:
         assert len(list_rows) == 4
         indices = [hr.kwargs["index"] for hr in list_rows]
         assert indices == [0, 1, 2, 3]
+
+
+class TestGpuGridListHover:
+    def test_hovered_row_uses_hover_bg(self):
+        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+        from melvil.ui.gpu.theme import get_theme
+
+        coll, items = _make_collection(5)
+        dataptr, active_dp = _make_dataptr(coll, active_index=-1)
+
+        def draw_fn(layout, item, index, is_active):
+            layout.label(text=item.name)
+
+        gl = GpuGridList(
+            list_id="hover_test",
+            rows_visible=5,
+            cell_height=WIDGET_HEIGHT,
+            dataptr=dataptr,
+            propname="my_collection",
+            active_dataptr=active_dp,
+            active_propname="my_collection_index",
+            draw_fn=draw_fn,
+        )
+        panel = _make_panel()
+        panel.begin_frame()
+        h = gl.measure_height(1.0)
+        gl.rect = (0, 0, 300, h)
+
+        # Place mouse inside the first row (top of the list).
+        panel._mouse_pos = (5.0, h - 2.0)
+
+        hover_bg = get_theme().list_item_bg
+        with patch("melvil.ui.gpu.grid_list.draw_rect_rounded") as mock_rr:
+            gl.draw(1.0, True, panel)
+            found = any(
+                len(c.args) >= 6 and c.args[5] == hover_bg
+                for c in mock_rr.call_args_list
+            )
+            assert found, "list_item_bg not used for hovered row"
+
+    def test_active_row_draws_only_one_background(self):
+        """Active row draws exactly one background rect — no double highlight."""
+        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+
+        coll, items = _make_collection(5)
+        dataptr, active_dp = _make_dataptr(coll, active_index=0)
+
+        def draw_fn(layout, item, index, is_active):
+            layout.label(text=item.name)
+
+        gl = GpuGridList(
+            list_id="active_hover_test",
+            rows_visible=5,
+            cell_height=WIDGET_HEIGHT,
+            dataptr=dataptr,
+            propname="my_collection",
+            active_dataptr=active_dp,
+            active_propname="my_collection_index",
+            draw_fn=draw_fn,
+        )
+        panel = _make_panel()
+        panel.begin_frame()
+        panel._list_selections["active_hover_test"] = 0
+        h = gl.measure_height(1.0)
+        gl.rect = (0, 0, 300, h)
+
+        # Hover over the active row.
+        panel._mouse_pos = (5.0, h - 2.0)
+
+        with patch("melvil.ui.gpu.grid_list.draw_rect_rounded") as mock_rr:
+            gl.draw(1.0, True, panel)
+            # Only one background rect should be drawn for the first row
+            # (selection bg), not two (selection + hover).
+            first_row_y = h - WIDGET_HEIGHT
+            bg_calls_for_row = [
+                c for c in mock_rr.call_args_list
+                if len(c.args) >= 2 and abs(c.args[1] - first_row_y) < 1.0
+            ]
+            assert len(bg_calls_for_row) == 1
+
+    def test_no_hover_when_mouse_outside(self):
+        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+        from melvil.ui.gpu.theme import get_theme
+
+        coll, items = _make_collection(3)
+        dataptr, active_dp = _make_dataptr(coll, active_index=-1)
+
+        def draw_fn(layout, item, index, is_active):
+            layout.label(text=item.name)
+
+        gl = GpuGridList(
+            list_id="no_hover",
+            rows_visible=5,
+            cell_height=WIDGET_HEIGHT,
+            dataptr=dataptr,
+            propname="my_collection",
+            active_dataptr=active_dp,
+            active_propname="my_collection_index",
+            draw_fn=draw_fn,
+        )
+        panel = _make_panel()
+        panel.begin_frame()
+        h = gl.measure_height(1.0)
+        gl.rect = (0, 0, 300, h)
+
+        # Mouse far outside.
+        panel._mouse_pos = (-999.0, -999.0)
+
+        hover_bg = get_theme().list_item_bg
+        with patch("melvil.ui.gpu.grid_list.draw_rect_rounded") as mock_rr:
+            gl.draw(1.0, True, panel)
+            hover_calls = [
+                c for c in mock_rr.call_args_list
+                if len(c.args) >= 6 and c.args[5] == hover_bg
+            ]
+            assert len(hover_calls) == 0
 
 
 class TestGpuGridListScrollbar:
@@ -3997,6 +4115,7 @@ class TestListDrawerRegistry:
         dataptr, active_dp = _make_dataptr(coll, active_index=2)
 
         root = panel.begin_frame()
+        panel._list_selections["test"] = 2
         root.template_list(
             "MY_UL_list", "test",
             dataptr, "my_collection",

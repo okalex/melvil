@@ -27,7 +27,7 @@ from .constants import (
 )
 from .drawing import draw_rect_rounded
 from .theme import get_theme
-from .widget import GpuWidget
+from .widget import GpuWidget, point_in_rect
 
 if TYPE_CHECKING:
     from .panel import GpuPanel
@@ -107,8 +107,12 @@ class GpuGridList(GpuWidget):
 
         # --- Resolve data ---
         collection = getattr(self.dataptr, self.propname, [])
-        active_index = getattr(self.active_dataptr, self.active_propname, -1)
         total = len(collection)
+
+        # Visual selection is tracked on the panel separately from the
+        # data-model active index so that property update callbacks
+        # (which may reset the index) don't clear the highlight.
+        selected_index = panel._list_selections.get(self.list_id, -1)
 
         # --- Scroll state ---
         scroll = panel._get_scroll_state(self.list_id)
@@ -149,16 +153,20 @@ class GpuGridList(GpuWidget):
                     break
 
                 item = collection[idx]
-                is_active = idx == active_index
+                is_active = idx == selected_index
 
                 cell_x = x + col_i * cell_w
                 cell_rect = (cell_x, cursor_y, cell_w, ch)
 
-                # Selection highlight.
+                # Row background: active (selected) or hovered.
+                r = scaled(3.0, s)
                 if is_active:
-                    r = scaled(3.0, s)
                     draw_rect_rounded(
                         cell_x, cursor_y, cell_w, ch, r, theme.selection_bg,
+                    )
+                elif point_in_rect(panel._mouse_pos, cell_rect):
+                    draw_rect_rounded(
+                        cell_x, cursor_y, cell_w, ch, r, theme.list_item_bg,
                     )
 
                 # Draw cell content via callback.
@@ -173,6 +181,7 @@ class GpuGridList(GpuWidget):
                     id=self.propname,
                     kwargs={
                         "index": idx,
+                        "list_id": self.list_id,
                         "active_dataptr": self.active_dataptr,
                         "active_propname": self.active_propname,
                     },

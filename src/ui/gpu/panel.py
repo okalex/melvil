@@ -112,6 +112,11 @@ class GpuPanel:
         # Scroll state per list widget, keyed by list_id.
         self._scroll_states: dict[str, ScrollState] = {}
 
+        # Visual selection per list widget, keyed by list_id.
+        # Separate from the data-model index so that property update
+        # callbacks (which may reset the index) don't clear the highlight.
+        self._list_selections: dict[str, int] = {}
+
     # -- Lifecycle -----------------------------------------------------------
 
     def attach(self, area: Any) -> None:

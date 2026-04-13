@@ -23,10 +23,9 @@ _PANEL_MARGIN_Y = 18
 
 
 def _draw_filter_tag_item(layout, item, index, is_active):
-    """Draw a single tag-filter row — mirrors MELVIL_UL_filter_tags.draw_item."""
+    """Draw a single tag-filter row."""
     row = layout.row(align=True)
-    icon = "RADIOBUT_ON" if item.is_active else "RADIOBUT_OFF"
-    row.label(text=item.name, icon=icon)
+    row.label(text=item.name)
 
 
 class MELVIL_OT_gpu_browser(bpy.types.Operator):
@@ -280,11 +279,16 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
                     data = hit.kwargs.get("active_dataptr")
                     prop = hit.kwargs.get("active_propname")
                     idx = hit.kwargs.get("index")
+                    list_id = hit.kwargs.get("list_id")
                     if data is not None and prop is not None and idx is not None:
                         try:
                             setattr(data, prop, idx)
                         except Exception:  # noqa: BLE001
                             pass
+                    # Track visual selection on the panel (separate from
+                    # the data-model index which may be reset by callbacks).
+                    if list_id is not None and idx is not None:
+                        self._panel._list_selections[list_id] = idx
                     if context.area is not None:
                         context.area.tag_redraw()
                     return {"RUNNING_MODAL"}
