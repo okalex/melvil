@@ -246,6 +246,7 @@ if "blf" not in sys.modules:
     _blf.color = MagicMock()
     _blf.position = MagicMock()
     _blf.draw = MagicMock()
+    _blf.dimensions = MagicMock(return_value=(0.0, 0.0))
     sys.modules["blf"] = _blf
 
 if "gpu_extras" not in sys.modules:

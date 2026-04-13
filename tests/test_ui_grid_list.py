@@ -528,13 +528,15 @@ class TestDrawGridSelectionAndHover:
 class TestDrawTexture:
     def test_calls_image_shader(self):
         import gpu
+        from melvil.ui.gpu_ui import _get_image_shader
         from melvil.ui.grid_list import draw_texture
 
-        gpu.shader.from_builtin.reset_mock()
+        shader_mock = _get_image_shader()
+        shader_mock.bind.reset_mock()
         texture = MagicMock()
         draw_texture(texture, 10, 20, 100, 80)
 
-        gpu.shader.from_builtin.assert_called_with('IMAGE')
+        shader_mock.bind.assert_called()
 
     def test_binds_texture_uniform(self):
         import gpu
@@ -570,10 +572,11 @@ class TestDrawGridPreviews:
             assert call_args.args[0] == items[i]
 
     def test_preview_texture_drawn_when_callback_returns_texture(self):
-        import gpu
+        from melvil.ui.gpu_ui import _get_image_shader
         from melvil.ui.grid_list import draw_grid
 
-        gpu.shader.from_builtin.reset_mock()
+        shader_mock = _get_image_shader()
+        shader_mock.uniform_sampler.reset_mock()
         texture = MagicMock()
         callback = MagicMock(return_value=texture)
         items = [_make_item("id-0", "Item", "MESH")]
@@ -582,9 +585,8 @@ class TestDrawGridPreviews:
             get_preview_texture=callback,
         )
 
-        # IMAGE shader should have been used for the preview.
-        builtin_calls = [c.args[0] for c in gpu.shader.from_builtin.call_args_list]
-        assert 'IMAGE' in builtin_calls
+        # IMAGE shader should have been used for the preview texture.
+        shader_mock.uniform_sampler.assert_called_with("image", texture)
 
     def test_placeholder_drawn_when_callback_returns_none(self):
         import gpu

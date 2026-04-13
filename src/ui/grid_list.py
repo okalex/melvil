@@ -16,7 +16,15 @@ import bpy
 import gpu
 import blf
 from bpy.props import EnumProperty, IntProperty, StringProperty
-from gpu_extras.batch import batch_for_shader
+
+from .gpu_ui import (
+    ThemeColors,
+    draw_rect,
+    draw_rect_outline,
+    draw_texture,
+    get_theme,
+    reset_theme,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -34,17 +42,23 @@ LIST_CARD_H = 40
 BUTTON_H = 20
 BUTTON_PAD = 2
 
-COLOR_CARD_BG = (0.18, 0.18, 0.18, 1.0)
-COLOR_CARD_HOVER = (0.28, 0.28, 0.28, 1.0)
-COLOR_CARD_SELECTED = (0.20, 0.45, 0.75, 1.0)
-COLOR_CARD_BORDER = (0.35, 0.35, 0.35, 1.0)
+
+# Backward-compatible module-level constants — used by tests and any code
+# that references ``grid_list.COLOR_*`` directly.  These match the fallback
+# theme so existing tests continue passing.
+_fb = ThemeColors.fallback()
+COLOR_CARD_BG = _fb.panel_bg
+COLOR_CARD_HOVER = _fb.widget_bg_hover
+COLOR_CARD_SELECTED = _fb.selection_bg
+COLOR_CARD_BORDER = _fb.border
 COLOR_GRID_BG = (0.12, 0.12, 0.12, 0.90)
-COLOR_PREVIEW_BG = (0.14, 0.14, 0.14, 1.0)
-COLOR_TEXT_PRIMARY = (0.90, 0.90, 0.90, 1.0)
-COLOR_TEXT_SECONDARY = (0.60, 0.60, 0.60, 1.0)
-COLOR_BUTTON_BG = (0.25, 0.25, 0.25, 1.0)
-COLOR_BUTTON_HOVER = (0.35, 0.35, 0.35, 1.0)
-COLOR_BUTTON_TEXT = (0.85, 0.85, 0.85, 1.0)
+COLOR_PREVIEW_BG = _fb.input_bg
+COLOR_TEXT_PRIMARY = _fb.text_primary
+COLOR_TEXT_SECONDARY = _fb.text_secondary
+COLOR_BUTTON_BG = _fb.button_bg
+COLOR_BUTTON_HOVER = _fb.button_bg_hover
+COLOR_BUTTON_TEXT = _fb.button_text
+del _fb
 
 FONT_ID = 0
 FONT_SIZE_PRIMARY = 12
@@ -62,58 +76,6 @@ _card_rects: list[tuple[float, float, float, float, str]] = []
 
 # Button rect cache — same shape as _card_rects.
 _button_rects: list[tuple[float, float, float, float, str]] = []
-
-
-# ---------------------------------------------------------------------------
-# GPU helpers
-# ---------------------------------------------------------------------------
-
-def draw_rect(x: float, y: float, w: float, h: float, color: tuple) -> None:
-    """Draw a filled rectangle at (*x*, *y*) with size *w* × *h*."""
-    shader = gpu.shader.from_builtin('UNIFORM_COLOR')
-    verts = [(x, y), (x + w, y), (x + w, y + h), (x, y + h)]
-    indices = [(0, 1, 2), (0, 2, 3)]
-    batch = batch_for_shader(shader, 'TRIS', {"pos": verts}, indices=indices)
-    shader.bind()
-    shader.uniform_float("color", color)
-    batch.draw(shader)
-
-
-def draw_rect_outline(
-    x: float, y: float, w: float, h: float, color: tuple, thickness: int = 1,
-) -> None:
-    """Draw a rectangular outline at (*x*, *y*) with size *w* × *h*."""
-    shader = gpu.shader.from_builtin('UNIFORM_COLOR')
-    t = thickness
-    rects = [
-        (x,         y,         w, t),   # bottom
-        (x,         y + h - t, w, t),   # top
-        (x,         y,         t, h),   # left
-        (x + w - t, y,         t, h),   # right
-    ]
-    shader.bind()
-    shader.uniform_float("color", color)
-    for rx, ry, rw, rh in rects:
-        verts = [(rx, ry), (rx + rw, ry), (rx + rw, ry + rh), (rx, ry + rh)]
-        indices = [(0, 1, 2), (0, 2, 3)]
-        batch = batch_for_shader(shader, 'TRIS', {"pos": verts}, indices=indices)
-        batch.draw(shader)
-
-
-def draw_texture(texture, x: float, y: float, w: float, h: float) -> None:
-    """Draw a GPU texture at (*x*, *y*) with size *w* × *h*."""
-    shader = gpu.shader.from_builtin('IMAGE')
-    verts = [(x, y), (x + w, y), (x + w, y + h), (x, y + h)]
-    uvs = [(0, 0), (1, 0), (1, 1), (0, 1)]
-    indices = [(0, 1, 2), (0, 2, 3)]
-    batch = batch_for_shader(
-        shader, 'TRIS',
-        {"pos": verts, "texCoord": uvs},
-        indices=indices,
-    )
-    shader.bind()
-    shader.uniform_sampler("image", texture)
-    batch.draw(shader)
 
 
 # ---------------------------------------------------------------------------
