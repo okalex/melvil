@@ -39,6 +39,15 @@ def register() -> None:
     )
     _keymaps.append((km, kmi))
 
+    kmi = km.keymap_items.new(
+        "melvil.open_test_grid",
+        type="S",
+        value="PRESS",
+        ctrl=True,
+        shift=True,
+    )
+    _keymaps.append((km, kmi))
+
 
 def unregister() -> None:
     for km, kmi in _keymaps:
