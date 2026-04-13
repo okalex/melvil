@@ -114,6 +114,18 @@ class TestInvoke:
             assert "type" in item
             assert item["type"] in ("MATERIAL", "MESH", "NODE_GROUP")
 
+    def test_invoke_resets_display_mode(self):
+        from melvil.ops.open_test_grid import MELVIL_OT_open_test_grid
+
+        op = MELVIL_OT_open_test_grid()
+        ctx = MagicMock()
+        ctx.window_manager.melvil_grid_scroll.display_mode = "LIST"
+        event = MagicMock()
+
+        op.invoke(ctx, event)
+
+        assert ctx.window_manager.melvil_grid_scroll.display_mode == "GRID"
+
 
 class TestModal:
     def setup_method(self):
@@ -126,13 +138,14 @@ class TestModal:
         ]
         bpy.types.SpaceView3D.draw_handler_remove.reset_mock()
 
-    def _make_ctx(self, scroll_offset=0):
+    def _make_ctx(self, scroll_offset=0, display_mode="GRID"):
         """Build a mock context with a melvil_grid_scroll PropertyGroup stub."""
         ctx = MagicMock()
         scroll_props = MagicMock()
         scroll_props.scroll_offset = scroll_offset
         scroll_props.selected_id = ""
         scroll_props.hovered_index = -1
+        scroll_props.display_mode = display_mode
         ctx.window_manager.melvil_grid_scroll = scroll_props
         ctx.region.x = 0
         ctx.region.y = 0
@@ -406,6 +419,102 @@ class TestModal:
         result = op.modal(ctx, event)
 
         assert result == {"PASS_THROUGH"}
+
+    def test_t_toggles_to_list_mode(self):
+        from melvil.ops.open_test_grid import MELVIL_OT_open_test_grid
+
+        ctx = self._make_ctx(display_mode="GRID")
+        op = MELVIL_OT_open_test_grid()
+        event = MagicMock()
+        event.type = "T"
+        event.value = "PRESS"
+        event.mouse_x = 0
+        event.mouse_y = 0
+
+        result = op.modal(ctx, event)
+
+        assert result == {"RUNNING_MODAL"}
+        assert ctx.window_manager.melvil_grid_scroll.display_mode == "LIST"
+
+    def test_t_toggles_back_to_grid_mode(self):
+        from melvil.ops.open_test_grid import MELVIL_OT_open_test_grid
+
+        ctx = self._make_ctx(display_mode="LIST")
+        op = MELVIL_OT_open_test_grid()
+        event = MagicMock()
+        event.type = "T"
+        event.value = "PRESS"
+        event.mouse_x = 0
+        event.mouse_y = 0
+
+        result = op.modal(ctx, event)
+
+        assert ctx.window_manager.melvil_grid_scroll.display_mode == "GRID"
+
+    def test_t_resets_scroll_offset(self):
+        from melvil.ops.open_test_grid import MELVIL_OT_open_test_grid
+
+        ctx = self._make_ctx(scroll_offset=5, display_mode="GRID")
+        op = MELVIL_OT_open_test_grid()
+        event = MagicMock()
+        event.type = "T"
+        event.value = "PRESS"
+        event.mouse_x = 0
+        event.mouse_y = 0
+
+        op.modal(ctx, event)
+
+        assert ctx.window_manager.melvil_grid_scroll.scroll_offset == 0
+
+    def test_t_resets_hovered_index(self):
+        from melvil.ops.open_test_grid import MELVIL_OT_open_test_grid
+
+        ctx = self._make_ctx(display_mode="GRID")
+        ctx.window_manager.melvil_grid_scroll.hovered_index = 3
+        op = MELVIL_OT_open_test_grid()
+        event = MagicMock()
+        event.type = "T"
+        event.value = "PRESS"
+        event.mouse_x = 0
+        event.mouse_y = 0
+
+        op.modal(ctx, event)
+
+        assert ctx.window_manager.melvil_grid_scroll.hovered_index == -1
+
+    def test_t_triggers_redraw(self):
+        from melvil.ops.open_test_grid import MELVIL_OT_open_test_grid
+
+        ctx = self._make_ctx(display_mode="GRID")
+        op = MELVIL_OT_open_test_grid()
+        event = MagicMock()
+        event.type = "T"
+        event.value = "PRESS"
+        event.mouse_x = 0
+        event.mouse_y = 0
+
+        ctx.area.tag_redraw.reset_mock()
+        op.modal(ctx, event)
+
+        ctx.area.tag_redraw.assert_called_once()
+
+    def test_wheeldown_in_list_mode_uses_cols_1(self):
+        from melvil.ops.open_test_grid import MELVIL_OT_open_test_grid
+        import melvil.ui.grid_list as grid_list
+
+        grid_list._card_rects = [(0, 0, 200, 200, "id-0")]
+
+        # In list mode, 30 items / 1 col = 30 rows; max = 30 - 4 = 26
+        ctx = self._make_ctx(scroll_offset=25, display_mode="LIST")
+        op = MELVIL_OT_open_test_grid()
+        event = MagicMock()
+        event.type = "WHEELDOWNMOUSE"
+        event.mouse_x = 50
+        event.mouse_y = 50
+
+        op.modal(ctx, event)
+
+        assert ctx.window_manager.melvil_grid_scroll.scroll_offset == 26
 
 
 class TestGenerateFakeItems:

@@ -15,7 +15,7 @@ import math
 import bpy
 import gpu
 import blf
-from bpy.props import IntProperty, StringProperty
+from bpy.props import EnumProperty, IntProperty, StringProperty
 from gpu_extras.batch import batch_for_shader
 
 
@@ -30,6 +30,7 @@ CARD_GAP = 6
 GRID_ORIGIN_X = 10
 GRID_ORIGIN_Y = 10
 PREVIEW_H = 80
+LIST_CARD_H = 40
 
 COLOR_CARD_BG = (0.18, 0.18, 0.18, 1.0)
 COLOR_CARD_HOVER = (0.28, 0.28, 0.28, 1.0)
@@ -181,8 +182,10 @@ def draw_grid(
     except Exception:
         scale = 1.0
 
-    cw = round(CARD_W * scale)
-    ch = round(CARD_H * scale)
+    is_list = cols == 1
+
+    cw_base = round(CARD_W * scale)
+    ch = round((LIST_CARD_H if is_list else CARD_H) * scale)
     cp = round(CARD_PAD * scale)
     cg = round(CARD_GAP * scale)
     ox = round(GRID_ORIGIN_X * scale)
@@ -191,13 +194,17 @@ def draw_grid(
     fss = round(FONT_SIZE_SECONDARY * scale)
     ph = round(PREVIEW_H * scale)
 
+    # In list mode the card spans the full grid-panel width.
+    grid_cols_for_width = cols if not is_list else 3
+    cw = grid_cols_for_width * (cw_base + cg) - cg if is_list else cw_base
+
     region_h = region.height
     actual_rows = math.ceil(len(visible_items) / cols)
 
     # Background panel dimensions.
     bg_x = offset_x + ox
     bg_y = region_h - offset_y - oy - actual_rows * (ch + cg)
-    bg_w = cols * (cw + cg) - cg + ox * 2
+    bg_w = cw + ox * 2 if is_list else cols * (cw_base + cg) - cg + ox * 2
     bg_h = actual_rows * (ch + cg) - cg + oy * 2
 
     gpu.state.blend_set('ALPHA')
@@ -223,37 +230,64 @@ def draw_grid(
         draw_rect(x, y, cw, ch, bg)
         draw_rect_outline(x, y, cw, ch, COLOR_CARD_BORDER)
 
-        # Preview area
-        pw = cw - 2 * cp
-        preview_x = x + cp
-        preview_y = y + ch - cp - ph
-
-        texture = None
-        if get_preview_texture is not None:
-            texture = get_preview_texture(item)
-        if texture is not None:
-            draw_texture(texture, preview_x, preview_y, pw, ph)
-        else:
-            draw_rect(preview_x, preview_y, pw, ph, COLOR_PREVIEW_BG)
-
-        # Primary text — asset name (below preview)
         gap = round(4 * scale)
-        blf.size(FONT_ID, fsp)
-        blf.color(FONT_ID, *COLOR_TEXT_PRIMARY)
-        blf.position(FONT_ID, x + cp, preview_y - gap - fsp, 0)
-        blf.draw(FONT_ID, item["name"])
 
-        # Secondary text — type label
-        type_label = _TYPE_LABELS.get(item["type"], item["type"])
-        blf.size(FONT_ID, fss)
-        blf.color(FONT_ID, *COLOR_TEXT_SECONDARY)
-        blf.position(
-            FONT_ID,
-            x + cp,
-            preview_y - gap - fsp - gap - fss,
-            0,
-        )
-        blf.draw(FONT_ID, type_label)
+        if is_list:
+            # List mode — compact single row: [preview] name  type
+            thumb_size = ch - 2 * cp
+            preview_x = x + cp
+            preview_y = y + cp
+
+            texture = None
+            if get_preview_texture is not None:
+                texture = get_preview_texture(item)
+            if texture is not None:
+                draw_texture(texture, preview_x, preview_y, thumb_size, thumb_size)
+            else:
+                draw_rect(preview_x, preview_y, thumb_size, thumb_size, COLOR_PREVIEW_BG)
+
+            text_x = preview_x + thumb_size + gap
+            text_y = y + (ch - fsp) // 2
+
+            blf.size(FONT_ID, fsp)
+            blf.color(FONT_ID, *COLOR_TEXT_PRIMARY)
+            blf.position(FONT_ID, text_x, text_y, 0)
+            blf.draw(FONT_ID, item["name"])
+
+            type_label = _TYPE_LABELS.get(item["type"], item["type"])
+            blf.size(FONT_ID, fss)
+            blf.color(FONT_ID, *COLOR_TEXT_SECONDARY)
+            blf.position(FONT_ID, cw + x - cp - round(60 * scale), text_y, 0)
+            blf.draw(FONT_ID, type_label)
+        else:
+            # Grid mode — stacked: preview on top, name + type below.
+            pw = cw - 2 * cp
+            preview_x = x + cp
+            preview_y = y + ch - cp - ph
+
+            texture = None
+            if get_preview_texture is not None:
+                texture = get_preview_texture(item)
+            if texture is not None:
+                draw_texture(texture, preview_x, preview_y, pw, ph)
+            else:
+                draw_rect(preview_x, preview_y, pw, ph, COLOR_PREVIEW_BG)
+
+            blf.size(FONT_ID, fsp)
+            blf.color(FONT_ID, *COLOR_TEXT_PRIMARY)
+            blf.position(FONT_ID, x + cp, preview_y - gap - fsp, 0)
+            blf.draw(FONT_ID, item["name"])
+
+            type_label = _TYPE_LABELS.get(item["type"], item["type"])
+            blf.size(FONT_ID, fss)
+            blf.color(FONT_ID, *COLOR_TEXT_SECONDARY)
+            blf.position(
+                FONT_ID,
+                x + cp,
+                preview_y - gap - fsp - gap - fss,
+                0,
+            )
+            blf.draw(FONT_ID, type_label)
 
     gpu.state.blend_set('NONE')
 
@@ -329,6 +363,16 @@ class MelvilGridScrollProps(bpy.types.PropertyGroup):
         default=-1,
         options={"HIDDEN", "SKIP_SAVE"},
     )
+    display_mode: EnumProperty(
+        name="Display Mode",
+        description="Grid or list layout for the asset card view",
+        items=[
+            ("GRID", "Grid", "Multi-column card grid", 'VIEW3D', 0),
+            ("LIST", "List", "Single-column list", 'COLLAPSEMENU', 1),
+        ],
+        default="GRID",
+        options={"HIDDEN", "SKIP_SAVE"},
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -365,4 +409,3 @@ class MELVIL_OT_grid_scroll_nav(bpy.types.Operator):
 
 # TODO Phase 3: Selection & hover highlight colors
 # TODO Phase 4: Preview image rendering
-# TODO Phase 5: Grid/list layout toggle

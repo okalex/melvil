@@ -632,3 +632,98 @@ class TestDrawGridPreviews:
         )
 
         assert callback.call_count == 6
+
+
+# ---------------------------------------------------------------------------
+# List mode (cols=1)
+# ---------------------------------------------------------------------------
+
+
+class TestDrawGridListMode:
+    def test_list_card_height_uses_list_card_h(self):
+        from melvil.ui import grid_list
+        from melvil.ui.grid_list import draw_grid, LIST_CARD_H, CARD_GAP, GRID_ORIGIN_Y
+
+        items = [_make_item(f"id-{i}", f"Item {i}", "MESH") for i in range(4)]
+        height = draw_grid(_make_region(), items, cols=1, rows_visible=10)
+
+        expected = 4 * (LIST_CARD_H + CARD_GAP) + GRID_ORIGIN_Y * 2
+        assert height == expected
+
+    def test_list_card_width_matches_grid_panel(self):
+        from melvil.ui import grid_list
+        from melvil.ui.grid_list import draw_grid, CARD_W, CARD_GAP
+
+        items = [_make_item("id-0", "Item", "MESH")]
+        draw_grid(_make_region(), items, cols=1, rows_visible=4)
+
+        # Default grid_cols_for_width = 3 in list mode
+        expected_w = 3 * (CARD_W + CARD_GAP) - CARD_GAP
+        assert grid_list._card_rects[0][2] == expected_w
+
+    def test_list_all_cards_same_column(self):
+        from melvil.ui import grid_list
+        from melvil.ui.grid_list import draw_grid
+
+        items = [_make_item(f"id-{i}", f"Item {i}", "MESH") for i in range(5)]
+        draw_grid(_make_region(), items, cols=1, rows_visible=10)
+
+        xs = [r[0] for r in grid_list._card_rects]
+        assert len(set(xs)) == 1
+
+    def test_list_blf_draws_two_calls_per_item(self):
+        import blf
+        from melvil.ui.grid_list import draw_grid
+
+        blf.draw.reset_mock()
+        items = [_make_item(f"id-{i}", f"Item {i}", "MESH") for i in range(3)]
+        draw_grid(_make_region(), items, cols=1, rows_visible=10)
+
+        # 2 blf.draw calls per item: name + type label
+        assert blf.draw.call_count == 6
+
+    def test_list_preview_callback_called(self):
+        from melvil.ui.grid_list import draw_grid
+
+        items = [_make_item("id-0", "Item", "MESH")]
+        callback = MagicMock(return_value=None)
+        draw_grid(
+            _make_region(), items, cols=1, rows_visible=4,
+            get_preview_texture=callback,
+        )
+
+        callback.assert_called_once_with(items[0])
+
+    def test_list_placeholder_when_no_texture(self):
+        import gpu
+        from melvil.ui.grid_list import draw_grid, COLOR_PREVIEW_BG
+
+        gpu.shader.from_builtin.return_value.uniform_float.reset_mock()
+        items = [_make_item("id-0", "Item", "MESH")]
+        draw_grid(_make_region(), items, cols=1, rows_visible=4)
+
+        colors = [
+            c.args[1]
+            for c in gpu.shader.from_builtin.return_value.uniform_float.call_args_list
+            if c.args[0] == "color"
+        ]
+        assert COLOR_PREVIEW_BG in colors
+
+    def test_grid_mode_uses_full_card_h(self):
+        from melvil.ui.grid_list import draw_grid, CARD_H, CARD_GAP, GRID_ORIGIN_Y
+
+        items = [_make_item(f"id-{i}", f"Item {i}", "MESH") for i in range(4)]
+        height = draw_grid(_make_region(), items, cols=2, rows_visible=10)
+
+        # 4 items / 2 cols = 2 rows
+        expected = 2 * (CARD_H + CARD_GAP) + GRID_ORIGIN_Y * 2
+        assert height == expected
+
+    def test_grid_card_width_is_card_w(self):
+        from melvil.ui import grid_list
+        from melvil.ui.grid_list import draw_grid, CARD_W
+
+        items = [_make_item("id-0", "Item", "MESH")]
+        draw_grid(_make_region(), items, cols=3, rows_visible=4)
+
+        assert grid_list._card_rects[0][2] == CARD_W

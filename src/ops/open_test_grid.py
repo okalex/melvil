@@ -104,10 +104,12 @@ def _draw_callback(state: dict) -> None:
 
     # Read scroll state from the transient WM property group.
     scroll_props = bpy.context.window_manager.melvil_grid_scroll
+    is_list = scroll_props.display_mode == "LIST"
+    cols = 1 if is_list else state["cols"]
     draw_grid(
         region,
         state["items"],
-        cols=state["cols"],
+        cols=cols,
         rows_visible=state["rows_visible"],
         scroll_offset=scroll_props.scroll_offset,
         selected_id=scroll_props.selected_id,
@@ -165,6 +167,7 @@ class MELVIL_OT_open_test_grid(bpy.types.Operator):
         scroll_props.scroll_offset = 0
         scroll_props.selected_id = ""
         scroll_props.hovered_index = -1
+        scroll_props.display_mode = "GRID"
 
         _draw_handle = bpy.types.SpaceView3D.draw_handler_add(
             _draw_callback, (_draw_state,), 'WINDOW', 'POST_PIXEL',
@@ -177,6 +180,17 @@ class MELVIL_OT_open_test_grid(bpy.types.Operator):
         if event.type in {'RIGHTMOUSE', 'ESC'}:
             _cleanup_draw_handler(context)
             return {"CANCELLED"}
+
+        # Toggle display mode with T.
+        if event.type == 'T' and event.value == 'PRESS':
+            scroll_props = context.window_manager.melvil_grid_scroll
+            scroll_props.display_mode = (
+                "LIST" if scroll_props.display_mode == "GRID" else "GRID"
+            )
+            scroll_props.scroll_offset = 0
+            scroll_props.hovered_index = -1
+            context.area.tag_redraw()
+            return {"RUNNING_MODAL"}
 
         # Convert window coords to region-local for hit testing.
         region = context.region
@@ -212,9 +226,11 @@ class MELVIL_OT_open_test_grid(bpy.types.Operator):
 
         if over and event.type == 'WHEELDOWNMOUSE':
             scroll_props = context.window_manager.melvil_grid_scroll
+            is_list = scroll_props.display_mode == "LIST"
+            cols = 1 if is_list else _draw_state["cols"]
             max_off = compute_max_offset(
                 len(_draw_state["items"]),
-                _draw_state["cols"],
+                cols,
                 _draw_state["rows_visible"],
             )
             scroll_props.scroll_offset = min(max_off, scroll_props.scroll_offset + 1)
