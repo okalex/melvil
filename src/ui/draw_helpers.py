@@ -23,6 +23,59 @@ from ..db.tags import (
     list_tags_for_asset_ids as _list_tags_for_asset_ids,
 )
 
+
+class MELVIL_UL_asset_grid(bpy.types.UIList):
+    """Scrollable asset card list for the browser middle column.
+
+    Each row renders one asset card: a type icon + name row, then a box
+    containing the preview image (or placeholder) and Load / Details buttons.
+    """
+
+    def draw_item(
+        self,
+        context,
+        layout,
+        data,
+        item,
+        icon,
+        active_data,
+        active_property,
+        index: int = 0,
+        flt_flag: int = 0,
+    ) -> None:
+        box = layout.box()
+
+        # Name + type icon inline at the top of the card.
+        name_row = box.row(align=True)
+        name_row.label(text="", icon=_TYPE_ICONS.get(item.asset_type, "OBJECT_DATA"))
+        name_row.label(text=item.name)
+
+        icon_id = (
+            get_icon_id(item.asset_id, item.abs_preview_path)
+            if item.abs_preview_path
+            else None
+        )
+        if icon_id is None:
+            icon_id = get_placeholder_icon_id(item.asset_type)
+        if icon_id is not None:
+            box.template_icon(icon_value=icon_id, scale=5.0)
+
+        selected_id = getattr(data, "melvil_selected_asset_id", "")
+        btn_row = box.row(align=True)
+
+        if _SHOW_LOAD_FOR_TYPE.get(item.asset_type, True):
+            load_op = btn_row.operator("melvil.load_asset", text="Load")
+            load_op.asset_id = item.asset_id
+
+        detail_op = btn_row.operator(
+            "melvil.asset_select",
+            text="",
+            icon="DISCLOSURE_TRI_RIGHT",
+            depress=(item.asset_id == selected_id),
+        )
+        detail_op.asset_id = item.asset_id
+
+
 class MELVIL_UL_asset_tags(bpy.types.UIList):
     """UIList for displaying asset tags in the browser detail panel."""
 
@@ -153,56 +206,99 @@ def draw_unified_asset_section(
     assets,
     *,
     selected_asset_id: str = "",
+    wm=None,
 ) -> None:
-    """Draw a single "Assets" box listing all *assets* with a per-type icon.
+    """Draw the scrollable "Assets" card list for all *assets*.
 
-    Each row shows the asset's type icon, name, and action buttons.  The Load
-    button is omitted for asset types that must be loaded from a specific editor
-    context (e.g. Node Groups).
+    When *wm* is provided the assets are synced into the
+    ``melvil_browser_assets`` collection on the WindowManager and rendered
+    via ``template_list`` so that only the asset list scrolls — the rest of
+    the popup stays fixed.
+
+    Without *wm* the cards are drawn directly (no scroll container).
 
     Parameters
     ----------
     layout:
         The ``bpy.types.UILayout`` to draw into.
     assets:
-        Sequence of DB rows with at least ``"id"``, ``"name"``, and ``"type"``
-        keys.  Should already be sorted by the caller.
+        Sequence of DB rows with at least ``"id"``, ``"name"``, ``"type"``,
+        and ``"preview_path"`` keys.  Should already be sorted by the caller.
     selected_asset_id:
         UUID of the currently selected asset; its Details button is shown
         depressed.
+    wm:
+        The ``bpy.types.WindowManager`` instance.  Required for the scrollable
+        ``template_list`` path; when ``None`` the cards render inline.
     """
     layout.label(text="Assets", icon="ASSET_MANAGER")
-    box = layout.box()
 
     if not assets:
+        box = layout.box()
         box.label(text="No assets saved yet")
         return
 
-    for asset in assets:
-        row = box.row(align=True)
-        asset_type = asset["type"]
+    if wm is not None:
+        # Sync assets into the WM collection so template_list can display them.
+        wm.melvil_browser_assets.clear()
+        lib_root = resolve_library_root()
+        for asset in assets:
+            item = wm.melvil_browser_assets.add()
+            item.name = asset["name"]
+            item.asset_id = asset["id"]
+            item.asset_type = asset["type"]
+            preview_path = asset["preview_path"]
+            item.abs_preview_path = (
+                str(Path(lib_root) / preview_path) if preview_path else ""
+            )
+            item.blend_path = asset["blend_path"]
 
-        preview_path = asset["preview_path"]
-        abs_preview_path = str(Path(resolve_library_root()) / preview_path) if preview_path else None
-        icon_id = get_icon_id(asset["id"], abs_preview_path)
-        if icon_id is None:
-            icon_id = get_placeholder_icon_id(asset_type)
-        if icon_id is not None:
-            row.template_icon(icon_value=icon_id, scale=2.6)
-        row.label(text="", icon=_TYPE_ICONS.get(asset_type, "OBJECT_DATA"))
-        row.label(text=asset["name"])
-
-        if _SHOW_LOAD_FOR_TYPE.get(asset_type, True):
-            load_op = row.operator("melvil.load_asset", text="", icon="IMPORT")
-            load_op.asset_id = asset["id"]
-
-        detail_op = row.operator(
-            "melvil.asset_select",
-            text="",
-            icon="DISCLOSURE_TRI_RIGHT",
-            depress=(asset["id"] == selected_asset_id),
+        layout.template_list(
+            "MELVIL_UL_asset_grid", "",
+            wm, "melvil_browser_assets",
+            wm, "melvil_browser_assets_index",
+            rows=6,
         )
-        detail_op.asset_id = asset["id"]
+        return
+
+    # Fallback: render cards directly (no scroll container).
+    for asset in assets:
+        _draw_asset_card(layout, asset, selected_asset_id)
+
+
+def _draw_asset_card(layout, asset, selected_asset_id: str) -> None:
+    """Render a single asset card into *layout*."""
+    asset_type = asset["type"]
+
+    box = layout.box()
+
+    # Name + type icon at the top of the card.
+    name_row = box.row(align=True)
+    name_row.label(text="", icon=_TYPE_ICONS.get(asset_type, "OBJECT_DATA"))
+    name_row.label(text=asset["name"])
+
+    preview_path = asset["preview_path"]
+    abs_preview_path = (
+        str(Path(resolve_library_root()) / preview_path) if preview_path else None
+    )
+    icon_id = get_icon_id(asset["id"], abs_preview_path)
+    if icon_id is None:
+        icon_id = get_placeholder_icon_id(asset_type)
+    if icon_id is not None:
+        box.template_icon(icon_value=icon_id, scale=5.0)
+
+    btn_row = box.row(align=True)
+    if _SHOW_LOAD_FOR_TYPE.get(asset_type, True):
+        load_op = btn_row.operator("melvil.load_asset", text="Load")
+        load_op.asset_id = asset["id"]
+
+    detail_op = btn_row.operator(
+        "melvil.asset_select",
+        text="",
+        icon="DISCLOSURE_TRI_RIGHT",
+        depress=(asset["id"] == selected_asset_id),
+    )
+    detail_op.asset_id = asset["id"]
 
 
 def load_assets(asset_type=None, kit_id=None):

@@ -102,9 +102,38 @@ class MelvilTagItem(PropertyGroup):
     )
 
 
+class MelvilBrowserAssetItem(PropertyGroup):
+    """A single asset entry backing the browser card-grid UIList."""
+    asset_id: StringProperty(
+        name="Asset ID",
+        description="UUID of the asset",
+        default="",
+        options={"HIDDEN"},
+    )
+    asset_type: StringProperty(
+        name="Asset Type",
+        description="Type of the asset (MATERIAL, MESH, NODE_GROUP)",
+        default="",
+        options={"HIDDEN"},
+    )
+    abs_preview_path: StringProperty(
+        name="Abs Preview Path",
+        description="Absolute path to the asset's preview image",
+        default="",
+        options={"HIDDEN"},
+    )
+    blend_path: StringProperty(
+        name="Blend Path",
+        description="Relative path to the asset's .blend file",
+        default="",
+        options={"HIDDEN"},
+    )
+
+
 def register() -> None:
     bpy.utils.register_class(MelvilFilterTagItem)
     bpy.utils.register_class(MelvilTagItem)
+    bpy.utils.register_class(MelvilBrowserAssetItem)
     bpy.types.Scene.melvil_active_kit_id = StringProperty(
         name="Active Kit",
         description="Kit used to filter Melvil items in the Add menus",
@@ -165,6 +194,17 @@ def register() -> None:
         default="",
         options={"HIDDEN", "SKIP_SAVE"},
     )
+    bpy.types.WindowManager.melvil_browser_assets = CollectionProperty(
+        name="Browser Assets",
+        description="Assets currently shown in the browser card grid",
+        type=MelvilBrowserAssetItem,
+        options={"HIDDEN", "SKIP_SAVE"},
+    )
+    bpy.types.WindowManager.melvil_browser_assets_index = IntProperty(
+        name="Browser Assets Index",
+        default=0,
+        options={"HIDDEN", "SKIP_SAVE"},
+    )
 
 
 def unregister() -> None:
@@ -178,5 +218,8 @@ def unregister() -> None:
     del bpy.types.WindowManager.melvil_filter_tags_index
     del bpy.types.WindowManager.melvil_pending_name
     del bpy.types.WindowManager.melvil_pending_name_asset_id
+    del bpy.types.WindowManager.melvil_browser_assets
+    del bpy.types.WindowManager.melvil_browser_assets_index
+    bpy.utils.unregister_class(MelvilBrowserAssetItem)
     bpy.utils.unregister_class(MelvilTagItem)
     bpy.utils.unregister_class(MelvilFilterTagItem)

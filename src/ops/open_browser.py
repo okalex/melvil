@@ -329,7 +329,7 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
             (a for assets in section_assets.values() for a in assets),
             key=lambda a: a["name"].lower(),
         )
-        draw_unified_asset_section(middle, all_visible, selected_asset_id=selected_id)
+        draw_unified_asset_section(middle, all_visible, selected_asset_id=selected_id, wm=wm)
 
         # ------------------------------------------------------------------
         # Right column — asset detail panel
