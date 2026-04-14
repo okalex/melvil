@@ -485,7 +485,7 @@ def draw_asset_details(
     )
     reveal_op.blend_path = abs_blend_path
 
-    layout.separator()
+    layout.separator(factor=2.0)
 
     # Preview image (if available)
     preview_path = asset["preview_path"]
@@ -498,7 +498,7 @@ def draw_asset_details(
             box = layout.box()
             box.template_icon(icon_value=icon_id, scale=8.0)
 
-    layout.separator()
+    layout.separator(factor=2.0)
 
     # Tags
     layout.label(text="Tags", icon="TAG")
@@ -535,7 +535,7 @@ def draw_asset_details(
         sub.enabled = False
         sub.label(text="No tags")
 
-    layout.separator()
+    layout.separator(factor=2.0)
 
     del_row = layout.row()
     del_row.alignment = "LEFT"

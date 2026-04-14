@@ -597,8 +597,11 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
                     ):
                         self._panel._list_selections[list_id] = -1
                         if data is not None and prop is not None:
+                            # Set the real index so the property's update
+                            # callback can see *which* item was clicked and
+                            # toggle it off (setting to -1 would be ignored).
                             try:
-                                setattr(data, prop, -1)
+                                setattr(data, prop, idx)
                             except Exception:  # noqa: BLE001
                                 pass
                     else:

@@ -58,21 +58,6 @@ class MELVIL_PT_main(bpy.types.Panel):
 
         layout.separator()
 
-        # Auto-generate previews toggle — reads from addon preferences.
-        prefs = context.preferences.addons.get(MelvilPreferences.bl_idname)
-        if prefs is not None:
-            layout.prop(prefs.preferences, "auto_generate_previews")
-
-            layout.label(text="Material Preview Object")
-            preview_obj_id = prefs.preferences.material_preview_object
-            preview_obj_label = _resolve_preview_object_label(preview_obj_id)
-            layout.operator_menu_enum(
-                "melvil.set_preview_object",
-                "object_id",
-                text=preview_obj_label,
-            )
-
-        layout.separator()
         # label reflects the current selection stored on the scene.
         scene = getattr(context, "scene", None)
         active_kit_id = getattr(scene, "melvil_active_kit_id", None)
@@ -93,3 +78,20 @@ class MELVIL_PT_main(bpy.types.Panel):
             text=kit_label,
             icon="BOOKMARKS",
         )
+
+        layout.separator()
+
+        # Auto-generate previews toggle — reads from addon preferences.
+        prefs = context.preferences.addons.get(MelvilPreferences.bl_idname)
+        if prefs is not None:
+            layout.label(text="Preview Generation")
+            layout.prop(prefs.preferences, "auto_generate_previews")
+
+            layout.label(text="Material Preview Object")
+            preview_obj_id = prefs.preferences.material_preview_object
+            preview_obj_label = _resolve_preview_object_label(preview_obj_id)
+            layout.operator_menu_enum(
+                "melvil.set_preview_object",
+                "object_id",
+                text=preview_obj_label,
+            )

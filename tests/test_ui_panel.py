@@ -24,6 +24,16 @@ def _make_context(active_kit_id: str = "ALL_KITS") -> MagicMock:
     return ctx
 
 
+def _find_menu_enum_call(layout: MagicMock, operator_id: str) -> dict:
+    """Return the kwargs dict of the ``operator_menu_enum`` call for *operator_id*."""
+    for call in layout.operator_menu_enum.call_args_list:
+        if call.args and call.args[0] == operator_id:
+            return {**dict(zip(("operator", "property"), call.args)), **call.kwargs}
+        if call.kwargs.get("operator") == operator_id:
+            return call.kwargs
+    raise AssertionError(f"operator_menu_enum call for {operator_id!r} not found")
+
+
 # ---------------------------------------------------------------------------
 # MELVIL_PT_main.poll()
 # ---------------------------------------------------------------------------
@@ -88,8 +98,8 @@ class TestDraw:
 
         panel.draw(_make_context(active_kit_id="ALL_KITS"))
 
-        call_kwargs = layout.operator_menu_enum.call_args
-        text = call_kwargs.kwargs.get("text") or call_kwargs[1].get("text")
+        call_kwargs = _find_menu_enum_call(layout, "melvil.set_active_kit")
+        text = call_kwargs.get("text")
         assert text == "All Kits"
 
     def test_active_kit_shows_kit_name_when_specific_kit(self):
@@ -108,8 +118,8 @@ class TestDraw:
             mock_open.return_value.__exit__ = MagicMock(return_value=False)
             panel.draw(ctx)
 
-        call_kwargs = layout.operator_menu_enum.call_args
-        text = call_kwargs.kwargs.get("text") or call_kwargs[1].get("text")
+        call_kwargs = _find_menu_enum_call(layout, "melvil.set_active_kit")
+        text = call_kwargs.get("text")
         assert text == "General"
 
     def test_active_kit_falls_back_to_all_kits_on_db_error(self):
@@ -123,8 +133,8 @@ class TestDraw:
         with patch("melvil.ui.panel.resolve_db_path", side_effect=Exception("no db")):
             panel.draw(ctx)
 
-        call_kwargs = layout.operator_menu_enum.call_args
-        text = call_kwargs.kwargs.get("text") or call_kwargs[1].get("text")
+        call_kwargs = _find_menu_enum_call(layout, "melvil.set_active_kit")
+        text = call_kwargs.get("text")
         assert text == "All Kits"
 
     def test_auto_generate_previews_checkbox_drawn_when_prefs_available(self):
