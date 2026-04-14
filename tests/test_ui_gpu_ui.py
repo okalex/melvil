@@ -3669,27 +3669,27 @@ def _make_dataptr(collection, active_index=-1):
 
 class TestGpuGridListMeasureHeight:
     def test_basic_measurement(self):
-        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT, WIDGET_GAP
+        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT, WIDGET_GAP, LIST_BORDER_PAD
 
         gl = GpuGridList(rows_visible=5, cell_height=WIDGET_HEIGHT)
         h = gl.measure_height(1.0)
-        expected = 5 * WIDGET_HEIGHT + 4 * WIDGET_GAP
+        expected = 5 * WIDGET_HEIGHT + 4 * WIDGET_GAP + 2 * LIST_BORDER_PAD
         assert h == pytest.approx(expected)
 
     def test_scaled_measurement(self):
-        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT, WIDGET_GAP
+        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT, WIDGET_GAP, LIST_BORDER_PAD
 
         gl = GpuGridList(rows_visible=3, cell_height=WIDGET_HEIGHT)
         h = gl.measure_height(2.0)
-        expected = 3 * (WIDGET_HEIGHT * 2) + 2 * (WIDGET_GAP * 2)
+        expected = 3 * (WIDGET_HEIGHT * 2) + 2 * (WIDGET_GAP * 2) + 2 * (LIST_BORDER_PAD * 2)
         assert h == pytest.approx(expected)
 
     def test_single_row(self):
-        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT, LIST_BORDER_PAD
 
         gl = GpuGridList(rows_visible=1, cell_height=WIDGET_HEIGHT)
         h = gl.measure_height(1.0)
-        assert h == pytest.approx(WIDGET_HEIGHT)
+        assert h == pytest.approx(WIDGET_HEIGHT + 2 * LIST_BORDER_PAD)
 
 
 class TestGpuGridListDraw:
@@ -3899,7 +3899,7 @@ class TestGpuGridListDraw:
 
 class TestGpuGridListHover:
     def test_hovered_row_uses_hover_bg(self):
-        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT, LIST_BORDER_PAD
         from melvil.ui.gpu.theme import get_theme
 
         coll, items = _make_collection(5)
@@ -3923,8 +3923,8 @@ class TestGpuGridListHover:
         h = gl.measure_height(1.0)
         gl.rect = (0, 0, 300, h)
 
-        # Place mouse inside the first row (top of the list).
-        panel._mouse_pos = (5.0, h - 2.0)
+        # Place mouse inside the first row (top of the list, inside padding).
+        panel._mouse_pos = (5.0, h - LIST_BORDER_PAD - 2.0)
 
         hover_bg = get_theme().list_item_bg
         with patch("melvil.ui.gpu.grid_list.draw_rect_rounded") as mock_rr:
@@ -3937,7 +3937,7 @@ class TestGpuGridListHover:
 
     def test_active_row_draws_only_one_background(self):
         """Active row draws exactly one background rect — no double highlight."""
-        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT, LIST_BORDER_PAD
 
         coll, items = _make_collection(5)
         dataptr, active_dp = _make_dataptr(coll, active_index=0)
@@ -3962,13 +3962,13 @@ class TestGpuGridListHover:
         gl.rect = (0, 0, 300, h)
 
         # Hover over the active row.
-        panel._mouse_pos = (5.0, h - 2.0)
+        panel._mouse_pos = (5.0, h - LIST_BORDER_PAD - 2.0)
 
         with patch("melvil.ui.gpu.grid_list.draw_rect_rounded") as mock_rr:
             gl.draw(1.0, True, panel)
             # Only one background rect should be drawn for the first row
             # (selection bg), not two (selection + hover).
-            first_row_y = h - WIDGET_HEIGHT
+            first_row_y = h - LIST_BORDER_PAD - WIDGET_HEIGHT
             bg_calls_for_row = [
                 c for c in mock_rr.call_args_list
                 if len(c.args) >= 2 and abs(c.args[1] - first_row_y) < 1.0
@@ -4272,7 +4272,7 @@ class TestScissorClipping:
         assert calls[-1] == call(False)
 
     def test_scissor_rect_matches_content_area(self):
-        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT, SCROLLBAR_WIDTH
+        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT, SCROLLBAR_WIDTH, LIST_BORDER_PAD
 
         coll, _ = _make_collection(10)
         dataptr, active_dp = _make_dataptr(coll)
@@ -4299,11 +4299,17 @@ class TestScissorClipping:
         with patch("melvil.ui.gpu.grid_list.gpu", mock_gpu):
             gl.draw(1.0, True, panel)
 
-        # Scissor rect should be the content area (excluding scrollbar).
+        # Scissor rect should be the inner content area (inside border padding,
+        # excluding scrollbar).
         scissor_call = mock_gpu.state.scissor_set.call_args
+        pad = LIST_BORDER_PAD
         # 10 items > 5 rows → scrollbar present.
-        expected_w = 300 - SCROLLBAR_WIDTH
-        assert scissor_call == call(10, 20, int(expected_w), int(h))
+        content_w = 300 - SCROLLBAR_WIDTH
+        expected_x = 10 + pad
+        expected_y = 20 + pad
+        expected_w = content_w - 2 * pad
+        expected_h = h - 2 * pad
+        assert scissor_call == call(int(expected_x), int(expected_y), int(expected_w), int(expected_h))
 
 
 # ---------------------------------------------------------------------------
@@ -4563,7 +4569,7 @@ class TestGpuIconButton:
 
     def test_icon_button_shown_on_hover(self):
         """icon_button visible when row is hovered."""
-        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT, LIST_BORDER_PAD
 
         coll, items = _make_collection(3)
         dataptr, active_dp = _make_dataptr(coll)
@@ -4587,8 +4593,8 @@ class TestGpuIconButton:
         panel.begin_frame()
         h = gl.measure_height(1.0)
         gl.rect = (0, 0, 300, h)
-        # Hover over the first row.
-        panel._mouse_pos = (5.0, h - 2.0)
+        # Hover over the first row (inside padding).
+        panel._mouse_pos = (5.0, h - LIST_BORDER_PAD - 2.0)
 
         with patch("melvil.ui.gpu.grid_list.gpu"):
             gl.draw(1.0, True, panel)

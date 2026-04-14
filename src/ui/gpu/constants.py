@@ -24,6 +24,8 @@ ICON_SIZE = 12
 
 SCROLLBAR_WIDTH = 8
 SCROLLBAR_MIN_HEIGHT = 20
+LIST_BORDER_PAD = 4
+LIST_BORDER_RADIUS = 4
 
 
 # ---------------------------------------------------------------------------

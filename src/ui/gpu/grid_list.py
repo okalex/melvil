@@ -19,13 +19,15 @@ from typing import TYPE_CHECKING, Any, Callable
 import gpu
 
 from .constants import (
+    LIST_BORDER_PAD,
+    LIST_BORDER_RADIUS,
     SCROLLBAR_MIN_HEIGHT,
     SCROLLBAR_WIDTH,
     WIDGET_GAP,
     WIDGET_HEIGHT,
     scaled,
 )
-from .drawing import draw_rect_rounded
+from .drawing import draw_rect_rounded, draw_rect_rounded_outline
 from .theme import get_theme
 from .widget import GpuWidget, point_in_rect
 
@@ -90,8 +92,9 @@ class GpuGridList(GpuWidget):
         """Return the pixel height for the visible row/grid area."""
         ch = scaled(self.cell_height, s)
         gap = scaled(WIDGET_GAP, s)
+        pad = scaled(LIST_BORDER_PAD, s)
         visible_rows = self.rows_visible
-        return visible_rows * ch + max(0, visible_rows - 1) * gap
+        return visible_rows * ch + max(0, visible_rows - 1) * gap + 2 * pad
 
     def draw(self, s: float, parent_enabled: bool, panel: GpuPanel) -> None:
         """Draw the grid/list, scrollbar, and register hit rects."""
@@ -126,18 +129,27 @@ class GpuGridList(GpuWidget):
         # --- Dimensions ---
         ch = scaled(self.cell_height, s)
         gap = scaled(WIDGET_GAP, s)
+        pad = scaled(LIST_BORDER_PAD, s)
         has_scrollbar = total_rows > self.rows_visible
         sb_w = scaled(SCROLLBAR_WIDTH, s) if has_scrollbar else 0
         content_w = w - sb_w
-        cell_w = content_w / self.cols if self.cols > 0 else content_w
+        cell_w = (content_w - 2 * pad) / self.cols if self.cols > 0 else (content_w - 2 * pad)
 
-        # --- Scissor clipping ---
+        # --- Border ---
+        br = scaled(LIST_BORDER_RADIUS, s)
+        draw_rect_rounded_outline(x, y, w, h, br, theme.border)
+
+        # --- Scissor clipping (inside the padding) ---
+        inner_x = x + pad
+        inner_y = y + pad
+        inner_w = content_w - 2 * pad
+        inner_h = h - 2 * pad
         gpu.state.scissor_test_set(True)
-        gpu.state.scissor_set(int(x), int(y), int(content_w), int(h))
+        gpu.state.scissor_set(int(inner_x), int(inner_y), int(inner_w), int(inner_h))
 
         # --- Draw cells ---
         start_row = scroll.offset
-        cursor_y = y + h
+        cursor_y = y + h - pad
         for row_i in range(self.rows_visible):
             actual_row = start_row + row_i
             if actual_row >= total_rows:
@@ -155,7 +167,7 @@ class GpuGridList(GpuWidget):
                 item = collection[idx]
                 is_active = idx == selected_index
 
-                cell_x = x + col_i * cell_w
+                cell_x = inner_x + col_i * cell_w
                 cell_rect = (cell_x, cursor_y, cell_w, ch)
 
                 # Row background: active (selected) or hovered.
@@ -201,7 +213,7 @@ class GpuGridList(GpuWidget):
         # --- Scrollbar ---
         if has_scrollbar and sb_w > 0:
             self._draw_scrollbar(
-                x + content_w, y, sb_w, h, scroll, s, theme,
+                x + content_w, y + pad, sb_w, h - 2 * pad, scroll, s, theme,
             )
 
     # -----------------------------------------------------------------------

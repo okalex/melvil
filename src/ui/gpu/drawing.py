@@ -131,6 +131,63 @@ def draw_rect_rounded(
     batch.draw(shader)
 
 
+def draw_rect_rounded_outline(
+    x: float, y: float, w: float, h: float, radius: float, color: tuple,
+    *,
+    thickness: float = 1.0,
+    segments: int = 6,
+) -> None:
+    """Draw a rounded-rectangle outline (border only, no fill).
+
+    Builds an outer and inner perimeter and fills the strip between them
+    as a quad ring.  Falls back to :func:`draw_rect_outline` when
+    *radius* is 0.
+    """
+    if radius <= 0:
+        draw_rect_outline(x, y, w, h, color, thickness=int(thickness))
+        return
+
+    r = min(radius, w / 2, h / 2)
+    t = min(thickness, r)
+    seg = max(1, segments)
+
+    corners = [
+        (x + r,     y + r),      # BL
+        (x + w - r, y + r),      # BR
+        (x + w - r, y + h - r),  # TR
+        (x + r,     y + h - r),  # TL
+    ]
+    start_angles = [math.pi, 3 * math.pi / 2, 0.0, math.pi / 2]
+
+    outer: list[tuple[float, float]] = []
+    inner: list[tuple[float, float]] = []
+
+    for ci in range(4):
+        ccx, ccy = corners[ci]
+        sa = start_angles[ci]
+        for s in range(seg + 1):
+            angle = sa + (math.pi / 2) * s / seg
+            cos_a = math.cos(angle)
+            sin_a = math.sin(angle)
+            outer.append((ccx + r * cos_a, ccy + r * sin_a))
+            inner.append((ccx + (r - t) * cos_a, ccy + (r - t) * sin_a))
+
+    n = len(outer)
+    verts = outer + inner
+    indices: list[tuple[int, int, int]] = []
+    for i in range(n):
+        j = (i + 1) % n
+        # outer[i], outer[j], inner[j], inner[i] → two triangles
+        indices.append((i, j, n + j))
+        indices.append((i, n + j, n + i))
+
+    shader = _get_uniform_shader()
+    batch = batch_for_shader(shader, 'TRIS', {"pos": verts}, indices=indices)
+    shader.bind()
+    shader.uniform_float("color", color)
+    batch.draw(shader)
+
+
 def draw_texture(
     texture, x: float, y: float, w: float, h: float,
     *,

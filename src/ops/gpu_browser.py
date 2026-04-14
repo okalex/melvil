@@ -164,18 +164,22 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
             finally:
                 _scene_props._rebuilding_filter_tags = False
 
-            tag_row = left.split(factor=0.9)
+            tag_row = left.row()
             tag_list_col = tag_row.column()
+            tag_list_col.scale_x = 0.9
             tag_list_col.template_list(
                 "MELVIL_UL_filter_tags", "gpu_tag_filter",
                 wm, "melvil_filter_tags",
                 wm, "melvil_filter_tags_index",
                 rows=min(len(visible_tags), 8),
             )
-            tag_btn_col = tag_row.column(align=True)
+            tag_row.separator(factor=0.5)
+            tag_btn_col = tag_row.column()
+            tag_btn_col.scale_x = 0.1
             tag_btn_col.operator(
                 "melvil.tag_create", text="", icon="ADD",
             )
+            tag_btn_col.separator(factor=0.5)
             selected_idx = (
                 self._panel._list_selections.get("gpu_tag_filter", -1)
                 if self._panel is not None else -1
