@@ -50,7 +50,7 @@ from .icon_button import GpuIconButton
 from .layout import GpuLayout
 from .label import GpuLabel
 from .icons import IconProvider
-from .panel import GpuPanel, HitResult, get_region_offsets
+from .panel import GpuPanel, HitResult, EventResult, get_region_offsets
 from .separator import GpuSeparator
 from .text_field import GpuTextField
 from .template_icon import GpuTemplateIcon
@@ -100,6 +100,7 @@ __all__ = [
     # Panel
     "GpuPanel",
     "HitResult",
+    "EventResult",
     "get_region_offsets",
     # Widgets
     "GpuWidget",

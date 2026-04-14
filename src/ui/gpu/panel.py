@@ -34,6 +34,25 @@ class HitResult:
     rect: tuple[float, float, float, float]  # (x, y, w, h)
 
 
+@dataclass
+class EventResult:
+    """Structured return value from :meth:`GpuPanel.handle_event`.
+
+    ``consumed``
+        ``True`` when the panel handled the event and the caller should
+        return ``RUNNING_MODAL``.
+    ``cancelled``
+        ``True`` when the user dismissed the panel (ESC, RMB, or click
+        outside).  The caller should clean up and return ``CANCELLED``.
+    ``redraw``
+        ``True`` when the panel needs a visual update.
+    """
+
+    consumed: bool = False
+    cancelled: bool = False
+    redraw: bool = False
+
+
 # ---------------------------------------------------------------------------
 # Region helpers
 # ---------------------------------------------------------------------------
@@ -124,6 +143,9 @@ class GpuPanel:
 
         # Dropdown overlay state (like active_text_field for text fields).
         self.active_dropdown: DropdownState | None = None
+
+        # Custom widget-type click handlers registered by the caller.
+        self._widget_handlers: dict[str, Callable[[HitResult], EventResult]] = {}
 
     # -- Lifecycle -----------------------------------------------------------
 
@@ -339,10 +361,6 @@ class GpuPanel:
                 break
         return best_idx
 
-        self.text_cursor_pos = best_idx
-        self._text_selection_start = None
-        self._text_blink_base = time.monotonic()
-
     def confirm_text_field(self) -> None:
         """Confirm and deactivate the current text field."""
         if self.active_text_field is None:
@@ -391,7 +409,7 @@ class GpuPanel:
         if next_data is not None:
             self.activate_text_field(next_name, next_data)
 
-    def handle_text_event(self, event: Any) -> bool:
+    def _handle_text_keystroke(self, event: Any) -> bool:
         """Process a keyboard event for the active text field.
 
         Returns ``True`` if the event was consumed.
@@ -557,6 +575,222 @@ class GpuPanel:
     def close_dropdown(self) -> None:
         """Close the active dropdown overlay."""
         self.active_dropdown = None
+
+    # -- Widget handler registry ---------------------------------------------
+
+    def register_widget_handler(
+        self,
+        widget_type: str,
+        handler: Callable[[HitResult], EventResult],
+    ) -> None:
+        """Register a callback for clicks on *widget_type*.
+
+        When :meth:`handle_event` processes a LEFTMOUSE click on a widget
+        whose type is not one of the built-in types (``text_field``,
+        ``operator``, ``dropdown``, ``prop``, ``list_row``), it looks up
+        the *widget_type* in this registry and calls the handler.
+        """
+        self._widget_handlers[widget_type] = handler
+
+    # -- High-level event dispatch -------------------------------------------
+
+    def handle_event(self, event: Any) -> EventResult:
+        """Process a Blender modal event and return an :class:`EventResult`.
+
+        This is the single entry point that modal operators should call
+        from their ``modal()`` method.  It implements a three-state machine:
+
+        1. **Dropdown active** — routes events to the open dropdown overlay.
+        2. **Text field active** — routes events to the editing text field.
+        3. **Normal** — handles scroll, ESC/RMB dismiss, and LMB
+           widget dispatch.
+        """
+        self.update_mouse(
+            getattr(event, "mouse_region_x", 0),
+            getattr(event, "mouse_region_y", 0),
+        )
+
+        if self.active_dropdown is not None:
+            return self._handle_dropdown_event(event)
+
+        if self.active_text_field is not None:
+            return self._handle_text_event_mode(event)
+
+        return self._handle_normal_event(event)
+
+    # -- Dropdown mode -------------------------------------------------------
+
+    def _handle_dropdown_event(self, event: Any) -> EventResult:
+        dd = self.active_dropdown
+
+        if event.type == "MOUSEMOVE":
+            dd.hovered_index = dd.hit_test(
+                event.mouse_region_x, event.mouse_region_y,
+            )
+            return EventResult(consumed=True, redraw=True)
+
+        if event.type in {"ESC", "RIGHTMOUSE"} and event.value == "PRESS":
+            self.close_dropdown()
+            return EventResult(consumed=True, redraw=True)
+
+        if event.type == "LEFTMOUSE" and event.value == "PRESS":
+            idx = dd.hit_test(
+                event.mouse_region_x, event.mouse_region_y,
+            )
+            if idx >= 0:
+                dd.apply_selection(idx)
+            self.close_dropdown()
+            return EventResult(consumed=True, redraw=True)
+
+        return EventResult(consumed=True)
+
+    # -- Text field editing mode ---------------------------------------------
+
+    def _handle_text_event_mode(self, event: Any) -> EventResult:
+        # Drag selection: update on MOUSEMOVE, end on RELEASE.
+        if self._text_dragging:
+            if event.type == "MOUSEMOVE":
+                self.update_text_drag(event.mouse_region_x)
+                return EventResult(consumed=True, redraw=True)
+            if event.type == "LEFTMOUSE" and event.value == "RELEASE":
+                self.end_text_drag()
+                return EventResult(consumed=True, redraw=True)
+
+        # ESC / RMB cancel the text edit (not the panel).
+        if event.type in {"ESC", "RIGHTMOUSE"} and event.value == "PRESS":
+            self.cancel_text_field()
+            return EventResult(consumed=True, redraw=True)
+
+        # LMB: re-click on same field starts drag; otherwise confirm
+        # the current field and fall through to normal click handling.
+        if event.type == "LEFTMOUSE" and event.value == "PRESS":
+            hit = self.hit_test(event.mouse_region_x, event.mouse_region_y)
+            if (
+                hit is not None
+                and hit.widget_type == "text_field"
+                and hit.id == self.active_text_field
+            ):
+                self.begin_text_drag(event.mouse_region_x, hit.rect)
+                return EventResult(consumed=True, redraw=True)
+            self.confirm_text_field()
+            # Fall through to normal LMB handling.
+            return self._handle_normal_event(event)
+
+        # All other PRESS events are routed to the keystroke handler.
+        if event.value == "PRESS":
+            self._handle_text_keystroke(event)
+            return EventResult(consumed=True, redraw=True)
+
+        return EventResult(consumed=True)
+
+    # -- Normal mode ---------------------------------------------------------
+
+    def _handle_normal_event(self, event: Any) -> EventResult:
+        # ESC / RMB dismiss the panel.
+        if event.type in {"ESC", "RIGHTMOUSE"} and event.value == "PRESS":
+            return EventResult(cancelled=True, redraw=True)
+
+        # Scroll events → dispatch through widget tree.
+        if (
+            event.type in {"WHEELUPMOUSE", "WHEELDOWNMOUSE"}
+            and event.value == "PRESS"
+        ):
+            ev = "SCROLL_UP" if event.type == "WHEELUPMOUSE" else "SCROLL_DOWN"
+            self.dispatch_event(
+                ev, event.mouse_region_x, event.mouse_region_y,
+            )
+            return EventResult(consumed=True, redraw=True)
+
+        # LEFTMOUSE click — hit test and dispatch.
+        if event.type == "LEFTMOUSE" and event.value == "PRESS":
+            if not self.is_inside(
+                event.mouse_region_x, event.mouse_region_y,
+            ):
+                return EventResult(cancelled=True, redraw=True)
+
+            hit = self.hit_test(
+                event.mouse_region_x, event.mouse_region_y,
+            )
+            if hit is None:
+                return EventResult(consumed=True, redraw=True)
+
+            return self._dispatch_hit(hit)
+
+        # Unhandled events — still consumed to keep the modal alive.
+        return EventResult(consumed=True, redraw=True)
+
+    def _dispatch_hit(self, hit: HitResult) -> EventResult:
+        """Route a LEFTMOUSE hit to the appropriate handler."""
+        wt = hit.widget_type
+
+        if wt == "text_field":
+            self.activate_text_field(hit.id, hit.kwargs["data"])
+            return EventResult(consumed=True, redraw=True)
+
+        if wt == "operator":
+            try:
+                parts = hit.id.split(".", 1)
+                op_fn = getattr(bpy.ops, parts[0])
+                op_fn = getattr(op_fn, parts[1])
+                op_fn("INVOKE_DEFAULT", **hit.kwargs)
+            except Exception:  # noqa: BLE001
+                pass
+            return EventResult(consumed=True)
+
+        if wt == "dropdown":
+            state = DropdownState.from_hit(hit, self._ui_scale)
+            self.open_dropdown(state)
+            return EventResult(consumed=True, redraw=True)
+
+        if wt == "prop":
+            data = hit.kwargs.get("data")
+            value = hit.kwargs.get("value")
+            if data is not None and value is not None:
+                try:
+                    setattr(data, hit.id, value)
+                except Exception:  # noqa: BLE001
+                    pass
+            return EventResult(consumed=True)
+
+        if wt == "list_row":
+            return self._dispatch_list_row(hit)
+
+        # Custom widget handler.
+        handler = self._widget_handlers.get(wt)
+        if handler is not None:
+            return handler(hit)
+
+        return EventResult(consumed=True)
+
+    def _dispatch_list_row(self, hit: HitResult) -> EventResult:
+        """Handle a list_row click — set index with optional deselect toggle."""
+        data = hit.kwargs.get("active_dataptr")
+        prop = hit.kwargs.get("active_propname")
+        idx = hit.kwargs.get("index")
+        list_id = hit.kwargs.get("list_id")
+        allow_deselect = hit.kwargs.get("allow_deselect", False)
+
+        if (
+            allow_deselect
+            and list_id is not None
+            and self._list_selections.get(list_id) == idx
+        ):
+            self._list_selections[list_id] = -1
+            if data is not None and prop is not None:
+                try:
+                    setattr(data, prop, idx)
+                except Exception:  # noqa: BLE001
+                    pass
+        else:
+            if data is not None and prop is not None and idx is not None:
+                try:
+                    setattr(data, prop, idx)
+                except Exception:  # noqa: BLE001
+                    pass
+            if list_id is not None and idx is not None:
+                self._list_selections[list_id] = idx
+
+        return EventResult(consumed=True, redraw=True)
 
     # -- Texture cache -------------------------------------------------------
 

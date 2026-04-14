@@ -15,8 +15,7 @@ from pathlib import Path
 from ..core.library import resolve_db_path, resolve_library_root
 from ..db import open_db
 from ..db.kits import DEFAULT_KIT_ID, list_kits
-from ..ui.gpu import GpuPanel, get_region_offsets
-from ..ui.gpu.dropdown import DropdownState
+from ..ui.gpu import GpuPanel, EventResult, get_region_offsets
 from ..ui.gpu.theme import get_theme
 from ..ui import scene_props as _scene_props
 from ..ui.asset_types import type_icon, show_load
@@ -192,6 +191,9 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
         )
         self._panel.register_list_drawer(
             "MELVIL_UL_asset_tags", _draw_asset_tag_item,
+        )
+        self._panel.register_widget_handler(
+            "icon_button", self._handle_icon_button,
         )
         self._panel.attach(context.area)
         context.window_manager.modal_handler_add(self)
@@ -481,205 +483,32 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
             right_box.label(text="No asset selected", icon="INFO")
 
     def modal(self, context, event):
-        # Update hover position every frame.
-        if self._panel is not None:
-            self._panel.update_mouse(
-                event.mouse_region_x, event.mouse_region_y,
-            )
-
-        # -- Dropdown overlay mode -------------------------------------------
-        if self._panel is not None and self._panel.active_dropdown is not None:
-            dd = self._panel.active_dropdown
-            mx, my = event.mouse_region_x, event.mouse_region_y
-
-            if event.type == "MOUSEMOVE":
-                dd.hovered_index = dd.hit_test(mx, my)
-                if context.area is not None:
-                    context.area.tag_redraw()
-                return {"RUNNING_MODAL"}
-
-            if event.type in {"ESC", "RIGHTMOUSE"} and event.value == "PRESS":
-                self._panel.close_dropdown()
-                if context.area is not None:
-                    context.area.tag_redraw()
-                return {"RUNNING_MODAL"}
-
-            if event.type == "LEFTMOUSE" and event.value == "PRESS":
-                idx = dd.hit_test(mx, my)
-                if idx >= 0:
-                    dd.apply_selection(idx)
-                self._panel.close_dropdown()
-                if context.area is not None:
-                    context.area.tag_redraw()
-                return {"RUNNING_MODAL"}
-
-        # -- Text field editing mode -----------------------------------------
-        if self._panel is not None and self._panel.active_text_field is not None:
-            # Drag selection: update on MOUSEMOVE, end on RELEASE.
-            if self._panel._text_dragging:
-                if event.type == "MOUSEMOVE":
-                    self._panel.update_text_drag(event.mouse_region_x)
-                    if context.area is not None:
-                        context.area.tag_redraw()
-                    return {"RUNNING_MODAL"}
-                if event.type == "LEFTMOUSE" and event.value == "RELEASE":
-                    self._panel.end_text_drag()
-                    if context.area is not None:
-                        context.area.tag_redraw()
-                    return {"RUNNING_MODAL"}
-
-            # ESC / RMB cancel the text edit (not the browser).
-            if event.type in {"ESC", "RIGHTMOUSE"} and event.value == "PRESS":
-                self._panel.cancel_text_field()
-                if context.area is not None:
-                    context.area.tag_redraw()
-                return {"RUNNING_MODAL"}
-
-            # LMB: re-click on same field starts drag selection; otherwise
-            # confirm the current field and fall through to normal click handling.
-            if event.type == "LEFTMOUSE" and event.value == "PRESS":
-                hit = self._panel.hit_test(
-                    event.mouse_region_x, event.mouse_region_y,
-                )
-                if (
-                    hit is not None
-                    and hit.widget_type == "text_field"
-                    and hit.id == self._panel.active_text_field
-                ):
-                    self._panel.begin_text_drag(
-                        event.mouse_region_x, hit.rect,
-                    )
-                    if context.area is not None:
-                        context.area.tag_redraw()
-                    return {"RUNNING_MODAL"}
-                self._panel.confirm_text_field()
-                # Fall through to normal LMB handling below.
-
-            # All other PRESS events are routed to the text handler.
-            elif event.value == "PRESS":
-                self._panel.handle_text_event(event)
-                if context.area is not None:
-                    context.area.tag_redraw()
-                return {"RUNNING_MODAL"}
-
-        # -- Normal handling -------------------------------------------------
-        if event.type in {"ESC", "RIGHTMOUSE"} and event.value == "PRESS":
-            self._cleanup(context)
-            return {"CANCELLED"}
-
-        # -- Scroll events → dispatch through widget tree --------------------
-        if (
-            event.type in {"WHEELUPMOUSE", "WHEELDOWNMOUSE"}
-            and event.value == "PRESS"
-            and self._panel is not None
-        ):
-            ev = "SCROLL_UP" if event.type == "WHEELUPMOUSE" else "SCROLL_DOWN"
-            self._panel.dispatch_event(
-                ev, event.mouse_region_x, event.mouse_region_y,
-            )
-            if context.area is not None:
-                context.area.tag_redraw()
+        if self._panel is None:
             return {"RUNNING_MODAL"}
 
-        if event.type == "LEFTMOUSE" and event.value == "PRESS":
-            if self._panel is not None:
-                if not self._panel.is_inside(
-                    event.mouse_region_x, event.mouse_region_y,
-                ):
-                    self._cleanup(context)
-                    return {"CANCELLED"}
-                # Dispatch hit-tested widget.
-                hit = self._panel.hit_test(
-                    event.mouse_region_x, event.mouse_region_y,
-                )
-                if hit is not None and hit.widget_type == "text_field":
-                    self._panel.activate_text_field(
-                        hit.id, hit.kwargs["data"],
-                    )
-                    if context.area is not None:
-                        context.area.tag_redraw()
-                    return {"RUNNING_MODAL"}
-                if hit is not None and hit.widget_type == "operator":
-                    try:
-                        op_fn = getattr(bpy.ops, hit.id.split(".", 1)[0])
-                        op_fn = getattr(op_fn, hit.id.split(".", 1)[1])
-                        op_fn("INVOKE_DEFAULT", **hit.kwargs)
-                    except Exception:  # noqa: BLE001
-                        pass
-                    return {"RUNNING_MODAL"}
-                if hit is not None and hit.widget_type == "dropdown":
-                    state = DropdownState.from_hit(hit, self._panel._ui_scale)
-                    self._panel.open_dropdown(state)
-                    if context.area is not None:
-                        context.area.tag_redraw()
-                    return {"RUNNING_MODAL"}
-                if hit is not None and hit.widget_type == "prop":
-                    data = hit.kwargs.get("data")
-                    value = hit.kwargs.get("value")
-                    if data is not None and value is not None:
-                        try:
-                            setattr(data, hit.id, value)
-                        except Exception:  # noqa: BLE001
-                            pass
-                    return {"RUNNING_MODAL"}
-                if hit is not None and hit.widget_type == "icon_button":
-                    self._handle_icon_button(context, hit)
-                    return {"RUNNING_MODAL"}
-                if hit is not None and hit.widget_type == "list_row":
-                    data = hit.kwargs.get("active_dataptr")
-                    prop = hit.kwargs.get("active_propname")
-                    idx = hit.kwargs.get("index")
-                    list_id = hit.kwargs.get("list_id")
-                    allow_deselect = hit.kwargs.get("allow_deselect", False)
-                    # Toggle selection off when clicking the active item.
-                    if (
-                        allow_deselect
-                        and list_id is not None
-                        and self._panel._list_selections.get(list_id) == idx
-                    ):
-                        self._panel._list_selections[list_id] = -1
-                        if data is not None and prop is not None:
-                            # Set the real index so the property's update
-                            # callback can see *which* item was clicked and
-                            # toggle it off (setting to -1 would be ignored).
-                            try:
-                                setattr(data, prop, idx)
-                            except Exception:  # noqa: BLE001
-                                pass
-                    else:
-                        if data is not None and prop is not None and idx is not None:
-                            try:
-                                setattr(data, prop, idx)
-                            except Exception:  # noqa: BLE001
-                                pass
-                        # Track visual selection on the panel (separate from
-                        # the data-model index which may be reset by callbacks).
-                        if list_id is not None and idx is not None:
-                            self._panel._list_selections[list_id] = idx
-                    if context.area is not None:
-                        context.area.tag_redraw()
-                    return {"RUNNING_MODAL"}
+        result = self._panel.handle_event(event)
 
-        if context.area is not None:
+        if result.redraw and context.area is not None:
             context.area.tag_redraw()
-
+        if result.cancelled:
+            self._cleanup(context)
+            return {"CANCELLED"}
         return {"RUNNING_MODAL"}
 
     def cancel(self, context):
         self._cleanup(context)
 
-    def _handle_icon_button(self, context, hit):
+    def _handle_icon_button(self, hit):
         """Dispatch an icon_button click to the appropriate action."""
         button_id = hit.id
         idx = hit.kwargs.get("index")
         if button_id == "tag_rename" and idx is not None:
-            wm = context.window_manager
+            wm = bpy.context.window_manager
             tags = getattr(wm, "melvil_filter_tags", [])
             if 0 <= idx < len(tags):
                 tag_item = tags[idx]
                 bpy.ops.melvil.tag_rename("INVOKE_DEFAULT", tag_id=tag_item.tag_id)
-        if context.area is not None:
-            context.area.tag_redraw()
+        return EventResult(consumed=True, redraw=True)
 
     def _cleanup(self, context):
         if self._panel is not None:

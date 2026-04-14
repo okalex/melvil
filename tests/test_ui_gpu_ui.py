@@ -2578,11 +2578,15 @@ class _MockEvent:
         value: str = "PRESS",
         unicode: str = "",
         ctrl: bool = False,
+        mouse_region_x: int = 0,
+        mouse_region_y: int = 0,
     ):
         self.type = type
         self.value = value
         self.unicode = unicode
         self.ctrl = ctrl
+        self.mouse_region_x = mouse_region_x
+        self.mouse_region_y = mouse_region_y
 
 
 # ===========================================================================
@@ -2765,7 +2769,7 @@ class TestTextFieldActivation:
 
 
 class TestTextFieldKeyboard:
-    """Tests for handle_text_event."""
+    """Tests for _handle_text_keystroke."""
 
     def _activate(self, panel, mock, prop="search_query"):
         panel.activate_text_field(prop, mock)
@@ -2779,7 +2783,7 @@ class TestTextFieldKeyboard:
         panel.begin_frame()
         self._activate(panel, mock)
         panel.text_cursor_pos = 1  # between 'a' and 'b'
-        panel.handle_text_event(_MockEvent(type="X", unicode="x"))
+        panel._handle_text_keystroke(_MockEvent(type="X", unicode="x"))
         assert panel._text_buffer == "axb"
         assert panel.text_cursor_pos == 2
 
@@ -2790,7 +2794,7 @@ class TestTextFieldKeyboard:
         panel.begin_frame()
         self._activate(panel, mock)
         panel.text_cursor_pos = 2
-        panel.handle_text_event(_MockEvent(type="BACK_SPACE"))
+        panel._handle_text_keystroke(_MockEvent(type="BACK_SPACE"))
         assert panel._text_buffer == "ac"
         assert panel.text_cursor_pos == 1
 
@@ -2801,7 +2805,7 @@ class TestTextFieldKeyboard:
         panel.begin_frame()
         self._activate(panel, mock)
         panel.text_cursor_pos = 0
-        panel.handle_text_event(_MockEvent(type="BACK_SPACE"))
+        panel._handle_text_keystroke(_MockEvent(type="BACK_SPACE"))
         assert panel._text_buffer == "abc"
         assert panel.text_cursor_pos == 0
 
@@ -2812,7 +2816,7 @@ class TestTextFieldKeyboard:
         panel.begin_frame()
         self._activate(panel, mock)
         panel.text_cursor_pos = 1
-        panel.handle_text_event(_MockEvent(type="DEL"))
+        panel._handle_text_keystroke(_MockEvent(type="DEL"))
         assert panel._text_buffer == "ac"
         assert panel.text_cursor_pos == 1
 
@@ -2823,7 +2827,7 @@ class TestTextFieldKeyboard:
         panel.begin_frame()
         self._activate(panel, mock)
         panel.text_cursor_pos = 3
-        panel.handle_text_event(_MockEvent(type="DEL"))
+        panel._handle_text_keystroke(_MockEvent(type="DEL"))
         assert panel._text_buffer == "abc"
 
     def test_left_arrow_moves_cursor(self):
@@ -2833,7 +2837,7 @@ class TestTextFieldKeyboard:
         panel.begin_frame()
         self._activate(panel, mock)
         panel.text_cursor_pos = 2
-        panel.handle_text_event(_MockEvent(type="LEFT_ARROW"))
+        panel._handle_text_keystroke(_MockEvent(type="LEFT_ARROW"))
         assert panel.text_cursor_pos == 1
 
     def test_right_arrow_moves_cursor(self):
@@ -2843,7 +2847,7 @@ class TestTextFieldKeyboard:
         panel.begin_frame()
         self._activate(panel, mock)
         panel.text_cursor_pos = 1
-        panel.handle_text_event(_MockEvent(type="RIGHT_ARROW"))
+        panel._handle_text_keystroke(_MockEvent(type="RIGHT_ARROW"))
         assert panel.text_cursor_pos == 2
 
     def test_home_moves_to_start(self):
@@ -2853,7 +2857,7 @@ class TestTextFieldKeyboard:
         panel.begin_frame()
         self._activate(panel, mock)
         panel.text_cursor_pos = 2
-        panel.handle_text_event(_MockEvent(type="HOME"))
+        panel._handle_text_keystroke(_MockEvent(type="HOME"))
         assert panel.text_cursor_pos == 0
 
     def test_end_moves_to_end(self):
@@ -2863,7 +2867,7 @@ class TestTextFieldKeyboard:
         panel.begin_frame()
         self._activate(panel, mock)
         panel.text_cursor_pos = 1
-        panel.handle_text_event(_MockEvent(type="END"))
+        panel._handle_text_keystroke(_MockEvent(type="END"))
         assert panel.text_cursor_pos == 3
 
     def test_enter_confirms(self):
@@ -2872,7 +2876,7 @@ class TestTextFieldKeyboard:
         panel = _make_panel()
         panel.begin_frame()
         self._activate(panel, mock)
-        consumed = panel.handle_text_event(_MockEvent(type="RET"))
+        consumed = panel._handle_text_keystroke(_MockEvent(type="RET"))
         assert consumed is True
         assert panel.active_text_field is None
 
@@ -2883,7 +2887,7 @@ class TestTextFieldKeyboard:
         panel.begin_frame()
         self._activate(panel, mock)
         panel._text_buffer = "changed"
-        consumed = panel.handle_text_event(_MockEvent(type="ESC"))
+        consumed = panel._handle_text_keystroke(_MockEvent(type="ESC"))
         assert consumed is True
         assert panel.active_text_field is None
         assert mock.search_query == "hello"
@@ -2894,7 +2898,7 @@ class TestTextFieldKeyboard:
         panel = _make_panel()
         panel.begin_frame()
         self._activate(panel, mock)
-        consumed = panel.handle_text_event(
+        consumed = panel._handle_text_keystroke(
             _MockEvent(type="A", value="RELEASE", unicode="a"),
         )
         assert consumed is False
@@ -2905,7 +2909,7 @@ class TestTextFieldKeyboard:
         panel = _make_panel()
         panel.begin_frame()
         self._activate(panel, mock)
-        consumed = panel.handle_text_event(
+        consumed = panel._handle_text_keystroke(
             _MockEvent(type="F1", unicode=""),
         )
         assert consumed is False
@@ -2916,7 +2920,7 @@ class TestTextFieldKeyboard:
         panel = _make_panel()
         panel.begin_frame()
         self._activate(panel, mock)
-        consumed = panel.handle_text_event(
+        consumed = panel._handle_text_keystroke(
             _MockEvent(type="Z", ctrl=True),
         )
         assert consumed is True
@@ -2930,7 +2934,7 @@ class TestTextFieldKeyboard:
         panel.begin_frame()
         panel._textedit_update_fields.add("search_query")
         self._activate(panel, mock)
-        panel.handle_text_event(
+        panel._handle_text_keystroke(
             _MockEvent(type="X", unicode="x"),
         )
         assert mock.search_query == "abcx"
@@ -2941,7 +2945,7 @@ class TestTextFieldKeyboard:
         panel = _make_panel()
         panel.begin_frame()
         self._activate(panel, mock)
-        panel.handle_text_event(
+        panel._handle_text_keystroke(
             _MockEvent(type="X", unicode="x"),
         )
         # Buffer updated, but property NOT yet written.
@@ -2969,7 +2973,7 @@ class TestTextFieldClipboard:
             "melvil.ui.gpu.panel.bpy.context.window_manager"
         ) as mock_wm:
             mock_wm.clipboard = "XY"
-            panel.handle_text_event(
+            panel._handle_text_keystroke(
                 _MockEvent(type="V", ctrl=True),
             )
         assert panel._text_buffer == "aXYb"
@@ -2986,7 +2990,7 @@ class TestTextFieldClipboard:
             "melvil.ui.gpu.panel.bpy.context.window_manager"
         ) as mock_wm:
             mock_wm.clipboard = "a\nb\r\nc"
-            panel.handle_text_event(
+            panel._handle_text_keystroke(
                 _MockEvent(type="V", ctrl=True),
             )
         assert panel._text_buffer == "abc"
@@ -3016,7 +3020,7 @@ class TestTextFieldSelection:
         panel.begin_frame()
         panel.activate_text_field("search_query", mock)
         # select-all is active (selection_start=0, cursor=5)
-        panel.handle_text_event(_MockEvent(type="X", unicode="x"))
+        panel._handle_text_keystroke(_MockEvent(type="X", unicode="x"))
         assert panel._text_buffer == "x"
         assert panel.text_cursor_pos == 1
         assert panel._text_selection_start is None
@@ -3028,7 +3032,7 @@ class TestTextFieldSelection:
         panel.begin_frame()
         panel.activate_text_field("search_query", mock)
         # select-all
-        panel.handle_text_event(_MockEvent(type="BACK_SPACE"))
+        panel._handle_text_keystroke(_MockEvent(type="BACK_SPACE"))
         assert panel._text_buffer == ""
         assert panel.text_cursor_pos == 0
 
@@ -3040,7 +3044,7 @@ class TestTextFieldSelection:
         panel.activate_text_field("search_query", mock)
         panel._text_selection_start = None
         panel.text_cursor_pos = 2
-        panel.handle_text_event(_MockEvent(type="A", ctrl=True))
+        panel._handle_text_keystroke(_MockEvent(type="A", ctrl=True))
         assert panel._text_selection_start == 0
         assert panel.text_cursor_pos == 5
 
@@ -3051,7 +3055,7 @@ class TestTextFieldSelection:
         panel.begin_frame()
         panel.activate_text_field("search_query", mock)
         # select-all is active
-        panel.handle_text_event(_MockEvent(type="LEFT_ARROW"))
+        panel._handle_text_keystroke(_MockEvent(type="LEFT_ARROW"))
         assert panel._text_selection_start is None
 
 
@@ -3073,7 +3077,7 @@ class TestTextFieldTabCycle:
         panel._text_field_order = ["field_a", "field_b"]
         panel._text_field_data = {"field_a": mock1, "field_b": mock2}
         panel.activate_text_field("field_a", mock1)
-        panel.handle_text_event(_MockEvent(type="TAB"))
+        panel._handle_text_keystroke(_MockEvent(type="TAB"))
         assert panel.active_text_field == "field_b"
 
     def test_tab_wraps_around(self):
@@ -3085,7 +3089,7 @@ class TestTextFieldTabCycle:
         panel._text_field_order = ["field_a", "field_b"]
         panel._text_field_data = {"field_a": mock1, "field_b": mock2}
         panel.activate_text_field("field_b", mock2)
-        panel.handle_text_event(_MockEvent(type="TAB"))
+        panel._handle_text_keystroke(_MockEvent(type="TAB"))
         assert panel.active_text_field == "field_a"
 
     def test_tab_with_single_field_confirms(self):
@@ -3096,7 +3100,7 @@ class TestTextFieldTabCycle:
         panel._text_field_order = ["search_query"]
         panel._text_field_data = {"search_query": mock}
         panel.activate_text_field("search_query", mock)
-        panel.handle_text_event(_MockEvent(type="TAB"))
+        panel._handle_text_keystroke(_MockEvent(type="TAB"))
         # Re-activates the same (only) field.
         assert panel.active_text_field == "search_query"
 
@@ -3106,7 +3110,7 @@ class TestTextFieldTabCycle:
         panel = _make_panel()
         panel.begin_frame()
         panel.activate_text_field("search_query", mock)
-        panel.handle_text_event(_MockEvent(type="TAB"))
+        panel._handle_text_keystroke(_MockEvent(type="TAB"))
         assert panel.active_text_field is None
 
 
@@ -5278,3 +5282,424 @@ class TestOperatorMenuEnum:
         assert children[0].operator_id == "melvil.set_kit"
         assert children[0].text == "Assign Kit"
         assert children[0].icon == "ADD"
+
+
+# ===========================================================================
+# EventResult
+# ===========================================================================
+
+
+class TestEventResult:
+    def test_defaults(self):
+        from melvil.ui.gpu import EventResult
+
+        r = EventResult()
+        assert r.consumed is False
+        assert r.cancelled is False
+        assert r.redraw is False
+
+    def test_consumed(self):
+        from melvil.ui.gpu import EventResult
+
+        r = EventResult(consumed=True)
+        assert r.consumed is True
+        assert r.cancelled is False
+
+    def test_cancelled(self):
+        from melvil.ui.gpu import EventResult
+
+        r = EventResult(cancelled=True, redraw=True)
+        assert r.cancelled is True
+        assert r.redraw is True
+
+
+# ===========================================================================
+# GpuPanel.handle_event — dropdown mode
+# ===========================================================================
+
+
+class TestHandleEventDropdown:
+    def _make_panel_with_dropdown(self):
+        from melvil.ui.gpu.dropdown import DropdownState
+
+        panel = _make_panel()
+        dd = MagicMock(spec=DropdownState)
+        dd.hit_test = MagicMock(return_value=-1)
+        dd.hovered_index = -1
+        panel.active_dropdown = dd
+        return panel, dd
+
+    def test_mousemove_updates_hovered_index(self):
+        panel, dd = self._make_panel_with_dropdown()
+        dd.hit_test.return_value = 2
+
+        result = panel.handle_event(
+            _MockEvent(type="MOUSEMOVE", value="NOTHING", mouse_region_x=50, mouse_region_y=50),
+        )
+
+        dd.hit_test.assert_called_once_with(50, 50)
+        assert dd.hovered_index == 2
+        assert result.consumed is True
+        assert result.redraw is True
+
+    def test_esc_closes_dropdown(self):
+        panel, dd = self._make_panel_with_dropdown()
+
+        result = panel.handle_event(_MockEvent(type="ESC"))
+
+        assert panel.active_dropdown is None
+        assert result.consumed is True
+        assert result.redraw is True
+
+    def test_rightmouse_closes_dropdown(self):
+        panel, dd = self._make_panel_with_dropdown()
+
+        result = panel.handle_event(_MockEvent(type="RIGHTMOUSE"))
+
+        assert panel.active_dropdown is None
+        assert result.consumed is True
+
+    def test_lmb_applies_selection_and_closes(self):
+        panel, dd = self._make_panel_with_dropdown()
+        dd.hit_test.return_value = 1
+
+        result = panel.handle_event(
+            _MockEvent(type="LEFTMOUSE", mouse_region_x=50, mouse_region_y=50),
+        )
+
+        dd.apply_selection.assert_called_once_with(1)
+        assert panel.active_dropdown is None
+        assert result.consumed is True
+        assert result.redraw is True
+
+    def test_lmb_miss_closes_without_selection(self):
+        panel, dd = self._make_panel_with_dropdown()
+        dd.hit_test.return_value = -1
+
+        result = panel.handle_event(
+            _MockEvent(type="LEFTMOUSE", mouse_region_x=50, mouse_region_y=50),
+        )
+
+        dd.apply_selection.assert_not_called()
+        assert panel.active_dropdown is None
+
+    def test_other_events_consumed_no_redraw(self):
+        panel, dd = self._make_panel_with_dropdown()
+
+        result = panel.handle_event(
+            _MockEvent(type="A", value="PRESS"),
+        )
+
+        assert result.consumed is True
+        # Dropdown mode consumes all events.
+
+
+# ===========================================================================
+# GpuPanel.handle_event — text field mode
+# ===========================================================================
+
+
+class TestHandleEventTextField:
+    def _make_panel_with_text(self):
+        panel = _make_panel()
+        data = MagicMock()
+        data.name = "hello"
+        panel.activate_text_field("name", data)
+        return panel, data
+
+    def test_esc_cancels_text_not_panel(self):
+        panel, data = self._make_panel_with_text()
+
+        result = panel.handle_event(_MockEvent(type="ESC"))
+
+        assert panel.active_text_field is None
+        assert result.consumed is True
+        assert result.cancelled is False
+        assert result.redraw is True
+
+    def test_rightmouse_cancels_text(self):
+        panel, data = self._make_panel_with_text()
+
+        result = panel.handle_event(_MockEvent(type="RIGHTMOUSE"))
+
+        assert panel.active_text_field is None
+        assert result.consumed is True
+        assert result.cancelled is False
+
+    def test_keystroke_routed_to_text_handler(self):
+        panel, data = self._make_panel_with_text()
+        # Clear the select-all so the character is appended.
+        panel._text_selection_start = None
+
+        result = panel.handle_event(
+            _MockEvent(type="X", unicode="x"),
+        )
+
+        assert panel._text_buffer == "hellox"
+        assert result.consumed is True
+        assert result.redraw is True
+
+    def test_drag_mousemove_updates(self):
+        panel, data = self._make_panel_with_text()
+        panel._text_dragging = True
+        panel._text_drag_field_rect = (0, 0, 200, 20)
+
+        result = panel.handle_event(
+            _MockEvent(type="MOUSEMOVE", value="NOTHING", mouse_region_x=50),
+        )
+
+        assert result.consumed is True
+        assert result.redraw is True
+
+    def test_drag_release_ends(self):
+        panel, data = self._make_panel_with_text()
+        panel._text_dragging = True
+        panel._text_drag_field_rect = (0, 0, 200, 20)
+
+        result = panel.handle_event(
+            _MockEvent(type="LEFTMOUSE", value="RELEASE"),
+        )
+
+        assert panel._text_dragging is False
+        assert result.consumed is True
+
+
+# ===========================================================================
+# GpuPanel.handle_event — normal mode
+# ===========================================================================
+
+
+class TestHandleEventNormal:
+    def test_esc_returns_cancelled(self):
+        panel = _make_panel()
+
+        result = panel.handle_event(_MockEvent(type="ESC"))
+
+        assert result.cancelled is True
+        assert result.redraw is True
+
+    def test_rightmouse_returns_cancelled(self):
+        panel = _make_panel()
+
+        result = panel.handle_event(_MockEvent(type="RIGHTMOUSE"))
+
+        assert result.cancelled is True
+
+    def test_scroll_dispatches_event(self):
+        panel = _make_panel()
+        panel.dispatch_event = MagicMock(return_value=True)
+
+        result = panel.handle_event(
+            _MockEvent(type="WHEELUPMOUSE", mouse_region_x=50, mouse_region_y=50),
+        )
+
+        panel.dispatch_event.assert_called_once_with("SCROLL_UP", 50, 50)
+        assert result.consumed is True
+        assert result.redraw is True
+
+    def test_scroll_down(self):
+        panel = _make_panel()
+        panel.dispatch_event = MagicMock(return_value=True)
+
+        result = panel.handle_event(
+            _MockEvent(type="WHEELDOWNMOUSE", mouse_region_x=10, mouse_region_y=20),
+        )
+
+        panel.dispatch_event.assert_called_once_with("SCROLL_DOWN", 10, 20)
+
+    def test_lmb_outside_cancels(self):
+        panel = _make_panel()
+        # Panel has no rect, so is_inside returns False.
+
+        result = panel.handle_event(
+            _MockEvent(type="LEFTMOUSE", mouse_region_x=9999, mouse_region_y=9999),
+        )
+
+        assert result.cancelled is True
+
+    def test_lmb_text_field_activates(self):
+        from melvil.ui.gpu import HitResult
+
+        panel = _make_panel()
+        data = MagicMock()
+        data.name = "test"
+        panel._panel_rect = (0, 0, 300, 200)
+        panel._hit_rects.append(HitResult(
+            widget_type="text_field",
+            id="name",
+            kwargs={"data": data},
+            rect=(10, 10, 100, 20),
+        ))
+
+        result = panel.handle_event(
+            _MockEvent(type="LEFTMOUSE", mouse_region_x=50, mouse_region_y=15),
+        )
+
+        assert panel.active_text_field == "name"
+        assert result.consumed is True
+        assert result.redraw is True
+
+    def test_lmb_operator_invokes(self):
+        from melvil.ui.gpu import HitResult
+
+        panel = _make_panel()
+        panel._panel_rect = (0, 0, 300, 200)
+        panel._hit_rects.append(HitResult(
+            widget_type="operator",
+            id="melvil.save",
+            kwargs={},
+            rect=(10, 10, 100, 20),
+        ))
+
+        result = panel.handle_event(
+            _MockEvent(type="LEFTMOUSE", mouse_region_x=50, mouse_region_y=15),
+        )
+
+        # Operator is called via bpy.ops (mocked); just check consumed.
+        assert result.consumed is True
+
+    def test_lmb_dropdown_opens(self):
+        from melvil.ui.gpu import HitResult
+
+        panel = _make_panel()
+        panel._panel_rect = (0, 0, 300, 200)
+        panel._hit_rects.append(HitResult(
+            widget_type="dropdown",
+            id="my_enum",
+            kwargs={
+                "data": MagicMock(),
+                "items": [("A", "A", ""), ("B", "B", "")],
+                "mode": "prop",
+            },
+            rect=(10, 10, 100, 20),
+        ))
+
+        result = panel.handle_event(
+            _MockEvent(type="LEFTMOUSE", mouse_region_x=50, mouse_region_y=15),
+        )
+
+        assert panel.active_dropdown is not None
+        assert result.consumed is True
+        assert result.redraw is True
+
+    def test_lmb_prop_sets_value(self):
+        from melvil.ui.gpu import HitResult
+
+        panel = _make_panel()
+        data = MagicMock()
+        panel._panel_rect = (0, 0, 300, 200)
+        panel._hit_rects.append(HitResult(
+            widget_type="prop",
+            id="my_prop",
+            kwargs={"data": data, "value": 42},
+            rect=(10, 10, 100, 20),
+        ))
+
+        result = panel.handle_event(
+            _MockEvent(type="LEFTMOUSE", mouse_region_x=50, mouse_region_y=15),
+        )
+
+        assert data.my_prop == 42
+        assert result.consumed is True
+
+    def test_lmb_list_row_sets_index(self):
+        from melvil.ui.gpu import HitResult
+
+        panel = _make_panel()
+        data = MagicMock()
+        panel._panel_rect = (0, 0, 300, 200)
+        panel._hit_rects.append(HitResult(
+            widget_type="list_row",
+            id="items",
+            kwargs={
+                "active_dataptr": data,
+                "active_propname": "active_index",
+                "index": 2,
+                "list_id": "my_list",
+            },
+            rect=(10, 10, 100, 20),
+        ))
+
+        result = panel.handle_event(
+            _MockEvent(type="LEFTMOUSE", mouse_region_x=50, mouse_region_y=15),
+        )
+
+        assert data.active_index == 2
+        assert panel._list_selections["my_list"] == 2
+        assert result.consumed is True
+        assert result.redraw is True
+
+    def test_lmb_list_row_deselect_toggle(self):
+        from melvil.ui.gpu import HitResult
+
+        panel = _make_panel()
+        data = MagicMock()
+        panel._panel_rect = (0, 0, 300, 200)
+        panel._list_selections["my_list"] = 2
+        panel._hit_rects.append(HitResult(
+            widget_type="list_row",
+            id="items",
+            kwargs={
+                "active_dataptr": data,
+                "active_propname": "active_index",
+                "index": 2,
+                "list_id": "my_list",
+                "allow_deselect": True,
+            },
+            rect=(10, 10, 100, 20),
+        ))
+
+        result = panel.handle_event(
+            _MockEvent(type="LEFTMOUSE", mouse_region_x=50, mouse_region_y=15),
+        )
+
+        assert panel._list_selections["my_list"] == -1
+        assert result.consumed is True
+
+
+# ===========================================================================
+# GpuPanel.register_widget_handler
+# ===========================================================================
+
+
+class TestRegisterWidgetHandler:
+    def test_custom_handler_called(self):
+        from melvil.ui.gpu import HitResult, EventResult
+
+        panel = _make_panel()
+        panel._panel_rect = (0, 0, 300, 200)
+        handler = MagicMock(return_value=EventResult(consumed=True, redraw=True))
+        panel.register_widget_handler("icon_button", handler)
+        panel._hit_rects.append(HitResult(
+            widget_type="icon_button",
+            id="my_button",
+            kwargs={"index": 0},
+            rect=(10, 10, 100, 20),
+        ))
+
+        result = panel.handle_event(
+            _MockEvent(type="LEFTMOUSE", mouse_region_x=50, mouse_region_y=15),
+        )
+
+        handler.assert_called_once()
+        assert handler.call_args[0][0].id == "my_button"
+        assert result.consumed is True
+        assert result.redraw is True
+
+    def test_unregistered_widget_type_consumed(self):
+        from melvil.ui.gpu import HitResult
+
+        panel = _make_panel()
+        panel._panel_rect = (0, 0, 300, 200)
+        panel._hit_rects.append(HitResult(
+            widget_type="custom_unknown",
+            id="x",
+            kwargs={},
+            rect=(10, 10, 100, 20),
+        ))
+
+        result = panel.handle_event(
+            _MockEvent(type="LEFTMOUSE", mouse_region_x=50, mouse_region_y=15),
+        )
+
+        assert result.consumed is True
