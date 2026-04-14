@@ -15,7 +15,7 @@ A free, open-source Blender addon for intuitive asset management. Save and load 
 
 Requires **Blender 4.2** or later.
 
-1. Download [melvil-0.1.0.zip](https://github.com/okalex/melvil/archive/refs/tags/v0.1.0.zip) from the releases page.
+1. Download [melvil-0.1.0.zip](https://github.com/okalex/melvil/releases/download/v0.1.0/melvil-0.1.0.zip) from the releases page.
 2. Drag the `.zip` file into an open Blender window — Blender will detect and install the addon automatically.
 
 Alternatively: **Edit → Preferences → Get Extensions → ⏷ (drop-down) → Install from Disk** and select the `.zip` file.
