@@ -56,7 +56,7 @@ from .theme import (
     get_theme,
     reset_theme,
 )
-from .widget import GpuWidget, draw_icon, draw_text_in_rect, point_in_rect
+from .widget import GpuWidget, draw_disabled_overlay, draw_icon, draw_icon_centered, draw_text_in_rect, point_in_rect
 from ._logger import GpuUiLogger
 
 __all__ = [
@@ -104,7 +104,9 @@ __all__ = [
     "GpuTemplateIcon",
     "GpuTextField",
     # Helpers
+    "draw_disabled_overlay",
     "draw_icon",
+    "draw_icon_centered",
     "draw_text_in_rect",
     "point_in_rect",
     # Logger

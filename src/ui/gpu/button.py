@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 from .constants import WIDGET_HEIGHT, scaled
 from .drawing import draw_rect_outline, draw_rect_rounded
 from .theme import get_theme
-from .widget import GpuWidget, point_in_rect
+from .widget import GpuWidget, draw_disabled_overlay, draw_icon_centered, point_in_rect
 
 if TYPE_CHECKING:
     from .panel import GpuPanel
@@ -92,7 +92,13 @@ class GpuButton(GpuWidget):
 
         # -- Text + icon ------------------------------------------------------
         text_color = self._resolve_text_color(parent_enabled, theme.button_text)
-        self._draw_text_content(s, text_color, panel=panel)
+        if not self.text and self.icon != "NONE":
+            # Icon-only: centre the icon within the button.
+            draw_icon_centered(self.icon, self.rect, s, panel)
+            if not is_enabled:
+                draw_disabled_overlay(self.rect)
+        else:
+            self._draw_text_content(s, text_color, panel=panel)
 
         # -- Hit-rect registration -------------------------------------------
         if is_enabled:

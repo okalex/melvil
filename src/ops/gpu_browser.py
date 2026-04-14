@@ -164,18 +164,35 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
             finally:
                 _scene_props._rebuilding_filter_tags = False
 
-            left.template_list(
+            tag_row = left.split(factor=0.9)
+            tag_list_col = tag_row.column()
+            tag_list_col.template_list(
                 "MELVIL_UL_filter_tags", "gpu_tag_filter",
                 wm, "melvil_filter_tags",
                 wm, "melvil_filter_tags_index",
                 rows=min(len(visible_tags), 8),
             )
+            tag_btn_col = tag_row.column(align=True)
+            tag_btn_col.operator(
+                "melvil.tag_create", text="", icon="ADD",
+            )
+            selected_idx = (
+                self._panel._list_selections.get("gpu_tag_filter", -1)
+                if self._panel is not None else -1
+            )
+            selected_tag = (
+                wm.melvil_filter_tags[selected_idx]
+                if 0 <= selected_idx < len(wm.melvil_filter_tags)
+                else None
+            )
+            delete_btn = tag_btn_col.column()
+            delete_btn.enabled = selected_tag is not None
+            delete_op = delete_btn.operator(
+                "melvil.tag_delete", text="", icon="REMOVE",
+            )
+            if selected_tag is not None:
+                delete_op.tag_id = selected_tag.tag_id
 
-        tag_side = left.column(align=True)
-        tag_side.operator("melvil.tag_create", text="New", icon="ADD")
-        delete_col = tag_side.column()
-        delete_col.enabled = False  # requires active tag filter
-        delete_col.operator("melvil.tag_delete", text="Delete", icon="REMOVE")
         left.separator()
 
         # -- Middle column: asset list ---------------------------------------
@@ -267,7 +284,7 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
                     try:
                         op_fn = getattr(bpy.ops, hit.id.split(".", 1)[0])
                         op_fn = getattr(op_fn, hit.id.split(".", 1)[1])
-                        op_fn(**hit.kwargs)
+                        op_fn("INVOKE_DEFAULT", **hit.kwargs)
                     except Exception:  # noqa: BLE001
                         pass
                     return {"RUNNING_MODAL"}

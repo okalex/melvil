@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any
 from .constants import ICON_SIZE, WIDGET_HEIGHT, WIDGET_PAD_X, scaled
 from .drawing import draw_rect_rounded
 from .theme import get_theme
-from .widget import GpuWidget, draw_icon, point_in_rect
+from .widget import GpuWidget, draw_disabled_overlay, draw_icon, point_in_rect
 
 if TYPE_CHECKING:
     from .panel import GpuPanel
@@ -72,6 +72,8 @@ class GpuIconButton(GpuWidget):
         # Draw the icon centred in the rect.
         if self.icon != "NONE":
             draw_icon(self.icon, self.rect, s, panel)
+            if not is_enabled:
+                draw_disabled_overlay(self.rect)
 
         # Register hit rect so clicks land on this button, not the row.
         if is_enabled:

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from .constants import FONT_SIZE_PRIMARY, ICON_SIZE, WIDGET_PAD_X, scaled
-from .drawing import draw_text, draw_texture, measure_text
+from .drawing import draw_rect_rounded, draw_text, draw_texture, measure_text
 from .theme import get_theme
 
 if TYPE_CHECKING:
@@ -60,6 +60,51 @@ def draw_icon(
     icon_y = y + (h - icon_size) / 2
     draw_texture(atlas, icon_x, icon_y, icon_size, icon_size, uv_rect=uv)
     return pad + icon_size
+
+
+def draw_icon_centered(
+    icon: str,
+    rect: tuple[float, float, float, float],
+    s: float,
+    panel: GpuPanel,
+) -> None:
+    """Draw a built-in Blender icon centred within *rect*."""
+    if icon == "NONE":
+        return
+    provider = panel._icon_provider
+    if provider is None:
+        return
+    atlas = provider.atlas
+    if atlas is None:
+        return
+    uv = provider.get_icon_uv(icon)
+    if uv is None:
+        return
+
+    icon_size = scaled(ICON_SIZE, s)
+    x, y, w, h = rect
+    icon_x = x + (w - icon_size) / 2
+    icon_y = y + (h - icon_size) / 2
+    draw_texture(atlas, icon_x, icon_y, icon_size, icon_size, uv_rect=uv)
+
+
+def draw_disabled_overlay(
+    rect: tuple[float, float, float, float],
+) -> None:
+    """Draw a semi-transparent overlay to grey out disabled icons.
+
+    Uses the panel background color at 60 % opacity.  Manages its own
+    ``gpu.state.blend_set("ALPHA")`` so the overlay composites correctly
+    even after ``draw_texture`` resets the blend state.
+    """
+    import gpu as _gpu
+
+    theme = get_theme()
+    x, y, w, h = rect
+    overlay = (theme.panel_bg[0], theme.panel_bg[1], theme.panel_bg[2], 0.6)
+    _gpu.state.blend_set("ALPHA")
+    draw_rect_rounded(x, y, w, h, 0, overlay)
+    _gpu.state.blend_set("NONE")
 
 
 def draw_text_in_rect(

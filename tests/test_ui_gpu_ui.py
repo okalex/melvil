@@ -3381,6 +3381,83 @@ class TestButtonIcon:
             assert mock_draw.call_count == 0
 
 
+class TestIconOnlyButton:
+    """Tests for icon-only button centering via draw_icon_centered."""
+
+    def test_icon_only_button_calls_draw_icon_centered(self):
+        """Button with icon and no text uses draw_icon_centered."""
+        from melvil.ui.gpu import GpuButton
+
+        panel = _make_panel_with_icons()
+        panel.begin_frame()
+        btn = GpuButton(text="", icon="ADD", operator_id="melvil.test")
+        btn.rect = (0, 0, 40, 20)
+        with patch("melvil.ui.gpu.button.draw_icon_centered") as mock_center:
+            btn.draw(1.0, True, panel)
+            assert mock_center.call_count == 1
+            # Verify the rect passed matches the button rect.
+            call_args = mock_center.call_args
+            assert call_args.args[0] == "ADD"
+            assert call_args.args[1] == (0, 0, 40, 20)
+
+    def test_button_with_text_uses_left_aligned_icon(self):
+        """Button with text + icon uses _draw_text_content (left-aligned)."""
+        from melvil.ui.gpu import GpuButton
+
+        panel = _make_panel_with_icons()
+        panel.begin_frame()
+        btn = GpuButton(text="Add", icon="ADD", operator_id="melvil.test")
+        btn.rect = (0, 0, 200, 20)
+        with patch("melvil.ui.gpu.button.draw_icon_centered") as mock_center:
+            btn.draw(1.0, True, panel)
+            mock_center.assert_not_called()
+
+    def test_draw_icon_centered_centres_horizontally(self):
+        """draw_icon_centered places icon at horizontal centre of rect."""
+        from melvil.ui.gpu import draw_icon_centered
+        from melvil.ui.gpu.constants import ICON_SIZE, scaled
+
+        panel = _make_panel_with_icons()
+        panel.begin_frame()
+        with patch("melvil.ui.gpu.widget.draw_texture") as mock_draw:
+            draw_icon_centered("ADD", (0, 0, 40, 20), 1.0, panel)
+            assert mock_draw.call_count == 1
+            icon_size = scaled(ICON_SIZE, 1.0)
+            expected_x = (40 - icon_size) / 2
+            expected_y = (20 - icon_size) / 2
+            call_args = mock_draw.call_args
+            assert call_args.args[1] == expected_x
+            assert call_args.args[2] == expected_y
+
+    def test_disabled_icon_only_button_draws_overlay(self):
+        """Disabled icon-only button draws a disabled overlay."""
+        from melvil.ui.gpu import GpuButton
+
+        panel = _make_panel_with_icons()
+        panel.begin_frame()
+        btn = GpuButton(
+            text="", icon="ADD", operator_id="melvil.test", enabled=False,
+        )
+        btn.rect = (0, 0, 40, 20)
+        with patch("melvil.ui.gpu.button.draw_disabled_overlay") as mock_ov:
+            btn.draw(1.0, True, panel)
+            mock_ov.assert_called_once_with((0, 0, 40, 20))
+
+    def test_enabled_icon_only_button_no_overlay(self):
+        """Enabled icon-only button does not draw a disabled overlay."""
+        from melvil.ui.gpu import GpuButton
+
+        panel = _make_panel_with_icons()
+        panel.begin_frame()
+        btn = GpuButton(
+            text="", icon="ADD", operator_id="melvil.test", enabled=True,
+        )
+        btn.rect = (0, 0, 40, 20)
+        with patch("melvil.ui.gpu.button.draw_disabled_overlay") as mock_ov:
+            btn.draw(1.0, True, panel)
+            mock_ov.assert_not_called()
+
+
 class TestEnumButtonsIcon:
     """Tests for icon rendering on GpuEnumButtons items."""
 
