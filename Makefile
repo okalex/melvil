@@ -3,7 +3,9 @@ BLENDER_ADDONS_DIR ?= $(HOME)/Library/Application Support/Blender/$(BLENDER_VERS
 ADDON_NAME := melvil
 ADDON_SRC := src
 
-.PHONY: install uninstall test sync
+ADDON_VERSION := $(shell grep '^version' $(ADDON_SRC)/blender_manifest.toml | head -1 | sed 's/.*= *"\(.*\)"/\1/')
+
+.PHONY: install uninstall test sync package
 
 ## Install a copy of the add-on into Blender's addons directory
 install:
@@ -27,3 +29,12 @@ sync:
 ## Build the icon atlas from Blender's SVG source
 icons:
 	DYLD_FALLBACK_LIBRARY_PATH="$$(brew --prefix)/lib" uv run python scripts/build_icon_atlas.py --tag v$(BLENDER_VERSION).0
+
+## Build a distributable zip for Blender installation
+package:
+	rm -rf dist/$(ADDON_NAME) dist/$(ADDON_NAME)-$(ADDON_VERSION).zip
+	mkdir -p dist/$(ADDON_NAME)
+	rsync -a --exclude '*.DS_Store' --exclude '__pycache__' --exclude '*.pyc' $(ADDON_SRC)/ dist/$(ADDON_NAME)/
+	cd dist && zip -r $(ADDON_NAME)-$(ADDON_VERSION).zip $(ADDON_NAME)
+	rm -rf dist/$(ADDON_NAME)
+	@echo "Built dist/$(ADDON_NAME)-$(ADDON_VERSION).zip"
