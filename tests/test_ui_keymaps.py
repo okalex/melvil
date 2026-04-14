@@ -26,17 +26,9 @@ class TestRegister:
         mock_kc.keymaps.new.assert_called_once_with(
             name="3D View", space_type="VIEW_3D"
         )
-        assert mock_km.keymap_items.new.call_count == 2
-        mock_km.keymap_items.new.assert_any_call(
-            "melvil.open_browser",
-            type="A",
-            value="PRESS",
-            ctrl=True,
-            shift=True,
-        )
-        mock_km.keymap_items.new.assert_any_call(
+        mock_km.keymap_items.new.assert_called_once_with(
             "melvil.gpu_browser",
-            type="S",
+            type="A",
             value="PRESS",
             ctrl=True,
             shift=True,

@@ -65,7 +65,7 @@ class TestDraw:
         panel.draw(_make_context())
 
         layout.operator.assert_any_call(
-            "melvil.open_browser", text="Browse Library", icon="ASSET_MANAGER"
+            "melvil.gpu_browser", text="Browse Library", icon="ASSET_MANAGER"
         )
 
     def test_active_kit_label_drawn(self):

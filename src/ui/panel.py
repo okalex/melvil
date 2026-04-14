@@ -4,7 +4,7 @@ Melvil N-panel — 3D Viewport sidebar (N key → Melvil tab).
 Layout
 ------
 - "Save as Asset" button (calls ``melvil.save_asset`` with dialog)
-- "Browse Library" button (calls ``melvil.open_browser`` popup)
+- "Browse Library" button (calls ``melvil.gpu_browser``)
 - Active Kit section — dropdown to filter add-menu items by kit
 """
 
@@ -54,7 +54,7 @@ class MELVIL_PT_main(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
 
-        layout.operator("melvil.open_browser", text="Browse Library", icon="ASSET_MANAGER")
+        layout.operator("melvil.gpu_browser", text="Browse Library", icon="ASSET_MANAGER")
 
         layout.separator()
 

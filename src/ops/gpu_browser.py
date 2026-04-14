@@ -1,19 +1,20 @@
 """
 MELVIL_OT_gpu_browser — GPU-drawn asset browser.
 
-Invoked by ``Ctrl+Shift+S`` in the 3D View.  Creates a :class:`GpuPanel`
+Invoked by ``Ctrl+Shift+A`` in the 3D View.  Creates a :class:`GpuPanel`
 that renders the Melvil asset browser entirely via GPU draw handlers.
 Press ``ESC`` or ``RMB`` to dismiss.
-
-This operator is the incremental replacement for the popup-based browser.
-Widgets and functionality are added as each GPU UI phase lands.
 """
+
+import sys
 
 import bpy
 from bpy.props import EnumProperty, StringProperty
 from pathlib import Path
 
-from ..core.library import resolve_library_root
+from ..core.library import resolve_db_path, resolve_library_root
+from ..db import open_db
+from ..db.kits import DEFAULT_KIT_ID, list_kits
 from ..ui.gpu import GpuPanel, get_region_offsets
 from ..ui.gpu.dropdown import DropdownState
 from ..ui.gpu.theme import get_theme
@@ -34,11 +35,43 @@ from ..ui.previews_collection import (
     get_placeholder_icon_id,
     _placeholder_path,
 )
-from .open_browser import _TYPE_ENUM_ITEMS, _get_kit_filter_items
 from .tag_filter_toggle import get_active_tag_filters
 
 _PANEL_MARGIN_X = 0
 _PANEL_MARGIN_Y = 18
+
+# Enum items for the category selector: (identifier, label, description, icon, value)
+_TYPE_ENUM_ITEMS = [
+    ("ALL",        "All",         "", "ASSET_MANAGER", 0),
+    ("MATERIAL",   "Materials",   "", "MATERIAL",      1),
+    ("MESH",       "Meshes",      "", "MESH_DATA",     2),
+    ("NODE_GROUP", "Node Groups", "", "NODETREE",      3),
+]
+
+# Module-level cache to keep kit enum strings alive (Blender GC requirement).
+# All strings are interned via sys.intern() so they are held permanently in
+# Python's intern table — Blender's C-level char* pointers can never dangle.
+_kit_enum_cache: list[tuple] = [("ALL_KITS", "All Kits", "", "ASSET_MANAGER", 0)]
+
+
+def _get_kit_filter_items(self, context):
+    global _kit_enum_cache
+    items = [(sys.intern("ALL_KITS"), sys.intern("All Kits"), sys.intern(""), sys.intern("ASSET_MANAGER"), 0)]
+    try:
+        with open_db(resolve_db_path()) as conn:
+            for i, kit in enumerate(list_kits(conn), 1):
+                icon = "BOOKMARKS" if kit["id"] == DEFAULT_KIT_ID else "PACKAGE"
+                items.append((
+                    sys.intern(str(kit["id"])),
+                    sys.intern(str(kit["name"])),
+                    sys.intern(""),
+                    sys.intern(icon),
+                    i,
+                ))
+    except Exception:  # noqa: BLE001
+        pass
+    _kit_enum_cache = items
+    return _kit_enum_cache
 
 _TYPE_ICONS: dict[str, str] = {
     "MATERIAL": "MATERIAL",
