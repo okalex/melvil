@@ -26,7 +26,7 @@ from ._logger import _logger
 from ._rna import resolve_prop_enum_items
 
 if TYPE_CHECKING:
-    from .panel import GpuPanel
+    from .ui_context import UiContext
 
 
 def _has_textedit_update(data: object, property: str, prop_rna: object = None) -> bool:
@@ -68,14 +68,14 @@ class GpuLayout:
 
     def __init__(
         self,
-        panel: GpuPanel,
+        ui_context: UiContext,
         *,
         direction: str = "COLUMN",
         align: bool = False,
         is_box: bool = False,
         split_factor: float = 0.5,
     ) -> None:
-        self._panel = panel
+        self._ui_context = ui_context
         self._direction = direction
         self._align = align
         self._is_box = is_box
@@ -100,27 +100,27 @@ class GpuLayout:
     # -- Container methods ---------------------------------------------------
 
     def row(self, align: bool = False) -> GpuLayout:
-        child = GpuLayout(self._panel, direction="ROW", align=align)
+        child = GpuLayout(self._ui_context, direction="ROW", align=align)
         child._list_context = self._list_context
         self._children.append(child)
         return child
 
     def column(self, align: bool = False) -> GpuLayout:
-        child = GpuLayout(self._panel, direction="COLUMN", align=align)
+        child = GpuLayout(self._ui_context, direction="COLUMN", align=align)
         child._list_context = self._list_context
         self._children.append(child)
         return child
 
     def split(self, *, factor: float = 0.5, align: bool = False) -> GpuLayout:
         child = GpuLayout(
-            self._panel, direction="SPLIT", align=align, split_factor=factor,
+            self._ui_context, direction="SPLIT", align=align, split_factor=factor,
         )
         child._list_context = self._list_context
         self._children.append(child)
         return child
 
     def box(self, *, padding: float | None = None) -> GpuLayout:
-        child = GpuLayout(self._panel, direction="COLUMN", is_box=True)
+        child = GpuLayout(self._ui_context, direction="COLUMN", is_box=True)
         if padding is not None:
             child._box_pad = padding
         child._list_context = self._list_context
@@ -378,7 +378,7 @@ class GpuLayout:
         even_rows: bool = True,
         align: bool = False,
     ) -> GpuLayout:
-        child = GpuLayout(self._panel, direction="GRID_FLOW", align=align)
+        child = GpuLayout(self._ui_context, direction="GRID_FLOW", align=align)
         child._grid_columns = columns
         child._grid_row_major = row_major
         child._grid_even_columns = even_columns
@@ -396,7 +396,7 @@ class GpuLayout:
 
         Mirrors ``UILayout.template_icon(icon_value=..., scale=...)``.
         The *icon_value* is an integer preview-collection icon ID that
-        the panel resolves to a GPU texture.
+        the ui_context resolves to a GPU texture.
         """
         self._children.append(GpuTemplateIcon(
             icon_value=icon_value,
@@ -422,7 +422,7 @@ class GpuLayout:
         """Append a scrollable list/grid drawn by a registered callback.
 
         Mirrors ``UILayout.template_list()``.  The *listtype_name* must
-        have been registered via :meth:`GpuPanel.register_list_drawer`
+        have been registered via :meth:`UiContext.register_list_drawer`
         before the build function runs.
 
         Parameters
@@ -436,7 +436,7 @@ class GpuLayout:
         """
         from .constants import WIDGET_HEIGHT
 
-        draw_fn = self._panel._list_drawers.get(listtype_name)
+        draw_fn = self._ui_context._list_drawers.get(listtype_name)
         if draw_fn is None:
             _logger.log(
                 f"template_list: no drawer registered for {listtype_name!r}",
@@ -700,11 +700,11 @@ class GpuLayout:
                 child._draw(s)
             elif isinstance(child, GpuWidget):
                 if child.rect is not None:
-                    child.draw(s, self.enabled, self._panel)
+                    child.draw(s, self.enabled, self._ui_context)
 
     # -- Event handling ------------------------------------------------------
 
-    def handle_event(self, event_type: str, panel: object, **kwargs) -> bool:
+    def handle_event(self, event_type: str, ui_context: object, **kwargs) -> bool:
         """Handle a dispatched event.  Return ``True`` if consumed.
 
         Layouts do not consume events by default.  Subclasses or future

@@ -51,7 +51,10 @@ from .layout import GpuLayout
 from .label import GpuLabel
 from .icons import IconProvider
 from ._hit import EventResult, HitResult
-from .panel import GpuPanel, get_region_offsets
+from .ui_context import UiContext, get_region_offsets
+
+# Backwards-compatible alias.
+GpuPanel = UiContext
 from .separator import GpuSeparator
 from .text_field import GpuTextField
 from .template_icon import GpuTemplateIcon
@@ -99,7 +102,8 @@ __all__ = [
     # Layout
     "GpuLayout",
     # Panel
-    "GpuPanel",
+    "UiContext",
+    "GpuPanel",  # Backwards-compatible alias.
     "HitResult",
     "EventResult",
     "get_region_offsets",

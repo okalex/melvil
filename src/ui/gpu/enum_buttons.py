@@ -12,7 +12,7 @@ from .theme import get_theme
 from .widget import GpuWidget, draw_icon, draw_text_in_rect, point_in_rect
 
 if TYPE_CHECKING:
-    from .panel import GpuPanel
+    from .ui_context import UiContext
 
 
 @dataclass
@@ -40,7 +40,7 @@ class GpuEnumButtons(GpuWidget):
         gap = scaled(WIDGET_GAP_ALIGNED, s)
         return n * btn_h + max(0, n - 1) * gap
 
-    def draw(self, s: float, parent_enabled: bool, panel: GpuPanel) -> None:
+    def draw(self, s: float, parent_enabled: bool, ui_context: UiContext) -> None:
         if self.rect is None or not self.items:
             return
 
@@ -57,7 +57,7 @@ class GpuEnumButtons(GpuWidget):
             cursor_y -= btn_h
             btn_rect = (x, cursor_y, w, btn_h)
             is_active = identifier == self.active_value
-            hovered = is_enabled and point_in_rect(panel.get_mouse_pos(), btn_rect)
+            hovered = is_enabled and point_in_rect(ui_context.get_mouse_pos(), btn_rect)
 
             # -- Background ---------------------------------------------------
             if is_active:
@@ -78,7 +78,7 @@ class GpuEnumButtons(GpuWidget):
                 text_color = self._resolve_text_color(
                     parent_enabled, theme.button_text,
                 )
-            icon_offset = draw_icon(item_icon, btn_rect, s, panel)
+            icon_offset = draw_icon(item_icon, btn_rect, s, ui_context)
             if icon_offset > 0:
                 bx, by, bw, bh = btn_rect
                 text_rect = (bx + icon_offset, by, bw - icon_offset, bh)
@@ -88,7 +88,7 @@ class GpuEnumButtons(GpuWidget):
 
             # -- Hit-rect registration ----------------------------------------
             if is_enabled:
-                panel.register_hit(HitResult(
+                ui_context.register_hit(HitResult(
                     widget_type="prop",
                     id=self.property_name,
                     kwargs={"data": self.data, "value": identifier},

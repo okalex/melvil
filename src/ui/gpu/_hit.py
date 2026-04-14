@@ -12,7 +12,7 @@ from typing import Any
 
 @dataclass
 class HitResult:
-    """Describes the interactive widget found by :meth:`GpuPanel.hit_test`."""
+    """Describes the interactive widget found by :meth:`UiContext.hit_test`."""
 
     widget_type: str  # "operator", "prop", "list_row", "button", "text_field"
     id: str
@@ -22,7 +22,7 @@ class HitResult:
 
 @dataclass
 class EventResult:
-    """Structured return value from :meth:`GpuPanel.handle_event`.
+    """Structured return value from :meth:`UiContext.handle_event`.
 
     ``consumed``
         ``True`` when the panel handled the event and the caller should

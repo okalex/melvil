@@ -10,7 +10,7 @@ from .drawing import draw_rect_rounded, draw_text, draw_texture, measure_text
 from .theme import get_theme
 
 if TYPE_CHECKING:
-    from .panel import GpuPanel
+    from .ui_context import UiContext
 
 
 # ---------------------------------------------------------------------------
@@ -34,7 +34,7 @@ def draw_icon(
     icon: str,
     rect: tuple[float, float, float, float],
     s: float,
-    panel: GpuPanel,
+    ui_context: UiContext,
 ) -> float:
     """Draw a built-in Blender icon at the left edge of *rect*.
 
@@ -43,7 +43,7 @@ def draw_icon(
     """
     if icon == "NONE":
         return 0.0
-    provider = panel._icon_provider
+    provider = ui_context._icon_provider
     if provider is None:
         return 0.0
     atlas = provider.atlas
@@ -66,12 +66,12 @@ def draw_icon_centered(
     icon: str,
     rect: tuple[float, float, float, float],
     s: float,
-    panel: GpuPanel,
+    ui_context: UiContext,
 ) -> None:
     """Draw a built-in Blender icon centred within *rect*."""
     if icon == "NONE":
         return
-    provider = panel._icon_provider
+    provider = ui_context._icon_provider
     if provider is None:
         return
     atlas = provider.atlas
@@ -163,11 +163,11 @@ class GpuWidget:
         """Return the height of this widget at UI scale *s*."""
         raise NotImplementedError
 
-    def draw(self, s: float, parent_enabled: bool, panel: GpuPanel) -> None:
+    def draw(self, s: float, parent_enabled: bool, ui_context: UiContext) -> None:
         """Draw this widget.  Called during the draw pass."""
         raise NotImplementedError
 
-    def handle_event(self, event_type: str, panel: GpuPanel, **kwargs) -> bool:
+    def handle_event(self, event_type: str, ui_context: UiContext, **kwargs) -> bool:
         """Handle a dispatched event.  Return ``True`` if consumed.
 
         Subclasses override this to handle specific events (e.g. scroll).
@@ -199,21 +199,21 @@ class GpuWidget:
         color: tuple[float, float, float, float],
         *,
         align: str = "CENTER",
-        panel: GpuPanel | None = None,
+        ui_context: UiContext | None = None,
     ) -> None:
         """Draw :attr:`text` within :attr:`rect` with vertical centering.
 
         *align* controls horizontal placement: ``"LEFT"`` (with padding),
         ``"CENTER"``, or ``"RIGHT"`` (with padding).
 
-        When *panel* is provided and :attr:`icon` is set, the icon is
+        When *ui_context* is provided and :attr:`icon` is set, the icon is
         drawn at the left edge and text is offset accordingly.
         """
         if self.rect is None:
             return
         rect = self.rect
-        if panel is not None and self.icon != "NONE":
-            icon_offset = draw_icon(self.icon, rect, s, panel)
+        if ui_context is not None and self.icon != "NONE":
+            icon_offset = draw_icon(self.icon, rect, s, ui_context)
             if icon_offset > 0:
                 x, y, w, h = rect
                 rect = (x + icon_offset, y, w - icon_offset, h)

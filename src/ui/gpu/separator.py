@@ -9,7 +9,7 @@ from .constants import SEPARATOR_HEIGHT, scaled
 from .widget import GpuWidget
 
 if TYPE_CHECKING:
-    from .panel import GpuPanel
+    from .ui_context import UiContext
 
 
 @dataclass
@@ -25,5 +25,5 @@ class GpuSeparator(GpuWidget):
     def measure_height(self, s: float) -> float:
         return scaled(SEPARATOR_HEIGHT * self.factor, s)
 
-    def draw(self, s: float, parent_enabled: bool, panel: GpuPanel) -> None:
+    def draw(self, s: float, parent_enabled: bool, ui_context: UiContext) -> None:
         """Separators are pure whitespace — nothing to draw."""

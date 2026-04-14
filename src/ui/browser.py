@@ -174,14 +174,14 @@ def handle_icon_button(hit) -> EventResult:
 # ---------------------------------------------------------------------------
 
 
-def build_browser(operator, panel, layout):
+def build_browser(operator, ui_context, layout):
     """Build the browser widget tree.
 
-    Called every frame by the :class:`GpuPanel` draw handler.
+    Called every frame by the :class:`UiContext` draw handler.
 
     *operator* is the ``MELVIL_OT_open_browser`` instance that owns the
     filter properties (``type_filter``, ``kit_filter``, ``search_query``).
-    *panel* is the :class:`GpuPanel` that manages previews and list
+    *ui_context* is the :class:`UiContext` that manages previews and list
     selections.
     """
     layout.label(text="Melvil Asset Library", icon="ASSET_MANAGER")
@@ -266,8 +266,8 @@ def build_browser(operator, panel, layout):
         )
         tag_btn_col.separator(factor=0.5)
         selected_idx = (
-            panel.get_list_selection("gpu_tag_filter")
-            if panel is not None else -1
+            ui_context.get_list_selection("gpu_tag_filter")
+            if ui_context is not None else -1
         )
         selected_tag = (
             wm.melvil_filter_tags[selected_idx]
@@ -395,7 +395,7 @@ def build_browser(operator, panel, layout):
                         _placeholder_path(asset["type"]) or ""
                     )
                 if icon_id is not None and preview_file:
-                    panel.register_preview(
+                    ui_context.register_preview(
                         icon_id, preview_file,
                     )
         finally:
@@ -447,7 +447,7 @@ def build_browser(operator, panel, layout):
             )
             detail_icon_id = get_icon_id(selected_asset["id"], abs_detail_preview)
             if detail_icon_id is not None:
-                panel.register_preview(detail_icon_id, abs_detail_preview)
+                ui_context.register_preview(detail_icon_id, abs_detail_preview)
 
         draw_asset_details(
             right_box,

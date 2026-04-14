@@ -24,7 +24,7 @@ from .theme import get_theme
 from .widget import GpuWidget, draw_text_in_rect
 
 if TYPE_CHECKING:
-    from .panel import GpuPanel
+    from .ui_context import UiContext
 
 _CURSOR_BLINK_PERIOD = 1.06  # seconds (530 ms on, 530 ms off)
 
@@ -39,8 +39,8 @@ class GpuTextField(GpuWidget):
     * **Active** — highlighted border, blinking cursor, optional selection
       highlight.
 
-    The active-field state is owned by :class:`GpuPanel`; this widget
-    reads ``panel.active_text_field`` to decide which state to draw.
+    The active-field state is owned by :class:`UiContext`; this widget
+    reads ``ui_context.active_text_field`` to decide which state to draw.
     """
 
     data: Any = None
@@ -51,14 +51,14 @@ class GpuTextField(GpuWidget):
     def measure_height(self, s: float) -> float:
         return scaled(WIDGET_HEIGHT, s)
 
-    def draw(self, s: float, parent_enabled: bool, panel: GpuPanel) -> None:
+    def draw(self, s: float, parent_enabled: bool, ui_context: UiContext) -> None:
         if self.rect is None:
             return
 
         x, y, w, h = self.rect
         theme = get_theme()
         is_enabled = self.enabled and parent_enabled
-        is_active = panel._text_edit.active_field == self.property_name
+        is_active = ui_context._text_edit.active_field == self.property_name
 
         pad = scaled(WIDGET_PAD_X, s)
         font_size = scaled(FONT_SIZE_PRIMARY, s)
@@ -95,8 +95,8 @@ class GpuTextField(GpuWidget):
             )
 
         # -- Text content ----------------------------------------------------
-        if is_active and panel._text_edit.buffer is not None:
-            current_text = panel._text_edit.buffer
+        if is_active and ui_context._text_edit.buffer is not None:
+            current_text = ui_context._text_edit.buffer
         else:
             current_text = str(getattr(self.data, self.property_name, ""))
 
@@ -107,9 +107,9 @@ class GpuTextField(GpuWidget):
         margin = scaled(2.0, s)
 
         # Selection highlight (drawn behind text).
-        if is_active and panel._text_edit.selection_start is not None:
-            sel_start = min(panel._text_edit.selection_start, panel._text_edit.cursor_pos)
-            sel_end = max(panel._text_edit.selection_start, panel._text_edit.cursor_pos)
+        if is_active and ui_context._text_edit.selection_start is not None:
+            sel_start = min(ui_context._text_edit.selection_start, ui_context._text_edit.cursor_pos)
+            sel_end = max(ui_context._text_edit.selection_start, ui_context._text_edit.cursor_pos)
             if sel_start != sel_end and current_text:
                 pre_w = (measure_text(current_text[:sel_start], font_size)[0]
                          if sel_start > 0 else 0.0)
@@ -132,9 +132,9 @@ class GpuTextField(GpuWidget):
 
         # -- Blinking cursor -------------------------------------------------
         if is_active:
-            elapsed = time.monotonic() - panel._text_edit.blink_base
+            elapsed = time.monotonic() - ui_context._text_edit.blink_base
             if (elapsed % _CURSOR_BLINK_PERIOD) < _CURSOR_BLINK_PERIOD / 2:
-                pre_cursor = current_text[:panel._text_edit.cursor_pos]
+                pre_cursor = current_text[:ui_context._text_edit.cursor_pos]
                 cursor_x_off = (measure_text(pre_cursor, font_size)[0]
                                 if pre_cursor else 0.0)
                 cursor_w = max(scaled(1.0, s), 1.0)
@@ -146,7 +146,7 @@ class GpuTextField(GpuWidget):
 
         # -- Hit-rect registration -------------------------------------------
         if is_enabled:
-            panel.register_hit(HitResult(
+            ui_context.register_hit(HitResult(
                 widget_type="text_field",
                 id=self.property_name,
                 kwargs={"data": self.data},
@@ -154,8 +154,8 @@ class GpuTextField(GpuWidget):
             ))
 
         # Register for tab cycling and TEXTEDIT_UPDATE tracking.
-        if self.property_name not in panel._text_edit.field_order:
-            panel._text_edit.field_order.append(self.property_name)
-        panel._text_edit.field_data[self.property_name] = self.data
+        if self.property_name not in ui_context._text_edit.field_order:
+            ui_context._text_edit.field_order.append(self.property_name)
+        ui_context._text_edit.field_data[self.property_name] = self.data
         if self.textedit_update:
-            panel._text_edit.textedit_update_fields.add(self.property_name)
+            ui_context._text_edit.textedit_update_fields.add(self.property_name)

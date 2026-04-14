@@ -18,7 +18,7 @@ from .theme import get_theme
 from .widget import GpuWidget, draw_disabled_overlay, draw_icon, point_in_rect
 
 if TYPE_CHECKING:
-    from .panel import GpuPanel
+    from .ui_context import UiContext
 
 
 @dataclass
@@ -49,7 +49,7 @@ class GpuIconButton(GpuWidget):
     def measure_height(self, s: float) -> float:
         return scaled(WIDGET_HEIGHT, s)
 
-    def draw(self, s: float, parent_enabled: bool, panel: GpuPanel) -> None:
+    def draw(self, s: float, parent_enabled: bool, ui_context: UiContext) -> None:
         if self.rect is None:
             return
 
@@ -63,7 +63,7 @@ class GpuIconButton(GpuWidget):
         theme = get_theme()
         x, y, w, h = self.rect
         is_enabled = self.enabled and parent_enabled
-        hovered = is_enabled and point_in_rect(panel.get_mouse_pos(), self.rect)
+        hovered = is_enabled and point_in_rect(ui_context.get_mouse_pos(), self.rect)
 
         # Subtle hover highlight behind the icon (skipped for GHOST style).
         if hovered and self.style != "GHOST":
@@ -72,13 +72,13 @@ class GpuIconButton(GpuWidget):
 
         # Draw the icon centred in the rect.
         if self.icon != "NONE":
-            draw_icon(self.icon, self.rect, s, panel)
+            draw_icon(self.icon, self.rect, s, ui_context)
             if not is_enabled:
                 draw_disabled_overlay(self.rect)
 
         # Register hit rect so clicks land on this button, not the row.
         if is_enabled:
-            panel.register_hit(HitResult(
+            ui_context.register_hit(HitResult(
                 widget_type="icon_button",
                 id=self.button_id,
                 kwargs={**ctx},

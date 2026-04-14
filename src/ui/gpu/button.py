@@ -12,7 +12,7 @@ from .theme import get_theme
 from .widget import GpuWidget, draw_disabled_overlay, draw_icon_centered, point_in_rect
 
 if TYPE_CHECKING:
-    from .panel import GpuPanel
+    from .ui_context import UiContext
 
 
 # ---------------------------------------------------------------------------
@@ -62,14 +62,14 @@ class GpuButton(GpuWidget):
     def measure_height(self, s: float) -> float:
         return scaled(WIDGET_HEIGHT, s)
 
-    def draw(self, s: float, parent_enabled: bool, panel: GpuPanel) -> None:
+    def draw(self, s: float, parent_enabled: bool, ui_context: UiContext) -> None:
         if self.rect is None:
             return
 
         x, y, w, h = self.rect
         theme = get_theme()
         is_enabled = self.enabled and parent_enabled
-        hovered = is_enabled and point_in_rect(panel.get_mouse_pos(), self.rect)
+        hovered = is_enabled and point_in_rect(ui_context.get_mouse_pos(), self.rect)
         r = scaled(4.0, s)
 
         # -- Background ------------------------------------------------------
@@ -95,15 +95,15 @@ class GpuButton(GpuWidget):
         text_color = self._resolve_text_color(parent_enabled, theme.button_text)
         if not self.text and self.icon != "NONE":
             # Icon-only: centre the icon within the button.
-            draw_icon_centered(self.icon, self.rect, s, panel)
+            draw_icon_centered(self.icon, self.rect, s, ui_context)
             if not is_enabled:
                 draw_disabled_overlay(self.rect)
         else:
-            self._draw_text_content(s, text_color, panel=panel)
+            self._draw_text_content(s, text_color, ui_context=ui_context)
 
         # -- Hit-rect registration -------------------------------------------
         if is_enabled:
-            panel.register_hit(HitResult(
+            ui_context.register_hit(HitResult(
                 widget_type="operator",
                 id=self.operator_id,
                 kwargs=dict(self.operator_props._props),

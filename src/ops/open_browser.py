@@ -1,7 +1,7 @@
 """
 MELVIL_OT_open_browser — open the GPU-drawn asset browser.
 
-Invoked by ``Ctrl+Shift+A`` in the 3D View.  Creates a :class:`GpuPanel`
+Invoked by ``Ctrl+Shift+A`` in the 3D View.  Creates a :class:`UiContext`
 whose rendering and build logic live in :mod:`melvil.ui.browser`.
 Press ``ESC`` or ``RMB`` to dismiss.
 """
@@ -9,7 +9,7 @@ Press ``ESC`` or ``RMB`` to dismiss.
 import bpy
 from bpy.props import EnumProperty, StringProperty
 
-from ..ui.gpu import GpuPanel
+from ..ui.gpu import UiContext
 from ..ui.browser import (
     TYPE_ENUM_ITEMS,
     build_browser,
@@ -47,40 +47,40 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
         options={"HIDDEN", "TEXTEDIT_UPDATE"},
     )
 
-    _panel = None
+    _ui_context = None
 
     @classmethod
     def poll(cls, context):
         return context.area is not None and context.area.type == "VIEW_3D"
 
     def invoke(self, context, event):
-        self._panel = GpuPanel(
+        self._ui_context = UiContext(
             width=900,
             anchor=compute_anchor,
-            build_fn=lambda layout: build_browser(self, self._panel, layout),
+            build_fn=lambda layout: build_browser(self, self._ui_context, layout),
         )
-        self._panel.register_list_drawer(
+        self._ui_context.register_list_drawer(
             "MELVIL_UL_filter_tags", draw_filter_tag_item,
         )
-        self._panel.register_list_drawer(
+        self._ui_context.register_list_drawer(
             "MELVIL_UL_asset_grid", draw_asset_card,
         )
-        self._panel.register_list_drawer(
+        self._ui_context.register_list_drawer(
             "MELVIL_UL_asset_tags", draw_asset_tag_item,
         )
-        self._panel.register_widget_handler(
+        self._ui_context.register_widget_handler(
             "icon_button", handle_icon_button,
         )
-        self._panel.attach(context.area)
+        self._ui_context.attach(context.area)
         context.window_manager.modal_handler_add(self)
         context.area.tag_redraw()
         return {"RUNNING_MODAL"}
 
     def modal(self, context, event):
-        if self._panel is None:
+        if self._ui_context is None:
             return {"RUNNING_MODAL"}
 
-        result = self._panel.handle_event(event)
+        result = self._ui_context.handle_event(event)
 
         if result.redraw and context.area is not None:
             context.area.tag_redraw()
@@ -93,8 +93,8 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
         self._cleanup(context)
 
     def _cleanup(self, context):
-        if self._panel is not None:
-            self._panel.detach()
-            self._panel = None
+        if self._ui_context is not None:
+            self._ui_context.detach()
+            self._ui_context = None
         if context.area is not None:
             context.area.tag_redraw()

@@ -10,7 +10,7 @@ from .theme import get_theme
 from .widget import GpuWidget
 
 if TYPE_CHECKING:
-    from .panel import GpuPanel
+    from .ui_context import UiContext
 
 
 @dataclass
@@ -20,7 +20,7 @@ class GpuLabel(GpuWidget):
     def measure_height(self, s: float) -> float:
         return scaled(WIDGET_HEIGHT, s)
 
-    def draw(self, s: float, parent_enabled: bool, panel: GpuPanel) -> None:
+    def draw(self, s: float, parent_enabled: bool, ui_context: UiContext) -> None:
         theme = get_theme()
         color = self._resolve_text_color(parent_enabled, theme.text_primary)
-        self._draw_text_content(s, color, align="LEFT", panel=panel)
+        self._draw_text_content(s, color, align="LEFT", ui_context=ui_context)

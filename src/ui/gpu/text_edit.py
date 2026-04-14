@@ -1,6 +1,6 @@
 """Text field editing state for the GPU UI toolkit.
 
-Extracted from :class:`GpuPanel` so that the panel class stays focused on
+Extracted from :class:`UiContext` so that the panel class stays focused on
 layout, rendering, and event routing.  The panel owns a single
 :class:`TextEditState` instance and delegates text-editing work to it.
 """

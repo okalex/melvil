@@ -10,7 +10,7 @@ from .drawing import draw_texture
 from .widget import GpuWidget
 
 if TYPE_CHECKING:
-    from .panel import GpuPanel
+    from .ui_context import UiContext
 
 
 @dataclass
@@ -18,9 +18,9 @@ class GpuTemplateIcon(GpuWidget):
     """Displays a large preview image identified by *icon_value*.
 
     Mirrors ``UILayout.template_icon(icon_value=..., scale=...)``.
-    The *icon_value* is an integer preview-collection icon ID.  The panel
+    The *icon_value* is an integer preview-collection icon ID.  The ui_context
     resolves it to a GPU texture via its preview path registry
-    (:meth:`GpuPanel.register_preview` / :meth:`GpuPanel.get_preview_texture`).
+    (:meth:`UiContext.register_preview` / :meth:`UiContext.get_preview_texture`).
     """
 
     icon_value: int = 0
@@ -29,12 +29,12 @@ class GpuTemplateIcon(GpuWidget):
     def measure_height(self, s: float) -> float:
         return scaled(ICON_SIZE, s) * self.scale
 
-    def draw(self, s: float, parent_enabled: bool, panel: GpuPanel) -> None:
+    def draw(self, s: float, parent_enabled: bool, ui_context: UiContext) -> None:
         if self.rect is None or self.icon_value == 0:
             return
 
         x, y, w, h = self.rect
-        texture = panel.get_preview_texture(self.icon_value)
+        texture = ui_context.get_preview_texture(self.icon_value)
         if texture is None:
             return
 

@@ -464,20 +464,20 @@ class TestHitResult:
 
 
 # ---------------------------------------------------------------------------
-# GpuPanel
+# UiContext
 # ---------------------------------------------------------------------------
 
 
 def _make_panel(**kwargs):
-    """Create a GpuPanel with sensible defaults and no draw handler."""
-    from melvil.ui.gpu import GpuPanel
+    """Create a UiContext with sensible defaults and no draw handler."""
+    from melvil.ui.gpu import UiContext
 
     defaults = {"width": 300, "anchor": (0, 200)}
     defaults.update(kwargs)
-    return GpuPanel(**defaults)
+    return UiContext(**defaults)
 
 
-class TestGpuPanelAttachDetach:
+class TestUiContextAttachDetach:
     def setup_method(self):
         import bpy
 
@@ -522,7 +522,7 @@ class TestGpuPanelAttachDetach:
         panel.detach()  # should not raise
 
 
-class TestGpuPanelFrameCycle:
+class TestUiContextFrameCycle:
     def test_begin_frame_returns_gpu_layout(self):
         from melvil.ui.gpu import GpuLayout
 
@@ -558,7 +558,7 @@ class TestGpuPanelFrameCycle:
         assert y == pytest.approx(100.0 - expected_h)
 
 
-class TestGpuPanelHitTest:
+class TestUiContextHitTest:
     def test_returns_none_on_empty_panel(self):
         panel = _make_panel()
         panel.begin_frame()
@@ -608,7 +608,7 @@ class TestGpuPanelHitTest:
         assert result.id == "top"
 
 
-class TestGpuPanelIsInside:
+class TestUiContextIsInside:
     def test_inside(self):
         panel = _make_panel(width=100, anchor=(10, 50))
         root = panel.begin_frame()
@@ -633,7 +633,7 @@ class TestGpuPanelIsInside:
         assert panel.is_inside(0, 0) is False
 
 
-class TestGpuPanelTexture:
+class TestUiContextTexture:
     def test_get_texture_caches(self):
         import bpy
 
@@ -904,9 +904,9 @@ class TestLayoutPass:
         bpy.context.region.width = 800
         bpy.context.region.height = 600
 
-        from melvil.ui.gpu import GpuPanel, SEPARATOR_HEIGHT
+        from melvil.ui.gpu import UiContext, SEPARATOR_HEIGHT
 
-        panel = GpuPanel(width=200, anchor=None)
+        panel = UiContext(width=200, anchor=None)
         root = panel.begin_frame()
         root.separator()
         panel.end_frame()
@@ -1637,11 +1637,11 @@ class TestGpuButtonHitRect:
 
 
 # ---------------------------------------------------------------------------
-# GpuPanel — hover state
+# UiContext — hover state
 # ---------------------------------------------------------------------------
 
 
-class TestGpuPanelHover:
+class TestUiContextHover:
     def test_mouse_pos_initially_none(self):
         panel = _make_panel()
         assert panel._mouse_pos is None
@@ -4196,37 +4196,37 @@ class TestGpuGridListHandleEvent:
 
     def test_scroll_down_increments_offset(self):
         gl, panel, scroll = self._make_list_with_scroll(10, 5, offset=0)
-        consumed = gl.handle_event("SCROLL_DOWN", panel=panel)
+        consumed = gl.handle_event("SCROLL_DOWN", ui_context=panel)
         assert consumed is True
         assert scroll.offset == 1
 
     def test_scroll_up_decrements_offset(self):
         gl, panel, scroll = self._make_list_with_scroll(10, 5, offset=3)
-        consumed = gl.handle_event("SCROLL_UP", panel=panel)
+        consumed = gl.handle_event("SCROLL_UP", ui_context=panel)
         assert consumed is True
         assert scroll.offset == 2
 
     def test_scroll_up_at_zero_not_consumed(self):
         gl, panel, scroll = self._make_list_with_scroll(10, 5, offset=0)
-        consumed = gl.handle_event("SCROLL_UP", panel=panel)
+        consumed = gl.handle_event("SCROLL_UP", ui_context=panel)
         assert consumed is False
         assert scroll.offset == 0
 
     def test_scroll_down_at_max_not_consumed(self):
         gl, panel, scroll = self._make_list_with_scroll(10, 5, offset=5)
-        consumed = gl.handle_event("SCROLL_DOWN", panel=panel)
+        consumed = gl.handle_event("SCROLL_DOWN", ui_context=panel)
         assert consumed is False
         assert scroll.offset == 5
 
     def test_scroll_offset_clamped(self):
         gl, panel, scroll = self._make_list_with_scroll(10, 5, offset=0)
         for _ in range(20):
-            gl.handle_event("SCROLL_DOWN", panel=panel)
+            gl.handle_event("SCROLL_DOWN", ui_context=panel)
         assert scroll.offset == 5  # max(0, 10-5)
 
     def test_unknown_event_not_consumed(self):
         gl, panel, scroll = self._make_list_with_scroll(10, 5, offset=0)
-        consumed = gl.handle_event("CLICK", panel=panel)
+        consumed = gl.handle_event("CLICK", ui_context=panel)
         assert consumed is False
 
 
@@ -4513,7 +4513,7 @@ class TestWidgetHandleEvent:
 
         w = ConcreteWidget()
         panel = _make_panel()
-        assert w.handle_event("SCROLL_DOWN", panel=panel) is False
+        assert w.handle_event("SCROLL_DOWN", ui_context=panel) is False
 
 
 # ---------------------------------------------------------------------------
@@ -4527,7 +4527,7 @@ class TestLayoutHandleEvent:
 
         panel = _make_panel()
         layout = GpuLayout(panel)
-        assert layout.handle_event("SCROLL_DOWN", panel=panel) is False
+        assert layout.handle_event("SCROLL_DOWN", ui_context=panel) is False
 
 
 # ---------------------------------------------------------------------------
@@ -5144,7 +5144,7 @@ class TestDropdownState:
     def test_from_hit_prop_mode(self):
         """from_hit creates a correctly populated state from a HitResult."""
         from melvil.ui.gpu import DropdownState
-        from melvil.ui.gpu.panel import HitResult
+        from melvil.ui.gpu.ui_context import HitResult
 
         hit = HitResult(
             widget_type="dropdown",
@@ -5169,7 +5169,7 @@ class TestDropdownState:
     def test_from_hit_defaults(self):
         """from_hit handles minimal kwargs with sensible defaults."""
         from melvil.ui.gpu import DropdownState
-        from melvil.ui.gpu.panel import HitResult
+        from melvil.ui.gpu.ui_context import HitResult
 
         hit = HitResult(
             widget_type="dropdown",
@@ -5184,7 +5184,7 @@ class TestDropdownState:
 
 
 # ---------------------------------------------------------------------------
-# GpuPanel — dropdown lifecycle
+# UiContext — dropdown lifecycle
 # ---------------------------------------------------------------------------
 
 
@@ -5314,7 +5314,7 @@ class TestEventResult:
 
 
 # ===========================================================================
-# GpuPanel.handle_event — dropdown mode
+# UiContext.handle_event — dropdown mode
 # ===========================================================================
 
 
@@ -5395,7 +5395,7 @@ class TestHandleEventDropdown:
 
 
 # ===========================================================================
-# GpuPanel.handle_event — text field mode
+# UiContext.handle_event — text field mode
 # ===========================================================================
 
 
@@ -5465,7 +5465,7 @@ class TestHandleEventTextField:
 
 
 # ===========================================================================
-# GpuPanel.handle_event — normal mode
+# UiContext.handle_event — normal mode
 # ===========================================================================
 
 
@@ -5658,7 +5658,7 @@ class TestHandleEventNormal:
 
 
 # ===========================================================================
-# GpuPanel.register_widget_handler
+# UiContext.register_widget_handler
 # ===========================================================================
 
 

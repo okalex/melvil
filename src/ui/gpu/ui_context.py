@@ -43,11 +43,11 @@ def get_region_offsets(area: Any) -> tuple[int, int]:
 
 
 # ---------------------------------------------------------------------------
-# GpuPanel
+# UiContext
 # ---------------------------------------------------------------------------
 
 
-class GpuPanel:
+class UiContext:
     """Top-level owner of a GPU-drawn UI surface.
 
     Manages the ``POST_PIXEL`` draw handler lifecycle, drives the
@@ -578,7 +578,7 @@ class GpuPanel:
         self._build_hit_path(self._root, mx, my, path)
         for node in reversed(path):
             handler = getattr(node, "handle_event", None)
-            if handler is not None and handler(event_type, panel=self, **kwargs):
+            if handler is not None and handler(event_type, ui_context=self, **kwargs):
                 return True
         return False
 

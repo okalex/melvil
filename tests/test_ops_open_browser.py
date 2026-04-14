@@ -64,7 +64,7 @@ class TestInvoke:
         result = op.invoke(ctx, event)
 
         assert result == {"RUNNING_MODAL"}
-        assert op._panel is not None
+        assert op._ui_context is not None
         bpy.types.SpaceView3D.draw_handler_add.assert_called_once()
         ctx.window_manager.modal_handler_add.assert_called_once_with(op)
 
@@ -97,7 +97,7 @@ class TestModal:
 
         result = op.modal(ctx, event)
         assert result == {"CANCELLED"}
-        assert op._panel is None
+        assert op._ui_context is None
 
     def test_rightmouse_cancels(self):
         op, ctx = self._make_op()
@@ -135,7 +135,7 @@ class TestCancel:
         bpy.types.SpaceView3D.draw_handler_add.reset_mock()
         bpy.types.SpaceView3D.draw_handler_remove.reset_mock()
 
-    def test_cancel_detaches_panel(self):
+    def test_cancel_detaches_ui_context(self):
         from melvil.ops.open_browser import MELVIL_OT_open_browser
 
         op = MELVIL_OT_open_browser()
@@ -143,7 +143,7 @@ class TestCancel:
         op.invoke(ctx, MagicMock())
 
         op.cancel(ctx)
-        assert op._panel is None
+        assert op._ui_context is None
         bpy.types.SpaceView3D.draw_handler_remove.assert_called_once()
 
     def test_cancel_without_invoke_is_safe(self):

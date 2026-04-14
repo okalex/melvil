@@ -2,7 +2,7 @@
 
 Provides :class:`GpuDropdown`, the trigger button that appears in the
 widget tree, and :class:`DropdownState`, the transient overlay state
-held by :class:`GpuPanel` while the dropdown is open.
+held by :class:`UiContext` while the dropdown is open.
 
 The dropdown supports two modes:
 
@@ -34,7 +34,7 @@ from .widget import (
 )
 
 if TYPE_CHECKING:
-    from .panel import GpuPanel
+    from .ui_context import UiContext
 
 
 # ---------------------------------------------------------------------------
@@ -47,7 +47,7 @@ class DropdownState:
     """Transient state for an open dropdown overlay.
 
     Created when a :class:`GpuDropdown` trigger button is clicked and
-    stored on :attr:`GpuPanel.active_dropdown`.  Cleared when the user
+    stored on :attr:`UiContext.active_dropdown`.  Cleared when the user
     selects an item, clicks outside, or presses Escape.
     """
 
@@ -103,7 +103,7 @@ class DropdownState:
 
     # -- Drawing ------------------------------------------------------------
 
-    def draw(self, s: float, panel: GpuPanel) -> None:
+    def draw(self, s: float, ui_context: UiContext) -> None:
         """Draw the dropdown overlay and populate :attr:`item_rects`."""
         if self.rect is None:
             self.compute_rect(s)
@@ -145,7 +145,7 @@ class DropdownState:
                 if i == self.hovered_index
                 else theme.text_primary
             )
-            icon_offset = draw_icon(item_icon, item_rect, s, panel)
+            icon_offset = draw_icon(item_icon, item_rect, s, ui_context)
             if icon_offset > 0:
                 ix, iy, iw, ih = item_rect
                 text_rect = (ix + icon_offset, iy, iw - icon_offset, ih)
@@ -277,14 +277,14 @@ class GpuDropdown(GpuWidget):
     def measure_height(self, s: float) -> float:
         return scaled(WIDGET_HEIGHT, s)
 
-    def draw(self, s: float, parent_enabled: bool, panel: GpuPanel) -> None:
+    def draw(self, s: float, parent_enabled: bool, ui_context: UiContext) -> None:
         if self.rect is None:
             return
 
         x, y, w, h = self.rect
         theme = get_theme()
         is_enabled = self.enabled and parent_enabled
-        hovered = is_enabled and point_in_rect(panel.get_mouse_pos(), self.rect)
+        hovered = is_enabled and point_in_rect(ui_context.get_mouse_pos(), self.rect)
         r = scaled(4.0, s)
 
         # -- Background
@@ -306,7 +306,7 @@ class GpuDropdown(GpuWidget):
 
         # Icon + text in the remaining area.
         content_rect = (x, y, w - arrow_space, h)
-        icon_offset = draw_icon(self.icon, content_rect, s, panel)
+        icon_offset = draw_icon(self.icon, content_rect, s, ui_context)
         if icon_offset > 0:
             cx, cy, cw, ch = content_rect
             text_rect = (cx + icon_offset, cy, cw - icon_offset, ch)
@@ -319,12 +319,12 @@ class GpuDropdown(GpuWidget):
         draw_icon_centered(
             "DOWNARROW_HLT",
             (x + w - arrow_space, y, arrow_space, h),
-            s, panel,
+            s, ui_context,
         )
 
         # -- Hit rect
         if is_enabled:
-            panel.register_hit(HitResult(
+            ui_context.register_hit(HitResult(
                 widget_type="dropdown",
                 id=self.dropdown_id,
                 kwargs={
