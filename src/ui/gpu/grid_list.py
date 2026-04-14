@@ -29,6 +29,7 @@ from .constants import (
 )
 from .drawing import draw_rect_rounded, draw_rect_rounded_outline
 from .theme import get_theme
+from ._hit import HitResult
 from .widget import GpuWidget, point_in_rect
 
 if TYPE_CHECKING:
@@ -106,7 +107,6 @@ class GpuGridList(GpuWidget):
 
         # Deferred import to avoid circular dependency.
         from .layout import GpuLayout
-        from .panel import HitResult
 
         x, y, w, h = self.rect
         theme = get_theme()
@@ -200,7 +200,7 @@ class GpuGridList(GpuWidget):
                 row_layout._draw(s)
 
                 # Register hit rect for the cell.
-                panel._hit_rects.append(HitResult(
+                panel.register_hit(HitResult(
                     widget_type="list_row",
                     id=self.propname,
                     kwargs={

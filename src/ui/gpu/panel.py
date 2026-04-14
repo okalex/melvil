@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any, Callable
 
 import bpy
@@ -12,45 +11,12 @@ from .constants import get_ui_scale, scaled, PANEL_PAD
 from .drawing import draw_rect_outline, draw_rect_rounded
 from .dropdown import DropdownState
 from .grid_list import ScrollState
+from ._hit import EventResult, HitResult
 from .text_edit import TextEditState
 from .icons import IconProvider
 from .layout import GpuLayout
 from .theme import get_theme
 from ._logger import _logger
-
-
-# ---------------------------------------------------------------------------
-# Hit testing
-# ---------------------------------------------------------------------------
-
-
-@dataclass
-class HitResult:
-    """Describes the interactive widget found by :meth:`GpuPanel.hit_test`."""
-
-    widget_type: str  # "operator", "prop", "list_row", "button", "text_field"
-    id: str
-    kwargs: dict[str, Any]
-    rect: tuple[float, float, float, float]  # (x, y, w, h)
-
-
-@dataclass
-class EventResult:
-    """Structured return value from :meth:`GpuPanel.handle_event`.
-
-    ``consumed``
-        ``True`` when the panel handled the event and the caller should
-        return ``RUNNING_MODAL``.
-    ``cancelled``
-        ``True`` when the user dismissed the panel (ESC, RMB, or click
-        outside).  The caller should clean up and return ``CANCELLED``.
-    ``redraw``
-        ``True`` when the panel needs a visual update.
-    """
-
-    consumed: bool = False
-    cancelled: bool = False
-    redraw: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -242,6 +208,10 @@ class GpuPanel:
             gpu.state.blend_set("NONE")
 
     # -- Hit testing ---------------------------------------------------------
+
+    def register_hit(self, hit: HitResult) -> None:
+        """Register a clickable region for hit testing."""
+        self._hit_rects.append(hit)
 
     def hit_test(self, mx: int, my: int) -> HitResult | None:
         """Return the most specific interactive widget at *(mx, my)*.

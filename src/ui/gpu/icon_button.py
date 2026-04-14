@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 from .constants import ICON_SIZE, WIDGET_HEIGHT, WIDGET_PAD_X, scaled
 from .drawing import draw_rect_rounded
+from ._hit import HitResult
 from .theme import get_theme
 from .widget import GpuWidget, draw_disabled_overlay, draw_icon, point_in_rect
 
@@ -77,9 +78,7 @@ class GpuIconButton(GpuWidget):
 
         # Register hit rect so clicks land on this button, not the row.
         if is_enabled:
-            from .panel import HitResult
-
-            panel._hit_rects.append(HitResult(
+            panel.register_hit(HitResult(
                 widget_type="icon_button",
                 id=self.button_id,
                 kwargs={**ctx},

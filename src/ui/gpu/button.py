@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 from .constants import WIDGET_HEIGHT, scaled
 from .drawing import draw_rect_outline, draw_rect_rounded
+from ._hit import HitResult
 from .theme import get_theme
 from .widget import GpuWidget, draw_disabled_overlay, draw_icon_centered, point_in_rect
 
@@ -102,9 +103,7 @@ class GpuButton(GpuWidget):
 
         # -- Hit-rect registration -------------------------------------------
         if is_enabled:
-            from .panel import HitResult  # Deferred to avoid circular import.
-
-            panel._hit_rects.append(HitResult(
+            panel.register_hit(HitResult(
                 widget_type="operator",
                 id=self.operator_id,
                 kwargs=dict(self.operator_props._props),

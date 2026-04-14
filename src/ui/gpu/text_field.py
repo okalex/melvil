@@ -19,6 +19,7 @@ from .drawing import (
     draw_text,
     measure_text,
 )
+from ._hit import HitResult
 from .theme import get_theme
 from .widget import GpuWidget, draw_text_in_rect
 
@@ -145,9 +146,7 @@ class GpuTextField(GpuWidget):
 
         # -- Hit-rect registration -------------------------------------------
         if is_enabled:
-            from .panel import HitResult  # Deferred to avoid circular import.
-
-            panel._hit_rects.append(HitResult(
+            panel.register_hit(HitResult(
                 widget_type="text_field",
                 id=self.property_name,
                 kwargs={"data": self.data},

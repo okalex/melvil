@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 from .constants import WIDGET_GAP_ALIGNED, WIDGET_HEIGHT, scaled
 from .drawing import draw_rect_outline, draw_rect_rounded
+from ._hit import HitResult
 from .theme import get_theme
 from .widget import GpuWidget, draw_icon, draw_text_in_rect, point_in_rect
 
@@ -87,9 +88,7 @@ class GpuEnumButtons(GpuWidget):
 
             # -- Hit-rect registration ----------------------------------------
             if is_enabled:
-                from .panel import HitResult  # Deferred to avoid circular import.
-
-                panel._hit_rects.append(HitResult(
+                panel.register_hit(HitResult(
                     widget_type="prop",
                     id=self.property_name,
                     kwargs={"data": self.data, "value": identifier},

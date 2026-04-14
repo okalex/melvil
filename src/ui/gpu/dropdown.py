@@ -24,6 +24,7 @@ from .constants import (
     scaled,
 )
 from .drawing import draw_rect_outline, draw_rect_rounded, draw_rect_rounded_outline
+from ._hit import HitResult
 from .theme import get_theme
 from .widget import (
     GpuWidget,
@@ -280,8 +281,6 @@ class GpuDropdown(GpuWidget):
         if self.rect is None:
             return
 
-        from .panel import HitResult
-
         x, y, w, h = self.rect
         theme = get_theme()
         is_enabled = self.enabled and parent_enabled
@@ -325,7 +324,7 @@ class GpuDropdown(GpuWidget):
 
         # -- Hit rect
         if is_enabled:
-            panel._hit_rects.append(HitResult(
+            panel.register_hit(HitResult(
                 widget_type="dropdown",
                 id=self.dropdown_id,
                 kwargs={
