@@ -4385,7 +4385,8 @@ class TestScissorClipping:
         scissor_call = mock_gpu.state.scissor_set.call_args
         pad = LIST_BORDER_PAD
         # 10 items > 5 rows → scrollbar present.
-        content_w = 300 - SCROLLBAR_WIDTH
+        sb_margin = pad
+        content_w = 300 - SCROLLBAR_WIDTH - sb_margin
         expected_x = 10 + pad
         expected_y = 20 + pad
         expected_w = content_w - 2 * pad

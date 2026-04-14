@@ -16,6 +16,7 @@ from pathlib import Path
 from ..core.library import resolve_library_root
 from ..ui.gpu import GpuPanel, get_region_offsets
 from ..ui.gpu.dropdown import DropdownState
+from ..ui.gpu.theme import get_theme
 from ..ui import scene_props as _scene_props
 from ..ui.draw_helpers import (
     draw_asset_details,
@@ -76,10 +77,16 @@ def _draw_filter_tag_item(layout, item, index, is_active):
 def _draw_asset_card(layout, item, index, is_active):
     """Draw a single asset card in the asset grid list."""
     box = layout.box()
+    if is_active:
+        theme = get_theme()
+        box._box_bg = theme.widget_bg_active
+        box._box_border = theme.widget_bg_active
 
     # Name + type icon at the top of the card.
     name_row = box.row(align=True)
-    name_row.label(text="", icon=_TYPE_ICONS.get(item.asset_type, "OBJECT_DATA"))
+    icon_col = name_row.column()
+    icon_col.scale_x = 0.15
+    icon_col.label(text="", icon=_TYPE_ICONS.get(item.asset_type, "OBJECT_DATA"))
     name_row.label(text=item.name)
 
     # Preview image.
@@ -93,21 +100,9 @@ def _draw_asset_card(layout, item, index, is_active):
         box.template_icon(icon_value=icon_id, scale=5.0)
 
     # Action buttons.
-    btn_row = box.row(align=True)
     if _SHOW_LOAD_FOR_TYPE.get(item.asset_type, True):
-        load_op = btn_row.operator("melvil.load_asset", text="Load")
+        load_op = box.operator("melvil.load_asset", text="Add to scene")
         load_op.asset_id = item.asset_id
-
-    selected_id = getattr(
-        bpy.context.window_manager, "melvil_selected_asset_id", "",
-    )
-    detail_op = btn_row.operator(
-        "melvil.asset_select",
-        text="",
-        icon="DISCLOSURE_TRI_RIGHT",
-        depress=(item.asset_id == selected_id),
-    )
-    detail_op.asset_id = item.asset_id
 
 
 class MELVIL_OT_gpu_browser(bpy.types.Operator):
@@ -209,11 +204,14 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
         # Kit selector header row with New Kit and Rename Kit buttons.
         kit_header = left.row(align=True)
         kit_header.label(text="Kit")
-        kit_header.operator("melvil.kit_create", text="New", icon="ADD")
-        rename_sub = kit_header.row()
-        rename_sub.enabled = self.kit_filter != "ALL_KITS"
-        rename_op = rename_sub.operator(
-            "melvil.kit_rename", text="Rename", icon="GREASEPENCIL",
+        new_col = kit_header.column()
+        new_col.scale_x = 0.15
+        new_col.operator("melvil.kit_create", text="", icon="ADD")
+        rename_col = kit_header.column()
+        rename_col.scale_x = 0.15
+        rename_col.enabled = self.kit_filter != "ALL_KITS"
+        rename_op = rename_col.operator(
+            "melvil.kit_rename", text="", icon="GREASEPENCIL",
         )
         rename_op.kit_id = (
             self.kit_filter if self.kit_filter != "ALL_KITS" else ""

@@ -120,6 +120,8 @@ class GpuLayout:
         self._align = align
         self._is_box = is_box
         self._box_pad = BOX_PAD
+        self._box_border: tuple[float, float, float, float] | None = None
+        self._box_bg: tuple[float, float, float, float] | None = None
         self._split_factor = split_factor
         self._children: list[GpuLayout | GpuWidget] = []
         self._rect: tuple[float, float, float, float] | None = None
@@ -728,8 +730,10 @@ class GpuLayout:
             bx, by, bw, bh = self._rect
             theme = get_theme()
             r = scaled(4.0, s)
-            draw_rect_rounded(bx, by, bw, bh, r, theme.box_bg)
-            draw_rect_rounded_outline(bx, by, bw, bh, r, theme.border)
+            bg = self._box_bg if self._box_bg is not None else theme.box_bg
+            draw_rect_rounded(bx, by, bw, bh, r, bg)
+            border = self._box_border if self._box_border is not None else theme.border
+            draw_rect_rounded_outline(bx, by, bw, bh, r, border)
 
         for child in self._children:
             if isinstance(child, GpuLayout):

@@ -99,20 +99,29 @@ class ThemeColors:
         panel_header_bg = (box_inner[0], box_inner[1], box_inner[2],
                            min(1.0, box_inner[3] + 0.1))
 
+        def _lighten(color, amount=0.08):
+            return (min(1.0, color[0] + amount),
+                    min(1.0, color[1] + amount),
+                    min(1.0, color[2] + amount),
+                    color[3])
+
+        widget_bg = _rgba(ui.wcol_tool.inner)
+        button_bg = _rgba(ui.wcol_tool.inner)
+
         return cls(
             panel_bg=panel_bg,
             panel_header_bg=panel_header_bg,
             text_primary=text_primary,
             text_secondary=_color_with_alpha(text_primary, 0.6),
             text_disabled=_color_with_alpha(text_primary, 0.3),
-            widget_bg=_rgba(ui.wcol_tool.inner),
-            widget_bg_hover=_rgba(ui.wcol_tool.inner_sel),
+            widget_bg=widget_bg,
+            widget_bg_hover=_lighten(widget_bg),
             widget_bg_active=_rgba(ui.wcol_option.inner_sel),
             input_bg=_rgba(ui.wcol_text.inner),
             input_border=_rgba(ui.wcol_text.outline),
             input_text=_rgba(ui.wcol_text.text),
-            button_bg=_rgba(ui.wcol_tool.inner),
-            button_bg_hover=_rgba(ui.wcol_tool.inner_sel),
+            button_bg=button_bg,
+            button_bg_hover=_lighten(button_bg),
             button_text=_rgba(ui.wcol_tool.text),
             box_bg=(box_inner[0], box_inner[1], box_inner[2], 1.0),
             list_item_bg=(min(1.0, panel_bg[0] + 0.05),

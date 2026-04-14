@@ -135,7 +135,8 @@ class GpuGridList(GpuWidget):
         pad = scaled(LIST_BORDER_PAD, s)
         has_scrollbar = total_rows > self.rows_visible
         sb_w = scaled(SCROLLBAR_WIDTH, s) if has_scrollbar else 0
-        content_w = w - sb_w
+        sb_margin = pad if has_scrollbar else 0
+        content_w = w - sb_w - sb_margin
         col_gaps = max(0, self.cols - 1) * gap if self.cols > 1 else 0
         cell_w = (content_w - 2 * pad - col_gaps) / self.cols if self.cols > 0 else (content_w - 2 * pad)
 
