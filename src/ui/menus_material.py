@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import bpy
 
+from .menus_factory import register_submenu, unregister_submenu
+
 
 class MELVIL_MT_material_submenu(bpy.types.Menu):
     """Melvil material actions — shown as a sub-menu in the material context menu."""
@@ -71,14 +73,8 @@ def _draw_material_entry(self, context):
 
 
 def register() -> None:
-    bpy.utils.register_class(MELVIL_MT_material_submenu)
-    menu_type = getattr(bpy.types, "MATERIAL_MT_context_menu", None)
-    if menu_type is not None:
-        menu_type.append(_draw_material_entry)
+    register_submenu(MELVIL_MT_material_submenu, "MATERIAL_MT_context_menu", _draw_material_entry)
 
 
 def unregister() -> None:
-    menu_type = getattr(bpy.types, "MATERIAL_MT_context_menu", None)
-    if menu_type is not None:
-        menu_type.remove(_draw_material_entry)
-    bpy.utils.unregister_class(MELVIL_MT_material_submenu)
+    unregister_submenu(MELVIL_MT_material_submenu, "MATERIAL_MT_context_menu", _draw_material_entry)

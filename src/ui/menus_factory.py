@@ -1,18 +1,46 @@
 """
-Factory for asset-type submenus.
+Factory and helpers for asset-type submenus.
 
-Creates a ``bpy.types.Menu`` subclass, a host-menu draw function, and
-register/unregister helpers from a small set of parameters.  This eliminates
-the near-identical boilerplate in ``menus_add`` and ``menus_node_add``.
+``create_asset_submenu`` generates a ``bpy.types.Menu`` subclass, a
+host-menu draw function, and register/unregister helpers from a small set
+of parameters — eliminating the near-identical boilerplate in
+``menus_add`` and ``menus_node_add``.
+
+``register_submenu`` / ``unregister_submenu`` handle the three-step
+register/unregister dance shared by all menu modules.
 """
 
 from __future__ import annotations
 
 import bpy
 
-from ..core.library import resolve_db_path
-from ..db import open_db
-from ..db.assets import list_assets
+from .draw_helpers import load_assets
+
+
+# ---------------------------------------------------------------------------
+# Generic register / unregister helpers (item 2)
+# ---------------------------------------------------------------------------
+
+
+def register_submenu(cls, host_menu_id: str, draw_fn) -> None:
+    """Register *cls* and append *draw_fn* to the host menu."""
+    bpy.utils.register_class(cls)
+    menu_type = getattr(bpy.types, host_menu_id, None)
+    if menu_type is not None:
+        menu_type.append(draw_fn)
+
+
+def unregister_submenu(cls, host_menu_id: str, draw_fn) -> None:
+    """Remove *draw_fn* from the host menu and unregister *cls*."""
+    menu_type = getattr(bpy.types, host_menu_id, None)
+    if menu_type is not None:
+        menu_type.remove(draw_fn)
+    bpy.utils.unregister_class(cls)
+
+
+# ---------------------------------------------------------------------------
+# Asset submenu factory (items 1 + 4)
+# ---------------------------------------------------------------------------
 
 
 def create_asset_submenu(
@@ -31,7 +59,7 @@ def create_asset_submenu(
     bl_idname:
         Unique Blender menu identifier, e.g. ``"MELVIL_MT_add_submenu"``.
     asset_type:
-        Asset type string passed to ``list_assets`` (``"MESH"``, ``"NODE_GROUP"``, …).
+        Asset type string passed to ``load_assets`` (``"MESH"``, ``"NODE_GROUP"``, …).
     operator_id:
         Operator idname invoked per asset row (``"melvil.load_asset"``, …).
     icon:
@@ -57,8 +85,7 @@ def create_asset_submenu(
                 kit_id = active_kit_id
 
             try:
-                with open_db(resolve_db_path()) as conn:
-                    assets = list_assets(conn, type=asset_type, kit_id=kit_id)
+                assets = load_assets(asset_type, kit_id=kit_id)
             except Exception:
                 layout.label(text="Could not open library", icon="ERROR")
                 return
@@ -79,15 +106,9 @@ def create_asset_submenu(
         self.layout.menu(bl_idname)
 
     def register() -> None:
-        bpy.utils.register_class(_Menu)
-        menu_type = getattr(bpy.types, host_menu, None)
-        if menu_type is not None:
-            menu_type.append(_draw_entry)
+        register_submenu(_Menu, host_menu, _draw_entry)
 
     def unregister() -> None:
-        menu_type = getattr(bpy.types, host_menu, None)
-        if menu_type is not None:
-            menu_type.remove(_draw_entry)
-        bpy.utils.unregister_class(_Menu)
+        unregister_submenu(_Menu, host_menu, _draw_entry)
 
     return _Menu, _draw_entry, register, unregister

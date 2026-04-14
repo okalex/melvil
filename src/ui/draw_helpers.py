@@ -22,6 +22,7 @@ from ..db.tags import (
     list_tags as _list_tags,
     list_tags_for_asset_ids as _list_tags_for_asset_ids,
 )
+from .asset_types import type_label
 
 
 class MELVIL_UL_asset_tags(bpy.types.UIList):
@@ -38,11 +39,7 @@ class MELVIL_UL_asset_tags(bpy.types.UIList):
             layout.label(text="", icon="TAG")
 
 
-_TYPE_LABELS: dict[str, str] = {
-    "MATERIAL": "Material",
-    "MESH": "Mesh",
-    "NODE_GROUP": "Node Group",
-}
+
 
 
 def load_assets(asset_type=None, kit_id=None):
@@ -198,7 +195,7 @@ def draw_asset_details(
     # Type
     type_split = layout.split(factor=0.15)
     type_split.label(text="Type:")
-    type_split.box(padding=0).label(text=_TYPE_LABELS.get(asset["type"], asset["type"]))
+    type_split.box(padding=0).label(text=type_label(asset["type"]))
 
     # Source — path to the managed .blend file
     try:

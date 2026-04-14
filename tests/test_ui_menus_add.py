@@ -2,11 +2,7 @@
 
 from __future__ import annotations
 
-import sqlite3
-from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 
 # ---------------------------------------------------------------------------
@@ -23,6 +19,9 @@ def _fresh():
     import melvil.ui.menus_add as m
     importlib.reload(m)
     return m
+
+
+_PATCH_LOAD = "melvil.ui.menus_factory.load_assets"
 
 
 # ---------------------------------------------------------------------------
@@ -64,22 +63,11 @@ class TestDraw:
         ctx.scene = scene
         return ctx
 
-    @contextmanager
-    def _db_ctx(self, assets):
-        conn = MagicMock()
-        conn.__enter__ = lambda s: s
-        conn.__exit__ = MagicMock(return_value=False)
-        yield conn
-
     def test_draws_one_row_per_asset(self):
         assets = [_make_asset("id1", "Rock"), _make_asset("id2", "Barrel")]
         menu = self._menu()
 
-        with patch("melvil.ui.menus_factory.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ui.menus_factory.open_db") as mock_open, \
-             patch("melvil.ui.menus_factory.list_assets", return_value=assets):
-            mock_open.return_value.__enter__ = lambda s: MagicMock()
-            mock_open.return_value.__exit__ = MagicMock(return_value=False)
+        with patch(_PATCH_LOAD, return_value=assets):
             menu.draw(MagicMock())
 
         assert menu.layout.operator.call_count == 2
@@ -88,11 +76,7 @@ class TestDraw:
         assets = [_make_asset("id1", "Rock")]
         menu = self._menu()
 
-        with patch("melvil.ui.menus_factory.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ui.menus_factory.open_db") as mock_open, \
-             patch("melvil.ui.menus_factory.list_assets", return_value=assets):
-            mock_open.return_value.__enter__ = lambda s: MagicMock()
-            mock_open.return_value.__exit__ = MagicMock(return_value=False)
+        with patch(_PATCH_LOAD, return_value=assets):
             menu.draw(MagicMock())
 
         call_kwargs = menu.layout.operator.call_args
@@ -103,11 +87,7 @@ class TestDraw:
         assets = [_make_asset("id1", "Rock")]
         menu = self._menu()
 
-        with patch("melvil.ui.menus_factory.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ui.menus_factory.open_db") as mock_open, \
-             patch("melvil.ui.menus_factory.list_assets", return_value=assets):
-            mock_open.return_value.__enter__ = lambda s: MagicMock()
-            mock_open.return_value.__exit__ = MagicMock(return_value=False)
+        with patch(_PATCH_LOAD, return_value=assets):
             menu.draw(MagicMock())
 
         first_arg = menu.layout.operator.call_args[0][0]
@@ -120,11 +100,7 @@ class TestDraw:
         op_retval = MagicMock()
         menu.layout.operator.return_value = op_retval
 
-        with patch("melvil.ui.menus_factory.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ui.menus_factory.open_db") as mock_open, \
-             patch("melvil.ui.menus_factory.list_assets", return_value=assets):
-            mock_open.return_value.__enter__ = lambda s: MagicMock()
-            mock_open.return_value.__exit__ = MagicMock(return_value=False)
+        with patch(_PATCH_LOAD, return_value=assets):
             menu.draw(MagicMock())
 
         assert op_retval.asset_id == "abc-123"
@@ -132,11 +108,7 @@ class TestDraw:
     def test_empty_assets_shows_info_label(self):
         menu = self._menu()
 
-        with patch("melvil.ui.menus_factory.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ui.menus_factory.open_db") as mock_open, \
-             patch("melvil.ui.menus_factory.list_assets", return_value=[]):
-            mock_open.return_value.__enter__ = lambda s: MagicMock()
-            mock_open.return_value.__exit__ = MagicMock(return_value=False)
+        with patch(_PATCH_LOAD, return_value=[]):
             menu.draw(MagicMock())
 
         menu.layout.label.assert_called_once()
@@ -146,7 +118,7 @@ class TestDraw:
     def test_db_error_shows_error_label(self):
         menu = self._menu()
 
-        with patch("melvil.ui.menus_factory.resolve_db_path", side_effect=Exception("boom")):
+        with patch(_PATCH_LOAD, side_effect=Exception("boom")):
             menu.draw(MagicMock())
 
         menu.layout.label.assert_called_once()
@@ -157,28 +129,18 @@ class TestDraw:
         menu = self._menu()
         kit_id = "some-kit-uuid"
 
-        with patch("melvil.ui.menus_factory.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ui.menus_factory.open_db") as mock_open, \
-             patch("melvil.ui.menus_factory.list_assets", return_value=[]) as mock_list:
-            mock_open.return_value.__enter__ = lambda s: MagicMock()
-            mock_open.return_value.__exit__ = MagicMock(return_value=False)
+        with patch(_PATCH_LOAD, return_value=[]) as mock_load:
             menu.draw(self._context(active_kit_id=kit_id))
 
-        _, kwargs = mock_list.call_args
-        assert kwargs.get("kit_id") == kit_id
+        mock_load.assert_called_once_with("MESH", kit_id=kit_id)
 
     def test_no_kit_filter_when_all_kits(self):
         menu = self._menu()
 
-        with patch("melvil.ui.menus_factory.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ui.menus_factory.open_db") as mock_open, \
-             patch("melvil.ui.menus_factory.list_assets", return_value=[]) as mock_list:
-            mock_open.return_value.__enter__ = lambda s: MagicMock()
-            mock_open.return_value.__exit__ = MagicMock(return_value=False)
+        with patch(_PATCH_LOAD, return_value=[]) as mock_load:
             menu.draw(self._context(active_kit_id="ALL_KITS"))
 
-        _, kwargs = mock_list.call_args
-        assert kwargs.get("kit_id") is None
+        mock_load.assert_called_once_with("MESH", kit_id=None)
 
 
 # ---------------------------------------------------------------------------

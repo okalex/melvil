@@ -19,6 +19,7 @@ from ..ui.gpu import GpuPanel, get_region_offsets
 from ..ui.gpu.dropdown import DropdownState
 from ..ui.gpu.theme import get_theme
 from ..ui import scene_props as _scene_props
+from ..ui.asset_types import type_icon, show_load
 from ..ui.draw_helpers import (
     draw_asset_details,
     filter_assets,
@@ -73,17 +74,7 @@ def _get_kit_filter_items(self, context):
     _kit_enum_cache = items
     return _kit_enum_cache
 
-_TYPE_ICONS: dict[str, str] = {
-    "MATERIAL": "MATERIAL",
-    "MESH": "MESH_DATA",
-    "NODE_GROUP": "NODETREE",
-}
 
-_SHOW_LOAD_FOR_TYPE: dict[str, bool] = {
-    "MATERIAL": True,
-    "MESH": True,
-    "NODE_GROUP": False,
-}
 
 # Cell height for asset cards (unscaled pixels):
 # BOX_PAD*2 + name_row + gap + template_icon(12*5) + gap + btn_row
@@ -119,7 +110,7 @@ def _draw_asset_card(layout, item, index, is_active):
     name_row = box.row(align=True)
     icon_col = name_row.column()
     icon_col.scale_x = 0.15
-    icon_col.label(text="", icon=_TYPE_ICONS.get(item.asset_type, "OBJECT_DATA"))
+    icon_col.label(text="", icon=type_icon(item.asset_type))
     name_row.label(text=item.name)
 
     # Preview image.
@@ -133,7 +124,7 @@ def _draw_asset_card(layout, item, index, is_active):
         box.template_icon(icon_value=icon_id, scale=5.0)
 
     # Action buttons.
-    if _SHOW_LOAD_FOR_TYPE.get(item.asset_type, True):
+    if show_load(item.asset_type):
         load_op = box.operator("melvil.load_asset", text="Add to scene")
         load_op.asset_id = item.asset_id
 
