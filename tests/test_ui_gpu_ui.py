@@ -3896,6 +3896,48 @@ class TestGpuGridListDraw:
         indices = [hr.kwargs["index"] for hr in list_rows]
         assert indices == [0, 1, 2, 3]
 
+    def test_hit_rects_carry_allow_deselect_false_by_default(self):
+        gl, items, _, _ = self._make_grid_list(3, rows=3)
+        panel = _make_panel()
+        panel.begin_frame()
+        gl.rect = (0, 0, 300, gl.measure_height(1.0))
+
+        with patch("melvil.ui.gpu.grid_list.gpu"):
+            gl.draw(1.0, True, panel)
+
+        list_rows = [hr for hr in panel._hit_rects if hr.widget_type == "list_row"]
+        assert all(hr.kwargs["allow_deselect"] is False for hr in list_rows)
+
+    def test_hit_rects_carry_allow_deselect_true_when_set(self):
+        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+
+        coll, items = _make_collection(3)
+        dataptr, active_dp = _make_dataptr(coll)
+
+        def draw_fn(layout, item, index, is_active):
+            layout.label(text=item.name)
+
+        gl = GpuGridList(
+            list_id="desel_test",
+            rows_visible=3,
+            cell_height=WIDGET_HEIGHT,
+            dataptr=dataptr,
+            propname="my_collection",
+            active_dataptr=active_dp,
+            active_propname="my_collection_index",
+            draw_fn=draw_fn,
+            allow_deselect=True,
+        )
+        panel = _make_panel()
+        panel.begin_frame()
+        gl.rect = (0, 0, 300, gl.measure_height(1.0))
+
+        with patch("melvil.ui.gpu.grid_list.gpu"):
+            gl.draw(1.0, True, panel)
+
+        list_rows = [hr for hr in panel._hit_rects if hr.widget_type == "list_row"]
+        assert all(hr.kwargs["allow_deselect"] is True for hr in list_rows)
+
 
 class TestGpuGridListHover:
     def test_hovered_row_uses_hover_bg(self):
@@ -4230,6 +4272,26 @@ class TestListDrawerRegistry:
         child = root._children[0]
         assert isinstance(child, GpuGridList)
         assert child.draw_fn is None
+
+    def test_template_list_passes_allow_deselect(self):
+        from melvil.ui.gpu import GpuGridList
+
+        panel = _make_panel()
+        panel.register_list_drawer("MY_UL_list", lambda *a: None)
+
+        coll, _ = _make_collection(3)
+        dataptr, active_dp = _make_dataptr(coll)
+
+        root = panel.begin_frame()
+        root.template_list(
+            "MY_UL_list", "desel",
+            dataptr, "my_collection",
+            active_dp, "my_collection_index",
+            allow_deselect=True,
+        )
+        child = root._children[0]
+        assert isinstance(child, GpuGridList)
+        assert child.allow_deselect is True
 
 
 # ---------------------------------------------------------------------------

@@ -172,6 +172,7 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
                 wm, "melvil_filter_tags",
                 wm, "melvil_filter_tags_index",
                 rows=min(len(visible_tags), 8),
+                allow_deselect=True,
             )
             tag_row.separator(factor=0.5)
             tag_btn_col = tag_row.column()
@@ -309,15 +310,29 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
                     prop = hit.kwargs.get("active_propname")
                     idx = hit.kwargs.get("index")
                     list_id = hit.kwargs.get("list_id")
-                    if data is not None and prop is not None and idx is not None:
-                        try:
-                            setattr(data, prop, idx)
-                        except Exception:  # noqa: BLE001
-                            pass
-                    # Track visual selection on the panel (separate from
-                    # the data-model index which may be reset by callbacks).
-                    if list_id is not None and idx is not None:
-                        self._panel._list_selections[list_id] = idx
+                    allow_deselect = hit.kwargs.get("allow_deselect", False)
+                    # Toggle selection off when clicking the active item.
+                    if (
+                        allow_deselect
+                        and list_id is not None
+                        and self._panel._list_selections.get(list_id) == idx
+                    ):
+                        self._panel._list_selections[list_id] = -1
+                        if data is not None and prop is not None:
+                            try:
+                                setattr(data, prop, -1)
+                            except Exception:  # noqa: BLE001
+                                pass
+                    else:
+                        if data is not None and prop is not None and idx is not None:
+                            try:
+                                setattr(data, prop, idx)
+                            except Exception:  # noqa: BLE001
+                                pass
+                        # Track visual selection on the panel (separate from
+                        # the data-model index which may be reset by callbacks).
+                        if list_id is not None and idx is not None:
+                            self._panel._list_selections[list_id] = idx
                     if context.area is not None:
                         context.area.tag_redraw()
                     return {"RUNNING_MODAL"}

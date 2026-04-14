@@ -344,6 +344,7 @@ class GpuLayout:
         maxrows: int = 5,
         cols: int = 1,
         cell_height: int | None = None,
+        allow_deselect: bool = False,
         **kwargs: object,
     ) -> None:
         """Append a scrollable list/grid drawn by a registered callback.
@@ -379,6 +380,7 @@ class GpuLayout:
             active_dataptr=active_dataptr,
             active_propname=active_propname,
             draw_fn=draw_fn,
+            allow_deselect=allow_deselect,
         ))
 
     # -- Measure pass (bottom-up) -------------------------------------------

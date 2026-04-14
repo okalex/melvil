@@ -80,6 +80,9 @@ class GpuGridList(GpuWidget):
     active_dataptr: Any = None
     active_propname: str = ""
 
+    # --- Behaviour ---
+    allow_deselect: bool = False
+
     # --- Drawing callback ---
     # Signature: draw_fn(layout: GpuLayout, item, index: int, is_active: bool)
     draw_fn: Callable[..., None] | None = None
@@ -203,6 +206,7 @@ class GpuGridList(GpuWidget):
                         "list_id": self.list_id,
                         "active_dataptr": self.active_dataptr,
                         "active_propname": self.active_propname,
+                        "allow_deselect": self.allow_deselect,
                     },
                     rect=cell_rect,
                 ))
