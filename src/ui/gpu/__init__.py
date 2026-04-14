@@ -43,6 +43,7 @@ from .drawing import (
     _get_uniform_shader,
 )
 from .button import GpuButton, GpuOperatorProps
+from .dropdown import DropdownState, GpuDropdown
 from .enum_buttons import GpuEnumButtons
 from .grid_list import GpuGridList, ScrollState
 from .icon_button import GpuIconButton
@@ -103,12 +104,15 @@ __all__ = [
     # Widgets
     "GpuWidget",
     "GpuButton",
+    "GpuDropdown",
     "GpuEnumButtons",
     "GpuLabel",
     "GpuOperatorProps",
     "GpuSeparator",
     "GpuTemplateIcon",
     "GpuTextField",
+    # Dropdown
+    "DropdownState",
     # Helpers
     "draw_disabled_overlay",
     "draw_icon",

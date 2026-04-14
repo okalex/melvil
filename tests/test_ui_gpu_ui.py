@@ -2338,9 +2338,9 @@ class TestGpuLayoutProp:
         child = root._children[0]
         assert child.active_value == "MESH"
 
-    def test_enum_no_expand_falls_back_to_label(self):
-        """Enum without expand=True falls back to label stub."""
-        from melvil.ui.gpu import GpuLabel
+    def test_enum_no_expand_creates_dropdown(self):
+        """Enum without expand=True creates a dropdown trigger."""
+        from melvil.ui.gpu import GpuDropdown
 
         mock_data = _mock_enum_rna(_MOCK_ENUM_ITEMS)
 
@@ -2350,7 +2350,9 @@ class TestGpuLayoutProp:
 
         assert len(root._children) == 1
         child = root._children[0]
-        assert isinstance(child, GpuLabel)
+        assert isinstance(child, GpuDropdown)
+        assert child.mode == "prop"
+        assert child.property_name == "type_filter"
 
     def test_non_enum_falls_back_to_label(self):
         """Non-enum property type falls back to label stub."""
@@ -4818,3 +4820,351 @@ class TestGpuIconButton:
              patch("melvil.ui.gpu.icon_button.draw_rect_rounded") as mock_rr:
             gl.draw(1.0, True, panel)
         mock_rr.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# GpuDropdown — construction & measure
+# ---------------------------------------------------------------------------
+
+
+_MOCK_DROPDOWN_ITEMS = [
+    ("RED", "Red", "", "NONE"),
+    ("GREEN", "Green", "", "NONE"),
+    ("BLUE", "Blue", "", "NONE"),
+]
+
+
+class TestGpuDropdown:
+    def test_construction(self):
+        from melvil.ui.gpu import GpuDropdown
+
+        d = GpuDropdown(
+            text="Color",
+            dropdown_id="test.color",
+            items=_MOCK_DROPDOWN_ITEMS,
+            mode="prop",
+        )
+        assert d.dropdown_id == "test.color"
+        assert len(d.items) == 3
+        assert d.mode == "prop"
+
+    def test_inherits_gpu_widget(self):
+        from melvil.ui.gpu import GpuDropdown, GpuWidget
+
+        assert issubclass(GpuDropdown, GpuWidget)
+
+    def test_height_matches_widget_height(self):
+        from melvil.ui.gpu import GpuDropdown, WIDGET_HEIGHT
+
+        d = GpuDropdown(items=_MOCK_DROPDOWN_ITEMS)
+        assert d.measure_height(1.0) == pytest.approx(WIDGET_HEIGHT)
+
+    def test_display_text_from_text_field(self):
+        from melvil.ui.gpu import GpuDropdown
+
+        d = GpuDropdown(text="Choose Color", items=_MOCK_DROPDOWN_ITEMS)
+        assert d._display_text() == "Choose Color"
+
+    def test_display_text_from_prop_value(self):
+        from melvil.ui.gpu import GpuDropdown
+
+        data = MagicMock()
+        data.color = "GREEN"
+        d = GpuDropdown(
+            items=_MOCK_DROPDOWN_ITEMS,
+            mode="prop",
+            data=data,
+            property_name="color",
+        )
+        assert d._display_text() == "Green"
+
+    def test_display_text_unknown_value(self):
+        from melvil.ui.gpu import GpuDropdown
+
+        data = MagicMock()
+        data.color = "YELLOW"
+        d = GpuDropdown(
+            items=_MOCK_DROPDOWN_ITEMS,
+            mode="prop",
+            data=data,
+            property_name="color",
+        )
+        # Falls back to empty string when no item matches.
+        assert d._display_text() == ""
+
+
+# ---------------------------------------------------------------------------
+# GpuDropdown — drawing & hit rects
+# ---------------------------------------------------------------------------
+
+
+class TestGpuDropdownDraw:
+    def test_draw_registers_hit_rect(self):
+        from melvil.ui.gpu import GpuDropdown
+
+        panel = _make_panel(width=200, anchor=(0, 200))
+        root = panel.begin_frame()
+        d = GpuDropdown(
+            text="Pick",
+            dropdown_id="test.dd",
+            items=_MOCK_DROPDOWN_ITEMS,
+        )
+        root._children.append(d)
+        panel.end_frame()
+
+        hits = [hr for hr in panel._hit_rects if hr.widget_type == "dropdown"]
+        assert len(hits) == 1
+        assert hits[0].id == "test.dd"
+
+    def test_draw_hit_rect_carries_items(self):
+        from melvil.ui.gpu import GpuDropdown
+
+        panel = _make_panel(width=200, anchor=(0, 200))
+        root = panel.begin_frame()
+        d = GpuDropdown(
+            dropdown_id="test.dd",
+            items=_MOCK_DROPDOWN_ITEMS,
+            mode="operator",
+            operator_id="melvil.set_color",
+        )
+        root._children.append(d)
+        panel.end_frame()
+
+        hit = [hr for hr in panel._hit_rects if hr.widget_type == "dropdown"][0]
+        assert hit.kwargs["items"] == _MOCK_DROPDOWN_ITEMS
+        assert hit.kwargs["mode"] == "operator"
+        assert hit.kwargs["operator_id"] == "melvil.set_color"
+
+    def test_disabled_no_hit_rect(self):
+        from melvil.ui.gpu import GpuDropdown
+
+        panel = _make_panel(width=200, anchor=(0, 200))
+        root = panel.begin_frame()
+        d = GpuDropdown(
+            dropdown_id="test.dd",
+            items=_MOCK_DROPDOWN_ITEMS,
+            enabled=False,
+        )
+        root._children.append(d)
+        panel.end_frame()
+
+        hits = [hr for hr in panel._hit_rects if hr.widget_type == "dropdown"]
+        assert len(hits) == 0
+
+    def test_button_text_drawn(self):
+        """Trigger button text is drawn via blf."""
+        import blf
+        from melvil.ui.gpu import GpuDropdown
+
+        blf.draw.reset_mock()
+        blf.dimensions = MagicMock(return_value=(40.0, 12.0))
+
+        panel = _make_panel(width=200, anchor=(0, 200))
+        root = panel.begin_frame()
+        d = GpuDropdown(
+            text="My Dropdown",
+            dropdown_id="test.dd",
+            items=_MOCK_DROPDOWN_ITEMS,
+        )
+        root._children.append(d)
+        panel.end_frame()
+
+        drawn_texts = [c.args[1] for c in blf.draw.call_args_list]
+        assert "My Dropdown" in drawn_texts
+
+
+# ---------------------------------------------------------------------------
+# DropdownState — geometry & hit testing
+# ---------------------------------------------------------------------------
+
+
+class TestDropdownState:
+    def test_compute_rect_below_anchor(self):
+        from melvil.ui.gpu import DropdownState
+
+        state = DropdownState(
+            items=_MOCK_DROPDOWN_ITEMS,
+            anchor_rect=(100.0, 200.0, 150.0, 30.0),
+        )
+        rect = state.compute_rect(1.0)
+        # Dropdown opens below the anchor.
+        assert rect[0] == 100.0  # x matches anchor
+        assert rect[2] == 150.0  # w matches anchor
+        assert rect[1] + rect[3] == pytest.approx(200.0)  # top edge == anchor bottom
+
+    def test_item_rects_populated_after_draw(self):
+        from melvil.ui.gpu import DropdownState
+
+        state = DropdownState(
+            items=_MOCK_DROPDOWN_ITEMS,
+            anchor_rect=(50.0, 300.0, 200.0, 30.0),
+        )
+        state.compute_rect(1.0)
+
+        panel = _make_panel(width=200, anchor=(0, 400))
+        panel.begin_frame()
+        state.draw(1.0, panel)
+
+        assert len(state.item_rects) == 3
+
+    def test_hit_test_returns_correct_index(self):
+        from melvil.ui.gpu import DropdownState
+
+        state = DropdownState(
+            items=_MOCK_DROPDOWN_ITEMS,
+            anchor_rect=(0.0, 200.0, 200.0, 30.0),
+        )
+        state.compute_rect(1.0)
+
+        panel = _make_panel(width=200, anchor=(0, 300))
+        panel.begin_frame()
+        state.draw(1.0, panel)
+
+        # Click in the middle of the first item rect.
+        ix, iy, iw, ih = state.item_rects[0]
+        assert state.hit_test(ix + iw / 2, iy + ih / 2) == 0
+
+        # Click in the middle of the last item rect.
+        lx, ly, lw, lh = state.item_rects[2]
+        assert state.hit_test(lx + lw / 2, ly + lh / 2) == 2
+
+    def test_hit_test_outside_returns_negative(self):
+        from melvil.ui.gpu import DropdownState
+
+        state = DropdownState(
+            items=_MOCK_DROPDOWN_ITEMS,
+            anchor_rect=(0.0, 200.0, 200.0, 30.0),
+        )
+        state.compute_rect(1.0)
+
+        panel = _make_panel(width=200, anchor=(0, 300))
+        panel.begin_frame()
+        state.draw(1.0, panel)
+
+        assert state.hit_test(-100, -100) == -1
+
+    def test_is_inside(self):
+        from melvil.ui.gpu import DropdownState
+
+        state = DropdownState(
+            items=_MOCK_DROPDOWN_ITEMS,
+            anchor_rect=(0.0, 200.0, 200.0, 30.0),
+        )
+        rect = state.compute_rect(1.0)
+
+        # Centre of the dropdown.
+        cx = rect[0] + rect[2] / 2
+        cy = rect[1] + rect[3] / 2
+        assert state.is_inside(cx, cy) is True
+        assert state.is_inside(-100, -100) is False
+
+    def test_is_inside_none_rect(self):
+        from melvil.ui.gpu import DropdownState
+
+        state = DropdownState(
+            items=_MOCK_DROPDOWN_ITEMS,
+            anchor_rect=(0.0, 200.0, 200.0, 30.0),
+        )
+        # rect not yet computed
+        assert state.is_inside(0, 0) is False
+
+
+# ---------------------------------------------------------------------------
+# GpuPanel — dropdown lifecycle
+# ---------------------------------------------------------------------------
+
+
+class TestPanelDropdown:
+    def test_initial_state_is_none(self):
+        panel = _make_panel()
+        assert panel.active_dropdown is None
+
+    def test_open_and_close(self):
+        from melvil.ui.gpu import DropdownState
+
+        panel = _make_panel()
+        state = DropdownState(
+            items=_MOCK_DROPDOWN_ITEMS,
+            anchor_rect=(0.0, 200.0, 200.0, 30.0),
+        )
+        panel.open_dropdown(state)
+        assert panel.active_dropdown is state
+
+        panel.close_dropdown()
+        assert panel.active_dropdown is None
+
+    def test_detach_clears_dropdown(self):
+        from melvil.ui.gpu import DropdownState
+
+        panel = _make_panel()
+        state = DropdownState(
+            items=_MOCK_DROPDOWN_ITEMS,
+            anchor_rect=(0.0, 200.0, 200.0, 30.0),
+        )
+        panel.open_dropdown(state)
+        panel.detach()
+        assert panel.active_dropdown is None
+
+    def test_overlay_drawn_in_end_frame(self):
+        """Dropdown overlay draw is called during end_frame."""
+        from melvil.ui.gpu import DropdownState
+
+        panel = _make_panel(width=200, anchor=(0, 200))
+        root = panel.begin_frame()
+        root.label(text="trigger")
+
+        state = DropdownState(
+            items=_MOCK_DROPDOWN_ITEMS,
+            anchor_rect=(0.0, 100.0, 200.0, 30.0),
+        )
+        state.compute_rect(1.0)
+        panel.open_dropdown(state)
+        panel.end_frame()
+
+        # After end_frame the overlay should have populated item rects.
+        assert len(state.item_rects) == 3
+
+
+# ---------------------------------------------------------------------------
+# layout.prop(expand=False) for ENUM → GpuDropdown
+# ---------------------------------------------------------------------------
+
+
+class TestPropExpandFalse:
+    def test_enum_expand_false_creates_dropdown(self):
+        from melvil.ui.gpu import GpuDropdown
+
+        mock_data = _mock_enum_rna(_MOCK_ENUM_ITEMS, current_value="ALL")
+
+        panel = _make_panel(width=200, anchor=(0, 200))
+        root = panel.begin_frame()
+        root.prop(mock_data, "type_filter", expand=False)
+
+        children = [c for c in root._children if isinstance(c, GpuDropdown)]
+        assert len(children) == 1
+        assert children[0].mode == "prop"
+        assert children[0].data is mock_data
+        assert children[0].property_name == "type_filter"
+
+
+# ---------------------------------------------------------------------------
+# layout.operator_menu_enum
+# ---------------------------------------------------------------------------
+
+
+class TestOperatorMenuEnum:
+    def test_appends_dropdown(self):
+        from melvil.ui.gpu import GpuDropdown
+
+        panel = _make_panel(width=200, anchor=(0, 200))
+        root = panel.begin_frame()
+        root.operator_menu_enum(
+            "melvil.set_kit", "kit", text="Assign Kit", icon="ADD",
+        )
+
+        children = [c for c in root._children if isinstance(c, GpuDropdown)]
+        assert len(children) == 1
+        assert children[0].mode == "operator"
+        assert children[0].operator_id == "melvil.set_kit"
+        assert children[0].text == "Assign Kit"
+        assert children[0].icon == "ADD"

@@ -12,6 +12,7 @@ from .constants import (
 )
 from .drawing import draw_rect_outline, draw_rect_rounded
 from .button import GpuButton, GpuOperatorProps
+from .dropdown import GpuDropdown
 from .enum_buttons import GpuEnumButtons
 from .grid_list import GpuGridList
 from .icon_button import GpuIconButton
@@ -280,6 +281,32 @@ class GpuLayout:
                 enabled=self.enabled,
                 alert=self.alert,
             ))
+        elif prop_type == "ENUM" and not expand:
+            try:
+                items = [
+                    (item.identifier, item.name, item.description, item.icon)
+                    for item in prop_rna.enum_items
+                ]
+            except Exception:  # noqa: BLE001
+                items = []
+            if not items:
+                items = _resolve_dynamic_enum(data, property)
+            if not items:
+                label_text = text if text is not None else property
+                self.label(text=label_text)
+                return
+            display_text = text if text is not None else ""
+            dropdown_id = f"{type(data).__name__}.{property}"
+            self._children.append(GpuDropdown(
+                text=display_text,
+                dropdown_id=dropdown_id,
+                items=items,
+                mode="prop",
+                data=data,
+                property_name=property,
+                enabled=self.enabled,
+                alert=self.alert,
+            ))
         elif prop_type == "STRING":
             if text is None:
                 prefix = getattr(prop_rna, "name", property)
@@ -297,6 +324,60 @@ class GpuLayout:
             # Unsupported property type — render a stub label.
             label_text = text if text is not None else property
             self.label(text=label_text)
+
+    def operator_menu_enum(
+        self,
+        operator: str,
+        property: str,
+        *,
+        text: str = "",
+        icon: str = "NONE",
+    ) -> None:
+        """Append a dropdown button that invokes *operator* with the selected enum.
+
+        Mirrors ``UILayout.operator_menu_enum()``.  Clicking the button
+        opens a dropdown overlay listing the enum items of the given
+        *property* on the operator.  Selecting an item invokes the operator
+        with that enum value.
+        """
+        # Resolve enum items from the operator's RNA.
+        items: list[tuple[str, str, str, str]] = []
+        try:
+            import bpy as _bpy  # noqa: delayed
+
+            parts = operator.split(".", 1)
+            if len(parts) == 2:
+                op_obj = getattr(getattr(_bpy.ops, parts[0]), parts[1])
+                rna_type = op_obj.get_rna_type()
+                if property in rna_type.properties:
+                    prop_rna = rna_type.properties[property]
+                    items = [
+                        (
+                            item.identifier,
+                            item.name,
+                            item.description,
+                            item.icon,
+                        )
+                        for item in prop_rna.enum_items
+                    ]
+        except Exception as exc:
+            _logger.log(
+                f"operator_menu_enum() RNA lookup failed for "
+                f"{operator!r}.{property!r}: {exc}",
+            )
+
+        dropdown_id = f"{operator}.{property}"
+        self._children.append(GpuDropdown(
+            text=text,
+            icon=icon,
+            dropdown_id=dropdown_id,
+            items=items,
+            mode="operator",
+            operator_id=operator,
+            property_name=property,
+            enabled=self.enabled,
+            alert=self.alert,
+        ))
 
     def grid_flow(
         self,

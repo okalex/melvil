@@ -11,6 +11,7 @@ import gpu
 
 from .constants import get_ui_scale, scaled, PANEL_PAD
 from .drawing import draw_rect_outline, draw_rect_rounded
+from .dropdown import DropdownState
 from .grid_list import ScrollState
 from .icons import IconProvider
 from .layout import GpuLayout
@@ -117,6 +118,9 @@ class GpuPanel:
         # callbacks (which may reset the index) don't clear the highlight.
         self._list_selections: dict[str, int] = {}
 
+        # Dropdown overlay state (like active_text_field for text fields).
+        self.active_dropdown: DropdownState | None = None
+
     # -- Lifecycle -----------------------------------------------------------
 
     def attach(self, area: Any) -> None:
@@ -144,6 +148,7 @@ class GpuPanel:
         self._text_field_data.clear()
         self._textedit_update_fields.clear()
         self._scroll_states.clear()
+        self.active_dropdown = None
 
     def update_mouse(self, mx: float, my: float) -> None:
         """Store the latest mouse position for hover detection."""
@@ -204,6 +209,10 @@ class GpuPanel:
         draw_rect_outline(panel_x, panel_y, w, h, theme.border, thickness=1)
 
         self._root._draw(s)
+
+        # Dropdown overlay — drawn last so it renders on top of everything.
+        if self.active_dropdown is not None:
+            self.active_dropdown.draw(s, self)
 
     # -- Internal draw handler -----------------------------------------------
 
@@ -465,6 +474,16 @@ class GpuPanel:
 
     def _reset_blink(self) -> None:
         self._text_blink_base = time.monotonic()
+
+    # -- Dropdown overlay ----------------------------------------------------
+
+    def open_dropdown(self, state: DropdownState) -> None:
+        """Open a dropdown overlay."""
+        self.active_dropdown = state
+
+    def close_dropdown(self) -> None:
+        """Close the active dropdown overlay."""
+        self.active_dropdown = None
 
     # -- Texture cache -------------------------------------------------------
 

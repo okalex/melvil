@@ -13,6 +13,7 @@ import bpy
 from bpy.props import EnumProperty, StringProperty
 
 from ..ui.gpu import GpuPanel, get_region_offsets
+from ..ui.gpu.dropdown import DropdownState
 from ..ui import scene_props as _scene_props
 from ..ui.draw_helpers import load_all_tags
 from .open_browser import _TYPE_ENUM_ITEMS, _get_kit_filter_items
@@ -217,6 +218,32 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
                 event.mouse_region_x, event.mouse_region_y,
             )
 
+        # -- Dropdown overlay mode -------------------------------------------
+        if self._panel is not None and self._panel.active_dropdown is not None:
+            dd = self._panel.active_dropdown
+            mx, my = event.mouse_region_x, event.mouse_region_y
+
+            if event.type == "MOUSEMOVE":
+                dd.hovered_index = dd.hit_test(mx, my)
+                if context.area is not None:
+                    context.area.tag_redraw()
+                return {"RUNNING_MODAL"}
+
+            if event.type in {"ESC", "RIGHTMOUSE"} and event.value == "PRESS":
+                self._panel.close_dropdown()
+                if context.area is not None:
+                    context.area.tag_redraw()
+                return {"RUNNING_MODAL"}
+
+            if event.type == "LEFTMOUSE" and event.value == "PRESS":
+                idx = dd.hit_test(mx, my)
+                if idx >= 0:
+                    self._apply_dropdown_selection(dd, idx)
+                self._panel.close_dropdown()
+                if context.area is not None:
+                    context.area.tag_redraw()
+                return {"RUNNING_MODAL"}
+
         # -- Text field editing mode -----------------------------------------
         if self._panel is not None and self._panel.active_text_field is not None:
             # ESC / RMB cancel the text edit (not the browser).
@@ -293,6 +320,11 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
                     except Exception:  # noqa: BLE001
                         pass
                     return {"RUNNING_MODAL"}
+                if hit is not None and hit.widget_type == "dropdown":
+                    self._open_dropdown_from_hit(hit)
+                    if context.area is not None:
+                        context.area.tag_redraw()
+                    return {"RUNNING_MODAL"}
                 if hit is not None and hit.widget_type == "prop":
                     data = hit.kwargs.get("data")
                     value = hit.kwargs.get("value")
@@ -357,6 +389,44 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
                 bpy.ops.melvil.tag_rename("INVOKE_DEFAULT", tag_id=tag_item.tag_id)
         if context.area is not None:
             context.area.tag_redraw()
+
+    def _open_dropdown_from_hit(self, hit):
+        """Create a DropdownState from a dropdown HitResult and open it."""
+        kw = hit.kwargs
+        state = DropdownState(
+            items=kw.get("items", []),
+            anchor_rect=hit.rect,
+            mode=kw.get("mode", "prop"),
+            data=kw.get("data"),
+            property_name=kw.get("property_name", ""),
+            operator_id=kw.get("operator_id", ""),
+            operator_props=kw.get("operator_props", {}),
+        )
+        state.compute_rect(self._panel._ui_scale)
+        self._panel.open_dropdown(state)
+
+    @staticmethod
+    def _apply_dropdown_selection(dd, idx):
+        """Perform the selection action for dropdown item *idx*."""
+        if idx < 0 or idx >= len(dd.items):
+            return
+        identifier = dd.items[idx][0]
+        if dd.mode == "prop" and dd.data is not None:
+            try:
+                setattr(dd.data, dd.property_name, identifier)
+            except Exception:  # noqa: BLE001
+                pass
+        elif dd.mode == "operator" and dd.operator_id:
+            try:
+                parts = dd.operator_id.split(".", 1)
+                if len(parts) == 2:
+                    op_fn = getattr(bpy.ops, parts[0])
+                    op_fn = getattr(op_fn, parts[1])
+                    props = dict(dd.operator_props)
+                    props[dd.property_name] = identifier
+                    op_fn("INVOKE_DEFAULT", **props)
+            except Exception:  # noqa: BLE001
+                pass
 
     def _cleanup(self, context):
         if self._panel is not None:
