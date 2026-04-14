@@ -83,7 +83,7 @@ class GpuEnumButtons(GpuWidget):
                 text_rect = (bx + icon_offset, by, bw - icon_offset, bh)
             else:
                 text_rect = btn_rect
-            draw_text_in_rect(name, text_rect, s, text_color)
+            draw_text_in_rect(name, text_rect, s, text_color, align="LEFT")
 
             # -- Hit-rect registration ----------------------------------------
             if is_enabled:

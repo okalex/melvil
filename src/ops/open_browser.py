@@ -27,7 +27,7 @@ from bpy.props import EnumProperty, StringProperty
 
 from ..core.library import resolve_db_path
 from ..db import open_db
-from ..db.kits import list_kits
+from ..db.kits import DEFAULT_KIT_ID, list_kits
 from .tag_filter_toggle import get_active_tag_filters
 from ..ui import scene_props as _scene_props
 from ..ui.draw_helpers import (
@@ -70,11 +70,12 @@ def _get_kit_filter_items(self, context):
     try:
         with open_db(resolve_db_path()) as conn:
             for i, kit in enumerate(list_kits(conn), 1):
+                icon = "BOOKMARKS" if kit["id"] == DEFAULT_KIT_ID else "PACKAGE"
                 items.append((
                     sys.intern(str(kit["id"])),
                     sys.intern(str(kit["name"])),
                     sys.intern(""),
-                    sys.intern("FOLDER_CURRENT"),
+                    sys.intern(icon),
                     i,
                 ))
     except Exception:  # noqa: BLE001

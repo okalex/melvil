@@ -509,7 +509,7 @@ def draw_asset_details(
             "MELVIL_UL_asset_tags", "",
             wm, "melvil_asset_tags",
             wm, "melvil_asset_tags_index",
-            rows=3,
+            rows=5,
         )
         list_row.separator(factor=0.5)
         side_col = list_row.column()

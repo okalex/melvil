@@ -199,7 +199,7 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
 
         left.label(text="Asset type")
         left.prop(self, "type_filter", expand=True)
-        left.separator()
+        left.separator(factor=2.0)
 
         # Kit selector header row with New Kit and Rename Kit buttons.
         kit_header = left.row(align=True)
@@ -218,7 +218,7 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
         )
 
         left.prop(self, "kit_filter", expand=True)
-        left.separator()
+        left.separator(factor=2.0)
 
         # Tag filter section.
         tag_header = left.row(align=True)
@@ -385,7 +385,7 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
                 "MELVIL_UL_asset_grid", "gpu_asset_list",
                 wm, "melvil_browser_assets",
                 wm, "melvil_browser_assets_index",
-                rows=3,
+                rows=5,
                 cols=2,
                 cell_height=_ASSET_CARD_HEIGHT,
             )
