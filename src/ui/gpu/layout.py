@@ -23,50 +23,10 @@ from .template_icon import GpuTemplateIcon
 from .theme import get_theme
 from .widget import GpuWidget
 from ._logger import _logger
+from ._rna import resolve_prop_enum_items
 
 if TYPE_CHECKING:
     from .panel import GpuPanel
-
-
-def _resolve_dynamic_enum(
-    data: object, property: str,
-) -> list[tuple[str, str, str, str]]:
-    """Resolve items for a dynamic-callback EnumProperty.
-
-    Blender's ``_PropertyDeferred`` stores the keyword arguments passed to
-    ``EnumProperty()``.  If ``items`` is a callable we invoke it with
-    ``(data, context)`` to retrieve the current item list.
-    """
-    try:
-        import bpy  # noqa: delayed – only needed at runtime in Blender
-
-        ann = getattr(type(data), "__annotations__", {}).get(property)
-        if ann is None:
-            return []
-        # _PropertyDeferred exposes .keywords (the kwargs dict).
-        kw = getattr(ann, "keywords", None)
-        if kw is None:
-            return []
-        items_src = kw.get("items")
-        if items_src is None:
-            return []
-        if callable(items_src):
-            raw = items_src(data, bpy.context)
-        else:
-            raw = items_src
-        # Items may be 4-tuples or 5-tuples (with a numeric value).
-        result = []
-        for entry in raw:
-            if len(entry) >= 5:
-                result.append((entry[0], entry[1], entry[2], entry[3]))
-            elif len(entry) >= 4:
-                result.append((entry[0], entry[1], entry[2], entry[3]))
-            else:
-                result.append((entry[0], entry[1], "", "NONE"))
-        return result
-    except Exception as exc:
-        _logger.log(f"_resolve_dynamic_enum({property!r}): {exc}")
-        return []
 
 
 def _has_textedit_update(data: object, property: str, prop_rna: object = None) -> bool:
@@ -286,7 +246,7 @@ class GpuLayout:
             # Dynamic enum callbacks (items=func) are not pre-populated
             # in prop_rna.enum_items — resolve them from the annotation.
             if not items:
-                items = _resolve_dynamic_enum(data, property)
+                items = resolve_prop_enum_items(data, property)
 
             if not items:
                 label_text = text if text is not None else property
@@ -310,7 +270,7 @@ class GpuLayout:
             except Exception:  # noqa: BLE001
                 items = []
             if not items:
-                items = _resolve_dynamic_enum(data, property)
+                items = resolve_prop_enum_items(data, property)
             if not items:
                 label_text = text if text is not None else property
                 self.label(text=label_text)
