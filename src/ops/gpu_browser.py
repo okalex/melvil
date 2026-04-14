@@ -474,6 +474,19 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
 
         # -- Text field editing mode -----------------------------------------
         if self._panel is not None and self._panel.active_text_field is not None:
+            # Drag selection: update on MOUSEMOVE, end on RELEASE.
+            if self._panel._text_dragging:
+                if event.type == "MOUSEMOVE":
+                    self._panel.update_text_drag(event.mouse_region_x)
+                    if context.area is not None:
+                        context.area.tag_redraw()
+                    return {"RUNNING_MODAL"}
+                if event.type == "LEFTMOUSE" and event.value == "RELEASE":
+                    self._panel.end_text_drag()
+                    if context.area is not None:
+                        context.area.tag_redraw()
+                    return {"RUNNING_MODAL"}
+
             # ESC / RMB cancel the text edit (not the browser).
             if event.type in {"ESC", "RIGHTMOUSE"} and event.value == "PRESS":
                 self._panel.cancel_text_field()
@@ -481,8 +494,8 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
                     context.area.tag_redraw()
                 return {"RUNNING_MODAL"}
 
-            # LMB: re-click on same field is a no-op; otherwise confirm
-            # the current field and fall through to normal click handling.
+            # LMB: re-click on same field starts drag selection; otherwise
+            # confirm the current field and fall through to normal click handling.
             if event.type == "LEFTMOUSE" and event.value == "PRESS":
                 hit = self._panel.hit_test(
                     event.mouse_region_x, event.mouse_region_y,
@@ -492,6 +505,11 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
                     and hit.widget_type == "text_field"
                     and hit.id == self._panel.active_text_field
                 ):
+                    self._panel.begin_text_drag(
+                        event.mouse_region_x, hit.rect,
+                    )
+                    if context.area is not None:
+                        context.area.tag_redraw()
                     return {"RUNNING_MODAL"}
                 self._panel.confirm_text_field()
                 # Fall through to normal LMB handling below.

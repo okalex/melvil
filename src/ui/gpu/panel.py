@@ -9,8 +9,8 @@ from typing import Any, Callable
 import bpy
 import gpu
 
-from .constants import get_ui_scale, scaled, PANEL_PAD
-from .drawing import draw_rect_outline, draw_rect_rounded
+from .constants import get_ui_scale, scaled, PANEL_PAD, FONT_SIZE_PRIMARY, WIDGET_PAD_X
+from .drawing import draw_rect_outline, draw_rect_rounded, measure_text
 from .dropdown import DropdownState
 from .grid_list import ScrollState
 from .icons import IconProvider
@@ -100,6 +100,10 @@ class GpuPanel:
         self._text_field_order: list[str] = []
         self._text_field_data: dict[str, object] = {}
         self._textedit_update_fields: set[str] = set()
+
+        # Text field drag-selection state.
+        self._text_dragging: bool = False
+        self._text_drag_field_rect: tuple[float, float, float, float] | None = None
 
         # Icon provider (lazy-loaded atlas of built-in Blender icons).
         self._icon_provider: IconProvider = IconProvider()
@@ -268,6 +272,75 @@ class GpuPanel:
         self._text_buffer = current
         self.text_cursor_pos = len(current)
         self._text_selection_start = 0  # Select all.
+        self._text_blink_base = time.monotonic()
+
+    def place_cursor_from_click(
+        self, mouse_x: float, field_rect: tuple[float, float, float, float],
+    ) -> None:
+        """Move the cursor to the character closest to *mouse_x*, clear selection."""
+        if self._text_buffer is None:
+            return
+        idx = self._cursor_index_from_x(mouse_x, field_rect)
+        self.text_cursor_pos = idx
+        self._text_selection_start = None
+        self._text_blink_base = time.monotonic()
+
+    def begin_text_drag(
+        self, mouse_x: float, field_rect: tuple[float, float, float, float],
+    ) -> None:
+        """Start a drag selection at the character closest to *mouse_x*."""
+        if self._text_buffer is None:
+            return
+        idx = self._cursor_index_from_x(mouse_x, field_rect)
+        self.text_cursor_pos = idx
+        self._text_selection_start = idx
+        self._text_dragging = True
+        self._text_drag_field_rect = field_rect
+        self._text_blink_base = time.monotonic()
+
+    def update_text_drag(self, mouse_x: float) -> None:
+        """Extend the drag selection to the character closest to *mouse_x*."""
+        if not self._text_dragging or self._text_drag_field_rect is None:
+            return
+        if self._text_buffer is None:
+            return
+        idx = self._cursor_index_from_x(mouse_x, self._text_drag_field_rect)
+        self.text_cursor_pos = idx
+        self._text_blink_base = time.monotonic()
+
+    def end_text_drag(self) -> None:
+        """Finish a drag selection."""
+        self._text_dragging = False
+        self._text_drag_field_rect = None
+        # If selection collapsed to a single point, clear it.
+        if self._text_selection_start == self.text_cursor_pos:
+            self._text_selection_start = None
+
+    def _cursor_index_from_x(
+        self, mouse_x: float, field_rect: tuple[float, float, float, float],
+    ) -> int:
+        """Return the character index closest to *mouse_x* within *field_rect*."""
+        s = get_ui_scale()
+        pad = scaled(WIDGET_PAD_X, s)
+        font_size = scaled(FONT_SIZE_PRIMARY, s)
+        text = self._text_buffer or ""
+        fx = field_rect[0] + pad
+        rel_x = mouse_x - fx
+
+        best_idx = 0
+        for i in range(1, len(text) + 1):
+            char_x = measure_text(text[:i], font_size)[0]
+            if char_x <= rel_x:
+                best_idx = i
+            else:
+                prev_x = measure_text(text[:i - 1], font_size)[0] if i > 1 else 0.0
+                if rel_x - prev_x > char_x - rel_x:
+                    best_idx = i
+                break
+        return best_idx
+
+        self.text_cursor_pos = best_idx
+        self._text_selection_start = None
         self._text_blink_base = time.monotonic()
 
     def confirm_text_field(self) -> None:
