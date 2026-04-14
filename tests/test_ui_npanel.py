@@ -41,7 +41,7 @@ def _find_menu_enum_call(layout: MagicMock, operator_id: str) -> dict:
 
 class TestPoll:
     def test_always_true(self):
-        from melvil.ui.panel import MELVIL_PT_main
+        from melvil.ui.npanel import MELVIL_PT_main
 
         assert MELVIL_PT_main.poll(MagicMock()) is True
 
@@ -53,7 +53,7 @@ class TestPoll:
 
 class TestDraw:
     def _panel(self):
-        from melvil.ui.panel import MELVIL_PT_main
+        from melvil.ui.npanel import MELVIL_PT_main
 
         return MELVIL_PT_main()
 
@@ -111,9 +111,9 @@ class TestDraw:
         ctx = _make_context(active_kit_id=kit_id)
 
         fake_row = {"name": "General"}
-        with patch("melvil.ui.panel.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ui.panel.open_db") as mock_open, \
-             patch("melvil.ui.panel.get_kit", return_value=fake_row):
+        with patch("melvil.ui.npanel.resolve_db_path", return_value=":memory:"), \
+             patch("melvil.ui.npanel.open_db") as mock_open, \
+             patch("melvil.ui.npanel.get_kit", return_value=fake_row):
             mock_open.return_value.__enter__ = lambda s: MagicMock()
             mock_open.return_value.__exit__ = MagicMock(return_value=False)
             panel.draw(ctx)
@@ -130,7 +130,7 @@ class TestDraw:
         kit_id = "some-kit-uuid"
         ctx = _make_context(active_kit_id=kit_id)
 
-        with patch("melvil.ui.panel.resolve_db_path", side_effect=Exception("no db")):
+        with patch("melvil.ui.npanel.resolve_db_path", side_effect=Exception("no db")):
             panel.draw(ctx)
 
         call_kwargs = _find_menu_enum_call(layout, "melvil.set_active_kit")
@@ -175,8 +175,8 @@ class TestDraw:
         mock_prefs.preferences.material_preview_object = "BUILTIN_UV_SPHERE"
         ctx.preferences.addons.get.return_value = mock_prefs
 
-        with patch("melvil.ui.panel.resolve_db_path"), \
-             patch("melvil.ui.panel.open_db"):
+        with patch("melvil.ui.npanel.resolve_db_path"), \
+             patch("melvil.ui.npanel.open_db"):
             panel.draw(ctx)
 
         layout.operator_menu_enum.assert_any_call(
@@ -197,8 +197,8 @@ class TestDraw:
         mock_prefs.preferences.material_preview_object = "BUILTIN_MONKEY"
         ctx.preferences.addons.get.return_value = mock_prefs
 
-        with patch("melvil.ui.panel.resolve_db_path"), \
-             patch("melvil.ui.panel.open_db"):
+        with patch("melvil.ui.npanel.resolve_db_path"), \
+             patch("melvil.ui.npanel.open_db"):
             panel.draw(ctx)
 
         layout.operator_menu_enum.assert_any_call(
