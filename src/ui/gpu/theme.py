@@ -50,6 +50,9 @@ class ThemeColors:
     button_bg_hover: tuple[float, float, float, float]
     button_text: tuple[float, float, float, float]
 
+    # Box
+    box_bg: tuple[float, float, float, float]
+
     # List items
     list_item_bg: tuple[float, float, float, float]
 
@@ -111,6 +114,7 @@ class ThemeColors:
             button_bg=_rgba(ui.wcol_tool.inner),
             button_bg_hover=_rgba(ui.wcol_tool.inner_sel),
             button_text=_rgba(ui.wcol_tool.text),
+            box_bg=_rgba(ui.wcol_box.inner),
             list_item_bg=(min(1.0, panel_bg[0] + 0.05),
                           min(1.0, panel_bg[1] + 0.05),
                           min(1.0, panel_bg[2] + 0.05),
@@ -145,6 +149,7 @@ class ThemeColors:
             button_bg=(0.25, 0.25, 0.25, 1.0),
             button_bg_hover=(0.35, 0.35, 0.35, 1.0),
             button_text=(0.85, 0.85, 0.85, 1.0),
+            box_bg=(0.11, 0.11, 0.11, 1.0),
             list_item_bg=(0.23, 0.23, 0.23, 1.0),
             selection_bg=(0.20, 0.45, 0.75, 1.0),
             selection_text=(1.0, 1.0, 1.0, 1.0),

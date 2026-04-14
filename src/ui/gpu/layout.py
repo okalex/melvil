@@ -10,7 +10,7 @@ from .constants import (
     WIDGET_GAP_ALIGNED,
     scaled,
 )
-from .drawing import draw_rect_outline, draw_rect_rounded
+from .drawing import draw_rect_rounded, draw_rect_rounded_outline
 from .button import GpuButton, GpuOperatorProps
 from .dropdown import GpuDropdown
 from .enum_buttons import GpuEnumButtons
@@ -69,8 +69,22 @@ def _resolve_dynamic_enum(
         return []
 
 
-def _has_textedit_update(data: object, property: str) -> bool:
-    """Return ``True`` if the property annotation has ``TEXTEDIT_UPDATE``."""
+def _has_textedit_update(data: object, property: str, prop_rna: object = None) -> bool:
+    """Return ``True`` if the property has ``TEXTEDIT_UPDATE``.
+
+    Checks the RNA property options first (works for dynamically
+    registered properties on e.g. WindowManager), then falls back to
+    inspecting the class annotation keywords.
+    """
+    # 1. Check RNA options (e.g. bpy.types.WindowManager properties).
+    if prop_rna is not None:
+        try:
+            if "TEXTEDIT_UPDATE" in prop_rna.options:
+                return True
+        except Exception:  # noqa: BLE001
+            pass
+
+    # 2. Fall back to annotation keywords (operator properties).
     try:
         ann = getattr(type(data), "__annotations__", {}).get(property)
         if ann is None:
@@ -105,6 +119,7 @@ class GpuLayout:
         self._direction = direction
         self._align = align
         self._is_box = is_box
+        self._box_pad = BOX_PAD
         self._split_factor = split_factor
         self._children: list[GpuLayout | GpuWidget] = []
         self._rect: tuple[float, float, float, float] | None = None
@@ -142,8 +157,10 @@ class GpuLayout:
         self._children.append(child)
         return child
 
-    def box(self) -> GpuLayout:
+    def box(self, *, padding: float | None = None) -> GpuLayout:
         child = GpuLayout(self._panel, direction="COLUMN", is_box=True)
+        if padding is not None:
+            child._box_pad = padding
         child._list_context = self._list_context
         self._children.append(child)
         return child
@@ -211,6 +228,7 @@ class GpuLayout:
         *,
         text: str | None = None,
         expand: bool = False,
+        textedit_update: bool | None = None,
     ) -> None:
         """Append a property widget.
 
@@ -312,11 +330,16 @@ class GpuLayout:
                 prefix = getattr(prop_rna, "name", property)
             else:
                 prefix = text
+            has_tu = (
+                textedit_update
+                if textedit_update is not None
+                else _has_textedit_update(data, property, prop_rna)
+            )
             self._children.append(GpuTextField(
                 data=data,
                 property_name=property,
                 prefix_text=prefix,
-                textedit_update=_has_textedit_update(data, property),
+                textedit_update=has_tu,
                 enabled=self.enabled,
                 alert=self.alert,
             ))
@@ -332,13 +355,16 @@ class GpuLayout:
         *,
         text: str = "",
         icon: str = "NONE",
-    ) -> None:
+    ) -> GpuOperatorProps:
         """Append a dropdown button that invokes *operator* with the selected enum.
 
         Mirrors ``UILayout.operator_menu_enum()``.  Clicking the button
         opens a dropdown overlay listing the enum items of the given
         *property* on the operator.  Selecting an item invokes the operator
         with that enum value.
+
+        Returns a :class:`GpuOperatorProps` proxy so callers can set
+        additional operator keyword arguments (e.g. ``op.asset_id = ...``).
         """
         # Resolve enum items from the operator's RNA.
         items: list[tuple[str, str, str, str]] = []
@@ -366,6 +392,7 @@ class GpuLayout:
                 f"{operator!r}.{property!r}: {exc}",
             )
 
+        props = GpuOperatorProps()
         dropdown_id = f"{operator}.{property}"
         self._children.append(GpuDropdown(
             text=text,
@@ -375,9 +402,11 @@ class GpuLayout:
             mode="operator",
             operator_id=operator,
             property_name=property,
+            operator_props=props._props,
             enabled=self.enabled,
             alert=self.alert,
         ))
+        return props
 
     def grid_flow(
         self,
@@ -530,7 +559,7 @@ class GpuLayout:
             )
 
         if self._is_box:
-            total += scaled(BOX_PAD * 2, s)
+            total += scaled(self._box_pad * 2, s)
 
         return total
 
@@ -544,7 +573,7 @@ class GpuLayout:
 
         inner_x, inner_y, inner_w, inner_h = x, y, w, h
         if self._is_box:
-            pad = scaled(BOX_PAD, s)
+            pad = scaled(self._box_pad, s)
             inner_x += pad
             inner_y += pad
             inner_w -= pad * 2
@@ -630,14 +659,27 @@ class GpuLayout:
     def _position_split(
         self, x: float, y: float, w: float, h: float, s: float,
     ) -> None:
-        layouts = [c for c in self._children if isinstance(c, GpuLayout)]
-        if len(layouts) >= 2:
-            left_w = w * self._split_factor
-            right_w = w * (1.0 - self._split_factor)
-            layouts[0]._position(x, y, left_w, h, s)
-            layouts[1]._position(x + left_w, y, right_w, h, s)
-        elif len(layouts) == 1:
-            layouts[0]._position(x, y, w, h, s)
+        children = self._children
+        if len(children) >= 2:
+            gap = scaled(WIDGET_GAP * 2, s)
+            usable = w - gap
+            left_w = usable * self._split_factor
+            right_w = usable * (1.0 - self._split_factor)
+            left, right = children[0], children[1]
+            if isinstance(left, GpuLayout):
+                left._position(x, y, left_w, h, s)
+            elif isinstance(left, GpuWidget):
+                left.rect = (x, y, left_w, h)
+            if isinstance(right, GpuLayout):
+                right._position(x + left_w + gap, y, right_w, h, s)
+            elif isinstance(right, GpuWidget):
+                right.rect = (x + left_w + gap, y, right_w, h)
+        elif len(children) == 1:
+            child = children[0]
+            if isinstance(child, GpuLayout):
+                child._position(x, y, w, h, s)
+            elif isinstance(child, GpuWidget):
+                child.rect = (x, y, w, h)
 
     def _position_grid_flow(
         self, x: float, y: float, w: float, h: float, s: float,
@@ -686,8 +728,8 @@ class GpuLayout:
             bx, by, bw, bh = self._rect
             theme = get_theme()
             r = scaled(4.0, s)
-            draw_rect_rounded(bx, by, bw, bh, r, theme.widget_bg)
-            draw_rect_outline(bx, by, bw, bh, theme.border, thickness=1)
+            draw_rect_rounded(bx, by, bw, bh, r, theme.box_bg)
+            draw_rect_rounded_outline(bx, by, bw, bh, r, theme.border)
 
         for child in self._children:
             if isinstance(child, GpuLayout):

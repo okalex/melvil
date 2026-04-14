@@ -136,7 +136,8 @@ class GpuGridList(GpuWidget):
         has_scrollbar = total_rows > self.rows_visible
         sb_w = scaled(SCROLLBAR_WIDTH, s) if has_scrollbar else 0
         content_w = w - sb_w
-        cell_w = (content_w - 2 * pad) / self.cols if self.cols > 0 else (content_w - 2 * pad)
+        col_gaps = max(0, self.cols - 1) * gap if self.cols > 1 else 0
+        cell_w = (content_w - 2 * pad - col_gaps) / self.cols if self.cols > 0 else (content_w - 2 * pad)
 
         # --- Border ---
         br = scaled(LIST_BORDER_RADIUS, s)
@@ -170,7 +171,7 @@ class GpuGridList(GpuWidget):
                 item = collection[idx]
                 is_active = idx == selected_index
 
-                cell_x = inner_x + col_i * cell_w
+                cell_x = inner_x + col_i * (cell_w + gap)
                 cell_rect = (cell_x, cursor_y, cell_w, ch)
 
                 # Row background: active (selected) or hovered.

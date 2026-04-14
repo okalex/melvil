@@ -791,7 +791,7 @@ class TestLayoutPass:
         assert c2._rect[2] == pytest.approx(expected_each)
 
     def test_split_factor_03(self):
-        from melvil.ui.gpu import PANEL_PAD
+        from melvil.ui.gpu import PANEL_PAD, WIDGET_GAP
 
         panel = _make_panel(width=200, anchor=(0, 100))
         root = panel.begin_frame()
@@ -803,10 +803,11 @@ class TestLayoutPass:
         panel.end_frame()
 
         content_w = 200 - 2 * PANEL_PAD
+        usable = content_w - WIDGET_GAP * 2
         assert left._rect is not None
         assert right._rect is not None
-        assert left._rect[2] == pytest.approx(content_w * 0.3)
-        assert right._rect[2] == pytest.approx(content_w * 0.7)
+        assert left._rect[2] == pytest.approx(usable * 0.3)
+        assert right._rect[2] == pytest.approx(usable * 0.7)
 
     def test_box_adds_padding(self):
         from melvil.ui.gpu import BOX_PAD, PANEL_PAD, SEPARATOR_HEIGHT
@@ -826,7 +827,7 @@ class TestLayoutPass:
 
     def test_nested_row_in_column_in_split(self):
         """Nested containers produce correct coordinates."""
-        from melvil.ui.gpu import PANEL_PAD, SEPARATOR_HEIGHT
+        from melvil.ui.gpu import PANEL_PAD, SEPARATOR_HEIGHT, WIDGET_GAP
 
         panel = _make_panel(width=400, anchor=(0, 300))
         root = panel.begin_frame()
@@ -842,14 +843,15 @@ class TestLayoutPass:
         panel.end_frame()
 
         content_w = 400 - 2 * PANEL_PAD
-        # Left half = content_w * 0.5, row inside splits it.
+        usable = content_w - WIDGET_GAP * 2
+        # Left half = usable * 0.5, row inside splits it.
         assert a._rect is not None
         assert b._rect is not None
         assert right_col._rect is not None
         assert a._rect[2] + b._rect[2] == pytest.approx(
             left_col._rect[2], abs=5,
         )
-        assert right_col._rect[2] == pytest.approx(content_w * 0.5)
+        assert right_col._rect[2] == pytest.approx(usable * 0.5)
 
     def test_scale_y_doubles_height(self):
         from melvil.ui.gpu import SEPARATOR_HEIGHT
@@ -2448,6 +2450,21 @@ class TestGpuLayoutProp:
         panel = _make_panel()
         root = panel.begin_frame()
         root.prop(mock_data, "search_query", text="")
+
+        child = root._children[0]
+        assert isinstance(child, GpuTextField)
+        assert child.textedit_update is True
+
+    def test_explicit_textedit_update_kwarg(self):
+        """Explicit textedit_update=True overrides auto-detection."""
+        from melvil.ui.gpu import GpuTextField
+
+        # Without TEXTEDIT_UPDATE in annotations → auto-detect returns False.
+        mock_data = _mock_string_rna(textedit_update=False)
+
+        panel = _make_panel()
+        root = panel.begin_frame()
+        root.prop(mock_data, "search_query", text="", textedit_update=True)
 
         child = root._children[0]
         assert isinstance(child, GpuTextField)

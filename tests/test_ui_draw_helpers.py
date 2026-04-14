@@ -854,42 +854,39 @@ class TestDrawAssetDetailsNameRow:
 
         layout = MagicMock()
         split = MagicMock()
-        row = MagicMock()
-        row.split.return_value = split
-        layout.row.return_value = row
+        layout.split.side_effect = [split] + [MagicMock() for _ in range(3)]
+        name_val = split.row.return_value
         col = MagicMock()
-        row.column.return_value = col
+        name_val.column.return_value = col
         col.operator.return_value = MagicMock()
         draw_asset_details(layout, asset, [], "General", wm=wm)
-        return layout, row, split, col
+        return layout, name_val, split, col
 
     def test_shows_pending_name_prop(self):
         from melvil.ui.draw_helpers import draw_asset_details
 
         layout = MagicMock()
         split = MagicMock()
-        row = MagicMock()
-        row.split.return_value = split
-        layout.row.return_value = row
+        layout.split.side_effect = [split] + [MagicMock() for _ in range(3)]
+        name_val = split.row.return_value
         col = MagicMock()
-        row.column.return_value = col
+        name_val.column.return_value = col
         col.operator.return_value = MagicMock()
         wm = _make_wm(pending_name="My Cube", pending_name_asset_id="asset-1")
 
         draw_asset_details(layout, _make_details_asset(id="asset-1", name="My Cube"), [], "General", wm=wm)
 
-        split.prop.assert_any_call(wm, "melvil_pending_name", text="")
+        name_val.prop.assert_any_call(wm, "melvil_pending_name", text="", textedit_update=True)
 
     def test_confirm_button_disabled_when_name_unchanged(self):
         from melvil.ui.draw_helpers import draw_asset_details
 
         layout = MagicMock()
         split = MagicMock()
-        row = MagicMock()
-        row.split.return_value = split
-        layout.row.return_value = row
+        layout.split.side_effect = [split] + [MagicMock() for _ in range(3)]
+        name_val = split.row.return_value
         col = MagicMock()
-        row.column.return_value = col
+        name_val.column.return_value = col
         col.operator.return_value = MagicMock()
         wm = _make_wm(pending_name="My Cube", pending_name_asset_id="asset-1")
 
@@ -902,11 +899,10 @@ class TestDrawAssetDetailsNameRow:
 
         layout = MagicMock()
         split = MagicMock()
-        row = MagicMock()
-        row.split.return_value = split
-        layout.row.return_value = row
+        layout.split.side_effect = [split] + [MagicMock() for _ in range(3)]
+        name_val = split.row.return_value
         col = MagicMock()
-        row.column.return_value = col
+        name_val.column.return_value = col
         col.operator.return_value = MagicMock()
         wm = _make_wm(pending_name="New Name", pending_name_asset_id="asset-1")
 
@@ -919,11 +915,10 @@ class TestDrawAssetDetailsNameRow:
 
         layout = MagicMock()
         split = MagicMock()
-        row = MagicMock()
-        row.split.return_value = split
-        layout.row.return_value = row
+        layout.split.side_effect = [split] + [MagicMock() for _ in range(3)]
+        name_val = split.row.return_value
         col = MagicMock()
-        row.column.return_value = col
+        name_val.column.return_value = col
         col.operator.return_value = MagicMock()
         wm = _make_wm(pending_name="", pending_name_asset_id="asset-1")
 
@@ -936,11 +931,10 @@ class TestDrawAssetDetailsNameRow:
 
         layout = MagicMock()
         split = MagicMock()
-        row = MagicMock()
-        row.split.return_value = split
-        layout.row.return_value = row
+        layout.split.side_effect = [split] + [MagicMock() for _ in range(3)]
+        name_val = split.row.return_value
         col = MagicMock()
-        row.column.return_value = col
+        name_val.column.return_value = col
         col.operator.return_value = MagicMock()
         wm = _make_wm(pending_name="My Cube", pending_name_asset_id="asset-1")
 
@@ -957,11 +951,10 @@ class TestDrawAssetDetailsNameRow:
 
         layout = MagicMock()
         split = MagicMock()
-        row = MagicMock()
-        row.split.return_value = split
-        layout.row.return_value = row
+        layout.split.side_effect = [split] + [MagicMock() for _ in range(3)]
+        name_val = split.row.return_value
         col = MagicMock()
-        row.column.return_value = col
+        name_val.column.return_value = col
         col.operator.return_value = MagicMock()
         # pending_name_asset_id is "" (different from "asset-1") → sync expected
         wm = _make_wm(pending_name="stale draft", pending_name_asset_id="")
@@ -981,19 +974,14 @@ def _draw_for_kit(asset_id="asset-1", name="My Cube", kit_name="General"):
     from melvil.ui.draw_helpers import draw_asset_details
 
     layout = MagicMock()
-    split = MagicMock()
+    kit_split = MagicMock()
     kit_op_props = MagicMock()
-    split.operator_menu_enum.return_value = kit_op_props
-    row = MagicMock()
-    row.split.return_value = split
-    col = MagicMock()
-    col.operator.return_value = MagicMock()
-    row.column.return_value = col
-    layout.row.return_value = row
+    kit_split.operator_menu_enum.return_value = kit_op_props
+    layout.split.side_effect = [MagicMock(), kit_split] + [MagicMock() for _ in range(2)]
     wm = _make_wm(pending_name=name, pending_name_asset_id=asset_id)
     asset = _make_details_asset(id=asset_id, name=name)
     draw_asset_details(layout, asset, [], kit_name, wm=wm)
-    return split, kit_op_props
+    return kit_split, kit_op_props
 
 
 class TestDrawAssetDetailsKitRow:
@@ -1032,13 +1020,6 @@ def _draw_details_with_preview(asset, wm=None):
     layout = MagicMock()
     box = MagicMock()
     layout.box.return_value = box
-    split = MagicMock()
-    row = MagicMock()
-    row.split.return_value = split
-    layout.row.return_value = row
-    col = MagicMock()
-    row.column.return_value = col
-    col.operator.return_value = MagicMock()
     if wm is None:
         wm = _make_wm(pending_name=asset["name"], pending_name_asset_id=asset["id"])
     return layout, box, draw_asset_details, wm
@@ -1104,50 +1085,59 @@ def _draw_for_source(blend_path="cube_abc12345.blend"):
 
     asset = _make_details_asset(blend_path=blend_path)
     layout = MagicMock()
-    split = MagicMock()
-    open_op = MagicMock()
-    reveal_op = MagicMock()
-    row = MagicMock()
-    row.split.return_value = split
-    row.operator.side_effect = [MagicMock(), MagicMock(), open_op, reveal_op]
-    col = MagicMock()
-    col.operator.return_value = MagicMock()
-    row.column.return_value = col
-    layout.row.return_value = row
+    source_split = MagicMock()
+
+    # Track column() calls on source_val so we can identify the button columns.
+    source_val = source_split.row.return_value
+    columns = []
+
+    def _make_col(**_kwargs):
+        c = MagicMock()
+        c.operator.return_value = MagicMock()
+        columns.append(c)
+        return c
+
+    source_val.column.side_effect = _make_col
+    layout.split.side_effect = [MagicMock() for _ in range(3)] + [source_split]
     wm = _make_wm(pending_name=asset["name"], pending_name_asset_id=asset["id"])
     with patch("melvil.ui.draw_helpers.resolve_library_root", return_value="/lib"):
         draw_asset_details(layout, asset, [], "General", wm=wm)
-    return layout, row, split, open_op, reveal_op
+
+    open_col = columns[0] if len(columns) > 0 else MagicMock()
+    reveal_col = columns[1] if len(columns) > 1 else MagicMock()
+    return layout, source_val, source_split, open_col, reveal_col
 
 
 class TestDrawAssetDetailsSourceRow:
     def test_source_label_shown(self):
-        _layout, _row, split, _open, _reveal = _draw_for_source()
+        _layout, _source_val, split, _open, _reveal = _draw_for_source()
         calls = [c[1].get("text", c[0][0] if c[0] else "") for c in split.label.call_args_list]
         assert "Source:" in calls
 
     def test_source_path_shown(self):
-        _layout, _row, split, _open, _reveal = _draw_for_source(blend_path="cube_abc12345.blend")
-        calls = [c[1].get("text", "") for c in split.label.call_args_list]
+        _layout, source_val, _split, _open, _reveal = _draw_for_source(blend_path="cube_abc12345.blend")
+        # Path is now inside source_val.box().label()
+        box = source_val.box.return_value
+        calls = [c[1].get("text", "") for c in box.label.call_args_list]
         assert "cube_abc12345.blend" in calls
 
     def test_open_blend_file_operator_added(self):
-        _layout, row, _split, _open, _reveal = _draw_for_source()
-        op_ids = [c[0][0] for c in row.operator.call_args_list]
+        _layout, _source_val, _split, open_col, _reveal = _draw_for_source()
+        op_ids = [c[0][0] for c in open_col.operator.call_args_list]
         assert "melvil.open_blend_file" in op_ids
 
     def test_reveal_blend_file_operator_added(self):
-        _layout, row, _split, _open, _reveal = _draw_for_source()
-        op_ids = [c[0][0] for c in row.operator.call_args_list]
+        _layout, _source_val, _split, _open, reveal_col = _draw_for_source()
+        op_ids = [c[0][0] for c in reveal_col.operator.call_args_list]
         assert "melvil.reveal_blend_file" in op_ids
 
     def test_open_operator_uses_blender_icon(self):
-        _layout, row, _split, _open, _reveal = _draw_for_source()
-        open_call = next(c for c in row.operator.call_args_list if c[0][0] == "melvil.open_blend_file")
+        _layout, _source_val, _split, open_col, _reveal = _draw_for_source()
+        open_call = open_col.operator.call_args_list[0]
         assert open_call[1].get("icon") == "BLENDER"
 
     def test_reveal_operator_uses_file_folder_icon(self):
-        _layout, row, _split, _open, _reveal = _draw_for_source()
-        reveal_call = next(c for c in row.operator.call_args_list if c[0][0] == "melvil.reveal_blend_file")
+        _layout, _source_val, _split, _open, reveal_col = _draw_for_source()
+        reveal_call = reveal_col.operator.call_args_list[0]
         assert reveal_call[1].get("icon") == "FILE_FOLDER"
 

@@ -437,11 +437,12 @@ def draw_asset_details(
         wm.melvil_pending_name = asset["name"]
         wm.melvil_pending_name_asset_id = asset["id"]
 
-    name_row = layout.row(align=True)
-    name_split = name_row.split(factor=0.15)
+    name_split = layout.split(factor=0.15)
     name_split.label(text="Name:")
-    name_split.prop(wm, "melvil_pending_name", text="")
-    confirm_col = name_row.column()
+    name_val = name_split.row()
+    name_val.prop(wm, "melvil_pending_name", text="", textedit_update=True)
+    confirm_col = name_val.column()
+    confirm_col.scale_x = 0.15
     confirm_col.enabled = (
         wm.melvil_pending_name.strip() != asset["name"]
         and bool(wm.melvil_pending_name.strip())
@@ -452,32 +453,35 @@ def draw_asset_details(
     confirm_op.asset_id = asset["id"]
 
     # Kit
-    kit_row = layout.row(align=True)
-    kit_split = kit_row.split(factor=0.15)
+    kit_split = layout.split(factor=0.15)
     kit_split.label(text="Kit:")
     kit_op = kit_split.operator_menu_enum("melvil.asset_set_kit", "kit_id", text=kit_name)
     kit_op.asset_id = asset["id"]
 
     # Type
-    type_split = layout.row().split(factor=0.15)
+    type_split = layout.split(factor=0.15)
     type_split.label(text="Type:")
-    type_split.label(text=_TYPE_LABELS.get(asset["type"], asset["type"]))
+    type_split.box(padding=0).label(text=_TYPE_LABELS.get(asset["type"], asset["type"]))
 
     # Source — path to the managed .blend file
     try:
         abs_blend_path = str(Path(resolve_library_root()) / asset["blend_path"])
     except Exception:  # noqa: BLE001
         abs_blend_path = ""
-    source_row = layout.row(align=True)
-    source_split = source_row.split(factor=0.15)
+    source_split = layout.split(factor=0.15)
     source_split.label(text="Source:")
-    source_split.label(text=asset["blend_path"] or "")
-    open_op = source_row.operator(
-        "melvil.open_blend_file", text="", icon="BLENDER", emboss=False
+    source_val = source_split.row()
+    source_val.box(padding=0).label(text=asset["blend_path"] or "")
+    btn_col = source_val.column()
+    btn_col.scale_x = 0.15
+    open_op = btn_col.operator(
+        "melvil.open_blend_file", text="", icon="BLENDER"
     )
     open_op.blend_path = abs_blend_path
-    reveal_op = source_row.operator(
-        "melvil.reveal_blend_file", text="", icon="FILE_FOLDER", emboss=False
+    btn_col2 = source_val.column()
+    btn_col2.scale_x = 0.15
+    reveal_op = btn_col2.operator(
+        "melvil.reveal_blend_file", text="", icon="FILE_FOLDER"
     )
     reveal_op.blend_path = abs_blend_path
 
@@ -500,17 +504,21 @@ def draw_asset_details(
     layout.label(text="Tags", icon="TAG")
     if wm is not None:
         list_row = layout.row()
-        list_row.template_list(
+        list_col = list_row.column()
+        list_col.template_list(
             "MELVIL_UL_asset_tags", "",
             wm, "melvil_asset_tags",
             wm, "melvil_asset_tags_index",
             rows=3,
         )
-        side_col = list_row.column(align=True)
+        list_row.separator(factor=0.5)
+        side_col = list_row.column()
+        side_col.scale_x = 0.06
 
         add_op = side_col.operator("melvil.tag_add", text="", icon="ADD")
         add_op.asset_id = asset["id"]
 
+        side_col.separator(factor=0.5)
         idx = wm.melvil_asset_tags_index
         tag_items = wm.melvil_asset_tags
         remove_col = side_col.column()

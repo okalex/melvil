@@ -11,16 +11,55 @@ Widgets and functionality are added as each GPU UI phase lands.
 
 import bpy
 from bpy.props import EnumProperty, StringProperty
+from pathlib import Path
 
+from ..core.library import resolve_library_root
 from ..ui.gpu import GpuPanel, get_region_offsets
 from ..ui.gpu.dropdown import DropdownState
 from ..ui import scene_props as _scene_props
-from ..ui.draw_helpers import load_all_tags
+from ..ui.draw_helpers import (
+    draw_asset_details,
+    filter_assets,
+    load_all_tags,
+    load_asset,
+    load_asset_tag_memberships,
+    load_asset_tag_names,
+    load_assets,
+    load_kits,
+    load_tags_for_asset_ids,
+)
+from ..ui.previews_collection import (
+    get_icon_id,
+    get_placeholder_icon_id,
+    _placeholder_path,
+)
 from .open_browser import _TYPE_ENUM_ITEMS, _get_kit_filter_items
 from .tag_filter_toggle import get_active_tag_filters
 
 _PANEL_MARGIN_X = 0
 _PANEL_MARGIN_Y = 18
+
+_TYPE_ICONS: dict[str, str] = {
+    "MATERIAL": "MATERIAL",
+    "MESH": "MESH_DATA",
+    "NODE_GROUP": "NODETREE",
+}
+
+_SHOW_LOAD_FOR_TYPE: dict[str, bool] = {
+    "MATERIAL": True,
+    "MESH": True,
+    "NODE_GROUP": False,
+}
+
+# Cell height for asset cards (unscaled pixels):
+# BOX_PAD*2 + name_row + gap + template_icon(12*5) + gap + btn_row
+# = 16 + 20 + 4 + 60 + 4 + 20 = 124
+_ASSET_CARD_HEIGHT = 124
+
+
+def _draw_asset_tag_item(layout, item, index, is_active):
+    """Draw a single tag row in the asset detail tag list."""
+    layout.label(text=item.name)
 
 
 def _draw_filter_tag_item(layout, item, index, is_active):
@@ -32,6 +71,43 @@ def _draw_filter_tag_item(layout, item, index, is_active):
     sub.icon_button(
         icon="GREASEPENCIL", button_id="tag_rename", style="GHOST",
     )
+
+
+def _draw_asset_card(layout, item, index, is_active):
+    """Draw a single asset card in the asset grid list."""
+    box = layout.box()
+
+    # Name + type icon at the top of the card.
+    name_row = box.row(align=True)
+    name_row.label(text="", icon=_TYPE_ICONS.get(item.asset_type, "OBJECT_DATA"))
+    name_row.label(text=item.name)
+
+    # Preview image.
+    icon_id = (
+        get_icon_id(item.asset_id, item.abs_preview_path)
+        if item.abs_preview_path else None
+    )
+    if icon_id is None:
+        icon_id = get_placeholder_icon_id(item.asset_type)
+    if icon_id is not None:
+        box.template_icon(icon_value=icon_id, scale=5.0)
+
+    # Action buttons.
+    btn_row = box.row(align=True)
+    if _SHOW_LOAD_FOR_TYPE.get(item.asset_type, True):
+        load_op = btn_row.operator("melvil.load_asset", text="Load")
+        load_op.asset_id = item.asset_id
+
+    selected_id = getattr(
+        bpy.context.window_manager, "melvil_selected_asset_id", "",
+    )
+    detail_op = btn_row.operator(
+        "melvil.asset_select",
+        text="",
+        icon="DISCLOSURE_TRI_RIGHT",
+        depress=(item.asset_id == selected_id),
+    )
+    detail_op.asset_id = item.asset_id
 
 
 class MELVIL_OT_gpu_browser(bpy.types.Operator):
@@ -91,6 +167,12 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
         )
         self._panel.register_list_drawer(
             "MELVIL_UL_filter_tags", _draw_filter_tag_item,
+        )
+        self._panel.register_list_drawer(
+            "MELVIL_UL_asset_grid", _draw_asset_card,
+        )
+        self._panel.register_list_drawer(
+            "MELVIL_UL_asset_tags", _draw_asset_tag_item,
         )
         self._panel.attach(context.area)
         context.window_manager.modal_handler_add(self)
@@ -203,13 +285,161 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
 
         # -- Middle column: asset list ---------------------------------------
         middle.label(text="Assets", icon="ASSET_MANAGER")
-        # unified asset section — not yet implemented
+
+        selected = self.type_filter
+        visible_types = [
+            t for t in ("MATERIAL", "MESH", "NODE_GROUP")
+            if selected in ("ALL", t)
+        ]
+        kit_id = self.kit_filter if self.kit_filter != "ALL_KITS" else None
+        query = self.search_query
+        active_tag_ids = get_active_tag_filters(wm)
+
+        try:
+            all_assets = {
+                t: load_assets(t, kit_id=kit_id)
+                for t in visible_types
+            }
+            all_ids = [
+                a["id"]
+                for assets in all_assets.values()
+                for a in assets
+            ]
+            tag_names_map = (
+                load_asset_tag_names(all_ids) if query else {}
+            )
+            pre_tag = {
+                t: filter_assets(assets, query, tag_names_map)
+                for t, assets in all_assets.items()
+            }
+            all_pre_ids = [
+                a["id"]
+                for assets in pre_tag.values()
+                for a in assets
+            ]
+            memberships = load_asset_tag_memberships(all_pre_ids)
+
+            if active_tag_ids:
+                active_set = set(active_tag_ids)
+                section_assets = {
+                    t: [
+                        a for a in assets
+                        if active_set.issubset(
+                            memberships.get(a["id"], set()),
+                        )
+                    ]
+                    for t, assets in pre_tag.items()
+                }
+            else:
+                section_assets = pre_tag
+
+            all_visible = sorted(
+                (
+                    a
+                    for assets in section_assets.values()
+                    for a in assets
+                ),
+                key=lambda a: a["name"].lower(),
+            )
+        except Exception:  # noqa: BLE001
+            all_visible = []
+
+        if not all_visible:
+            no_box = middle.box()
+            no_box.label(text="No assets saved yet")
+        else:
+            lib_root = resolve_library_root()
+            _scene_props._rebuilding_browser_assets = True
+            try:
+                wm.melvil_browser_assets.clear()
+                for asset in all_visible:
+                    item = wm.melvil_browser_assets.add()
+                    item.name = asset["name"]
+                    item.asset_id = asset["id"]
+                    item.asset_type = asset["type"]
+                    preview_path = asset["preview_path"]
+                    abs_path = (
+                        str(Path(lib_root) / preview_path)
+                        if preview_path else ""
+                    )
+                    item.abs_preview_path = abs_path
+                    item.blend_path = asset["blend_path"]
+
+                    # Register preview for GPU rendering.
+                    icon_id = (
+                        get_icon_id(asset["id"], abs_path)
+                        if abs_path else None
+                    )
+                    preview_file = abs_path
+                    if icon_id is None:
+                        icon_id = get_placeholder_icon_id(asset["type"])
+                        preview_file = (
+                            _placeholder_path(asset["type"]) or ""
+                        )
+                    if icon_id is not None and preview_file:
+                        self._panel.register_preview(
+                            icon_id, preview_file,
+                        )
+            finally:
+                _scene_props._rebuilding_browser_assets = False
+
+            middle.template_list(
+                "MELVIL_UL_asset_grid", "gpu_asset_list",
+                wm, "melvil_browser_assets",
+                wm, "melvil_browser_assets_index",
+                rows=3,
+                cols=2,
+                cell_height=_ASSET_CARD_HEIGHT,
+            )
+
         middle.separator()
 
         # -- Right column: asset details -------------------------------------
+        selected_id = getattr(wm, "melvil_selected_asset_id", "")
+        selected_asset = None
+        selected_tags: list = []
+        selected_kit_name = "Default"
+        if selected_id:
+            try:
+                selected_asset = load_asset(selected_id)
+                if selected_asset is not None:
+                    selected_tags = list(load_tags_for_asset_ids([selected_id]))
+                    kits = load_kits()
+                    selected_kit_name = next(
+                        (k["name"] for k in kits if k["id"] == selected_asset["kit_id"]),
+                        "Default",
+                    )
+            except Exception:  # noqa: BLE001
+                selected_asset = None
+
+        wm.melvil_asset_tags.clear()
+        for _tag in selected_tags:
+            item = wm.melvil_asset_tags.add()
+            item.name = _tag["name"]
+            item.tag_id = _tag["id"]
+
         right.label(text="Asset details", icon="PROPERTIES")
         right_box = right.box()
-        right_box.label(text="No asset selected", icon="INFO")
+        if selected_asset is not None:
+            # Register the detail preview for GPU rendering.
+            detail_preview_path = selected_asset["preview_path"]
+            if detail_preview_path:
+                abs_detail_preview = str(
+                    Path(resolve_library_root()) / detail_preview_path
+                )
+                detail_icon_id = get_icon_id(selected_asset["id"], abs_detail_preview)
+                if detail_icon_id is not None:
+                    self._panel.register_preview(detail_icon_id, abs_detail_preview)
+
+            draw_asset_details(
+                right_box,
+                selected_asset,
+                selected_tags,
+                selected_kit_name,
+                wm=wm,
+            )
+        else:
+            right_box.label(text="No asset selected", icon="INFO")
 
     def modal(self, context, event):
         # Update hover position every frame.
@@ -393,8 +623,17 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
     def _open_dropdown_from_hit(self, hit):
         """Create a DropdownState from a dropdown HitResult and open it."""
         kw = hit.kwargs
+        items = kw.get("items", [])
+
+        # Dynamic enum callbacks can't be resolved at build time (they
+        # need an operator instance).  Resolve them lazily here.
+        if not items and kw.get("mode") == "operator":
+            items = self._resolve_operator_enum_items(
+                kw.get("operator_id", ""), kw.get("property_name", ""),
+            )
+
         state = DropdownState(
-            items=kw.get("items", []),
+            items=items,
             anchor_rect=hit.rect,
             mode=kw.get("mode", "prop"),
             data=kw.get("data"),
@@ -404,6 +643,58 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
         )
         state.compute_rect(self._panel._ui_scale)
         self._panel.open_dropdown(state)
+
+    @staticmethod
+    def _resolve_operator_enum_items(operator_id, property_name):
+        """Resolve enum items for *operator_id*'s *property_name* at runtime.
+
+        Dynamic enum callbacks require an operator instance.  Here we look
+        up the callback from the operator class's ``__annotations__`` (for
+        modules without ``from __future__ import annotations``) or from the
+        module-level function referenced in the ``_PropertyDeferred``.
+        """
+        import sys
+
+        items = []
+        try:
+            parts = operator_id.split(".", 1)
+            if len(parts) != 2:
+                return items
+            cls_name = f"{parts[0].upper()}_OT_{parts[1]}"
+            op_cls = getattr(bpy.types, cls_name, None)
+            if op_cls is None:
+                return items
+
+            # Look for the callback in the class annotations.
+            ann = getattr(op_cls, "__annotations__", {}).get(property_name)
+            kw = getattr(ann, "keywords", None) if ann else None
+            items_src = kw.get("items") if kw else None
+
+            # If annotations are stringified (from __future__ import
+            # annotations), find the callback in the operator's module.
+            if items_src is None:
+                mod_name = getattr(op_cls, "__module__", None)
+                mod = sys.modules.get(mod_name) if mod_name else None
+                if mod is not None:
+                    # Try common naming conventions:
+                    #   _get_kit_id_items  (property name as-is)
+                    #   _get_kit_items     (without _id suffix)
+                    for stem in (property_name, property_name.removesuffix("_id")):
+                        fn_name = f"_get_{stem}_items"
+                        items_src = getattr(mod, fn_name, None)
+                        if callable(items_src):
+                            break
+
+            if callable(items_src):
+                raw = items_src(None, bpy.context)
+                for entry in raw:
+                    if len(entry) >= 4:
+                        items.append((entry[0], entry[1], entry[2], entry[3]))
+                    else:
+                        items.append((entry[0], entry[1], "", "NONE"))
+        except Exception:  # noqa: BLE001
+            pass
+        return items
 
     @staticmethod
     def _apply_dropdown_selection(dd, idx):

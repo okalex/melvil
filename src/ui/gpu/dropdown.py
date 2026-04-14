@@ -233,7 +233,8 @@ class GpuDropdown(GpuWidget):
 
         # Reserve space for the dropdown arrow on the right.
         pad = scaled(WIDGET_PAD_X, s)
-        arrow_space = pad + scaled(10.0, s)
+        arrow_icon_w = scaled(10.0, s)
+        arrow_space = pad + arrow_icon_w + pad  # left gap + icon + right gap
 
         # Icon + text in the remaining area.
         content_rect = (x, y, w - arrow_space, h)
@@ -245,8 +246,13 @@ class GpuDropdown(GpuWidget):
             text_rect = content_rect
         draw_text_in_rect(display_text, text_rect, s, text_color, align="LEFT")
 
-        # Dropdown arrow.
-        draw_icon("DOWNARROW_HLT", (x + w - arrow_space, y, arrow_space, h), s, panel)
+        # Dropdown arrow (centered in the reserved region).
+        from .widget import draw_icon_centered
+        draw_icon_centered(
+            "DOWNARROW_HLT",
+            (x + w - arrow_space, y, arrow_space, h),
+            s, panel,
+        )
 
         # -- Hit rect
         if is_enabled:
