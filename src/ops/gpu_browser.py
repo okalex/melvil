@@ -311,6 +311,23 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
             )
             if selected_tag is not None:
                 delete_op.tag_id = selected_tag.tag_id
+        else:
+            tag_row = left.row()
+            tag_empty_box = tag_row.column()
+            tag_empty_box.scale_x = 0.9
+            tag_empty_box.box().label(text="No tags saved")
+            tag_row.separator(factor=0.5)
+            tag_btn_col = tag_row.column()
+            tag_btn_col.scale_x = 0.1
+            tag_btn_col.operator(
+                "melvil.tag_create", text="", icon="ADD",
+            )
+            tag_btn_col.separator(factor=0.5)
+            delete_btn = tag_btn_col.column()
+            delete_btn.enabled = False
+            delete_btn.operator(
+                "melvil.tag_delete", text="", icon="REMOVE",
+            )
 
         left.separator()
 
