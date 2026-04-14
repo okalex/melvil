@@ -67,6 +67,13 @@ Open the sidebar in the 3D Viewport (N key) and select the **Melvil** tab to acc
 - **Library Root** — Directory where asset `.blend` files and textures are stored
 - **Database Path** — Location of the SQLite metadata database (defaults to `<library_root>/melvil.db`)
 
+## Future Enhancements
+
+- **Save collections** - Save a collection of objects as a single asset
+- **Update assets** - Update an already-saved asset
+- **Add by linking** - Instead of append (copy), add an asset to the scene by linking
+- **Import existing library** - Import your existing Blender asset library into the Melvil DB
+
 ## Development
 
 ### Prerequisites
