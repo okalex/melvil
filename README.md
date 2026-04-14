@@ -11,6 +11,8 @@ A free, open-source Blender addon for intuitive asset management. Save and load 
 - **Easy access browser** — Open the asset browser with Ctrl+Shift+A to view, search, filter, rename, retag, and delete assets.
 - **Local & portable** — All assets and metadata are stored locally in managed `.blend` files and a SQLite database. No external services required.
 
+<img width="899" height="718" alt="image" src="https://github.com/user-attachments/assets/65bdca9f-2957-46f4-8add-540a14fd6637" />
+
 ## Installation
 
 Requires **Blender 4.2** or later.
