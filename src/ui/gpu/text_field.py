@@ -57,7 +57,7 @@ class GpuTextField(GpuWidget):
         x, y, w, h = self.rect
         theme = get_theme()
         is_enabled = self.enabled and parent_enabled
-        is_active = panel.active_text_field == self.property_name
+        is_active = panel._text_edit.active_field == self.property_name
 
         pad = scaled(WIDGET_PAD_X, s)
         font_size = scaled(FONT_SIZE_PRIMARY, s)
@@ -94,8 +94,8 @@ class GpuTextField(GpuWidget):
             )
 
         # -- Text content ----------------------------------------------------
-        if is_active and panel._text_buffer is not None:
-            current_text = panel._text_buffer
+        if is_active and panel._text_edit.buffer is not None:
+            current_text = panel._text_edit.buffer
         else:
             current_text = str(getattr(self.data, self.property_name, ""))
 
@@ -106,9 +106,9 @@ class GpuTextField(GpuWidget):
         margin = scaled(2.0, s)
 
         # Selection highlight (drawn behind text).
-        if is_active and panel._text_selection_start is not None:
-            sel_start = min(panel._text_selection_start, panel.text_cursor_pos)
-            sel_end = max(panel._text_selection_start, panel.text_cursor_pos)
+        if is_active and panel._text_edit.selection_start is not None:
+            sel_start = min(panel._text_edit.selection_start, panel._text_edit.cursor_pos)
+            sel_end = max(panel._text_edit.selection_start, panel._text_edit.cursor_pos)
             if sel_start != sel_end and current_text:
                 pre_w = (measure_text(current_text[:sel_start], font_size)[0]
                          if sel_start > 0 else 0.0)
@@ -131,9 +131,9 @@ class GpuTextField(GpuWidget):
 
         # -- Blinking cursor -------------------------------------------------
         if is_active:
-            elapsed = time.monotonic() - panel._text_blink_base
+            elapsed = time.monotonic() - panel._text_edit.blink_base
             if (elapsed % _CURSOR_BLINK_PERIOD) < _CURSOR_BLINK_PERIOD / 2:
-                pre_cursor = current_text[:panel.text_cursor_pos]
+                pre_cursor = current_text[:panel._text_edit.cursor_pos]
                 cursor_x_off = (measure_text(pre_cursor, font_size)[0]
                                 if pre_cursor else 0.0)
                 cursor_w = max(scaled(1.0, s), 1.0)
@@ -155,8 +155,8 @@ class GpuTextField(GpuWidget):
             ))
 
         # Register for tab cycling and TEXTEDIT_UPDATE tracking.
-        if self.property_name not in panel._text_field_order:
-            panel._text_field_order.append(self.property_name)
-        panel._text_field_data[self.property_name] = self.data
+        if self.property_name not in panel._text_edit.field_order:
+            panel._text_edit.field_order.append(self.property_name)
+        panel._text_edit.field_data[self.property_name] = self.data
         if self.textedit_update:
-            panel._textedit_update_fields.add(self.property_name)
+            panel._text_edit.textedit_update_fields.add(self.property_name)

@@ -2634,8 +2634,8 @@ class TestGpuTextField:
         panel.begin_frame()
         w.rect = (10, 20, 200, 26)
         w.draw(1.0, True, panel)
-        assert "search_query" in panel._text_field_order
-        assert panel._text_field_data["search_query"] is w.data
+        assert "search_query" in panel._text_edit.field_order
+        assert panel._text_edit.field_data["search_query"] is w.data
 
     def test_textedit_update_registration(self):
         """Field with textedit_update=True is registered in the set."""
@@ -2644,7 +2644,7 @@ class TestGpuTextField:
         panel.begin_frame()
         w.rect = (10, 20, 200, 26)
         w.draw(1.0, True, panel)
-        assert "search_query" in panel._textedit_update_fields
+        assert "search_query" in panel._text_edit.textedit_update_fields
 
     def test_textedit_update_not_registered_when_false(self):
         """Field with textedit_update=False is not registered."""
@@ -2653,7 +2653,7 @@ class TestGpuTextField:
         panel.begin_frame()
         w.rect = (10, 20, 200, 26)
         w.draw(1.0, True, panel)
-        assert "search_query" not in panel._textedit_update_fields
+        assert "search_query" not in panel._text_edit.textedit_update_fields
 
     def test_prefix_label_shrinks_field(self):
         """Prefix text reduces the field width."""
@@ -2697,11 +2697,11 @@ class TestTextFieldActivation:
         panel = _make_panel()
         panel.begin_frame()
         panel.activate_text_field("search_query", mock)
-        assert panel.active_text_field == "search_query"
-        assert panel._text_buffer == "hello"
-        assert panel.text_cursor_pos == 5  # at end
-        assert panel._text_selection_start == 0  # select all
-        assert panel._text_original_value == "hello"
+        assert panel._text_edit.active_field == "search_query"
+        assert panel._text_edit.buffer == "hello"
+        assert panel._text_edit.cursor_pos == 5  # at end
+        assert panel._text_edit.selection_start == 0  # select all
+        assert panel._text_edit.original_value == "hello"
 
     def test_confirm_deactivates(self):
         """confirm_text_field deactivates the field."""
@@ -2710,8 +2710,8 @@ class TestTextFieldActivation:
         panel.begin_frame()
         panel.activate_text_field("search_query", mock)
         panel.confirm_text_field()
-        assert panel.active_text_field is None
-        assert panel._text_buffer is None
+        assert panel._text_edit.active_field is None
+        assert panel._text_edit.buffer is None
 
     def test_confirm_writes_value_for_non_textedit(self):
         """Non-TEXTEDIT_UPDATE fields write on confirm."""
@@ -2719,7 +2719,7 @@ class TestTextFieldActivation:
         panel = _make_panel()
         panel.begin_frame()
         panel.activate_text_field("search_query", mock)
-        panel._text_buffer = "world"
+        panel._text_edit.buffer = "world"
         panel.confirm_text_field()
         assert mock.search_query == "world"
 
@@ -2731,9 +2731,9 @@ class TestTextFieldActivation:
         panel = _make_panel()
         panel.begin_frame()
         # Simulate draw to register TEXTEDIT_UPDATE.
-        panel._textedit_update_fields.add("search_query")
+        panel._text_edit.textedit_update_fields.add("search_query")
         panel.activate_text_field("search_query", mock)
-        panel._text_buffer = "world"
+        panel._text_edit.buffer = "world"
         panel.confirm_text_field()
         # The value was NOT written by confirm (it would have been
         # written incrementally by _apply_text).
@@ -2748,7 +2748,7 @@ class TestTextFieldActivation:
         mock.search_query = "changed"
         panel.cancel_text_field()
         assert mock.search_query == "hello"
-        assert panel.active_text_field is None
+        assert panel._text_edit.active_field is None
 
     def test_activate_confirms_previous_field(self):
         """Activating a new field confirms the currently active one."""
@@ -2757,7 +2757,7 @@ class TestTextFieldActivation:
         panel = _make_panel()
         panel.begin_frame()
         panel.activate_text_field("search_query", mock1)
-        panel._text_buffer = "modified"
+        panel._text_edit.buffer = "modified"
         panel.activate_text_field("search_query", mock2)
         # First field was confirmed (non-textedit) so value is written.
         assert mock1.search_query == "modified"
@@ -2774,7 +2774,7 @@ class TestTextFieldKeyboard:
     def _activate(self, panel, mock, prop="search_query"):
         panel.activate_text_field(prop, mock)
         # Clear selection to start typing at end without select-all.
-        panel._text_selection_start = None
+        panel._text_edit.selection_start = None
 
     def test_printable_inserts_at_cursor(self):
         """Printable character inserts at cursor position."""
@@ -2782,10 +2782,10 @@ class TestTextFieldKeyboard:
         panel = _make_panel()
         panel.begin_frame()
         self._activate(panel, mock)
-        panel.text_cursor_pos = 1  # between 'a' and 'b'
-        panel._handle_text_keystroke(_MockEvent(type="X", unicode="x"))
-        assert panel._text_buffer == "axb"
-        assert panel.text_cursor_pos == 2
+        panel._text_edit.cursor_pos = 1  # between 'a' and 'b'
+        panel._text_edit.handle_keystroke(_MockEvent(type="X", unicode="x"))
+        assert panel._text_edit.buffer == "axb"
+        assert panel._text_edit.cursor_pos == 2
 
     def test_backspace_deletes_before_cursor(self):
         """BACK_SPACE deletes the character before the cursor."""
@@ -2793,10 +2793,10 @@ class TestTextFieldKeyboard:
         panel = _make_panel()
         panel.begin_frame()
         self._activate(panel, mock)
-        panel.text_cursor_pos = 2
-        panel._handle_text_keystroke(_MockEvent(type="BACK_SPACE"))
-        assert panel._text_buffer == "ac"
-        assert panel.text_cursor_pos == 1
+        panel._text_edit.cursor_pos = 2
+        panel._text_edit.handle_keystroke(_MockEvent(type="BACK_SPACE"))
+        assert panel._text_edit.buffer == "ac"
+        assert panel._text_edit.cursor_pos == 1
 
     def test_backspace_at_start_does_nothing(self):
         """BACK_SPACE at position 0 leaves text unchanged."""
@@ -2804,10 +2804,10 @@ class TestTextFieldKeyboard:
         panel = _make_panel()
         panel.begin_frame()
         self._activate(panel, mock)
-        panel.text_cursor_pos = 0
-        panel._handle_text_keystroke(_MockEvent(type="BACK_SPACE"))
-        assert panel._text_buffer == "abc"
-        assert panel.text_cursor_pos == 0
+        panel._text_edit.cursor_pos = 0
+        panel._text_edit.handle_keystroke(_MockEvent(type="BACK_SPACE"))
+        assert panel._text_edit.buffer == "abc"
+        assert panel._text_edit.cursor_pos == 0
 
     def test_delete_removes_after_cursor(self):
         """DEL deletes the character after the cursor."""
@@ -2815,10 +2815,10 @@ class TestTextFieldKeyboard:
         panel = _make_panel()
         panel.begin_frame()
         self._activate(panel, mock)
-        panel.text_cursor_pos = 1
-        panel._handle_text_keystroke(_MockEvent(type="DEL"))
-        assert panel._text_buffer == "ac"
-        assert panel.text_cursor_pos == 1
+        panel._text_edit.cursor_pos = 1
+        panel._text_edit.handle_keystroke(_MockEvent(type="DEL"))
+        assert panel._text_edit.buffer == "ac"
+        assert panel._text_edit.cursor_pos == 1
 
     def test_delete_at_end_does_nothing(self):
         """DEL at end of text leaves text unchanged."""
@@ -2826,9 +2826,9 @@ class TestTextFieldKeyboard:
         panel = _make_panel()
         panel.begin_frame()
         self._activate(panel, mock)
-        panel.text_cursor_pos = 3
-        panel._handle_text_keystroke(_MockEvent(type="DEL"))
-        assert panel._text_buffer == "abc"
+        panel._text_edit.cursor_pos = 3
+        panel._text_edit.handle_keystroke(_MockEvent(type="DEL"))
+        assert panel._text_edit.buffer == "abc"
 
     def test_left_arrow_moves_cursor(self):
         """LEFT_ARROW decrements cursor position."""
@@ -2836,9 +2836,9 @@ class TestTextFieldKeyboard:
         panel = _make_panel()
         panel.begin_frame()
         self._activate(panel, mock)
-        panel.text_cursor_pos = 2
-        panel._handle_text_keystroke(_MockEvent(type="LEFT_ARROW"))
-        assert panel.text_cursor_pos == 1
+        panel._text_edit.cursor_pos = 2
+        panel._text_edit.handle_keystroke(_MockEvent(type="LEFT_ARROW"))
+        assert panel._text_edit.cursor_pos == 1
 
     def test_right_arrow_moves_cursor(self):
         """RIGHT_ARROW increments cursor position."""
@@ -2846,9 +2846,9 @@ class TestTextFieldKeyboard:
         panel = _make_panel()
         panel.begin_frame()
         self._activate(panel, mock)
-        panel.text_cursor_pos = 1
-        panel._handle_text_keystroke(_MockEvent(type="RIGHT_ARROW"))
-        assert panel.text_cursor_pos == 2
+        panel._text_edit.cursor_pos = 1
+        panel._text_edit.handle_keystroke(_MockEvent(type="RIGHT_ARROW"))
+        assert panel._text_edit.cursor_pos == 2
 
     def test_home_moves_to_start(self):
         """HOME moves cursor to position 0."""
@@ -2856,9 +2856,9 @@ class TestTextFieldKeyboard:
         panel = _make_panel()
         panel.begin_frame()
         self._activate(panel, mock)
-        panel.text_cursor_pos = 2
-        panel._handle_text_keystroke(_MockEvent(type="HOME"))
-        assert panel.text_cursor_pos == 0
+        panel._text_edit.cursor_pos = 2
+        panel._text_edit.handle_keystroke(_MockEvent(type="HOME"))
+        assert panel._text_edit.cursor_pos == 0
 
     def test_end_moves_to_end(self):
         """END moves cursor to end of text."""
@@ -2866,9 +2866,9 @@ class TestTextFieldKeyboard:
         panel = _make_panel()
         panel.begin_frame()
         self._activate(panel, mock)
-        panel.text_cursor_pos = 1
-        panel._handle_text_keystroke(_MockEvent(type="END"))
-        assert panel.text_cursor_pos == 3
+        panel._text_edit.cursor_pos = 1
+        panel._text_edit.handle_keystroke(_MockEvent(type="END"))
+        assert panel._text_edit.cursor_pos == 3
 
     def test_enter_confirms(self):
         """RET confirms the field."""
@@ -2876,9 +2876,9 @@ class TestTextFieldKeyboard:
         panel = _make_panel()
         panel.begin_frame()
         self._activate(panel, mock)
-        consumed = panel._handle_text_keystroke(_MockEvent(type="RET"))
+        consumed = panel._text_edit.handle_keystroke(_MockEvent(type="RET"))
         assert consumed is True
-        assert panel.active_text_field is None
+        assert panel._text_edit.active_field is None
 
     def test_escape_cancels(self):
         """ESC cancels and restores original value."""
@@ -2886,10 +2886,10 @@ class TestTextFieldKeyboard:
         panel = _make_panel()
         panel.begin_frame()
         self._activate(panel, mock)
-        panel._text_buffer = "changed"
-        consumed = panel._handle_text_keystroke(_MockEvent(type="ESC"))
+        panel._text_edit.buffer = "changed"
+        consumed = panel._text_edit.handle_keystroke(_MockEvent(type="ESC"))
         assert consumed is True
-        assert panel.active_text_field is None
+        assert panel._text_edit.active_field is None
         assert mock.search_query == "hello"
 
     def test_non_press_ignored(self):
@@ -2898,7 +2898,7 @@ class TestTextFieldKeyboard:
         panel = _make_panel()
         panel.begin_frame()
         self._activate(panel, mock)
-        consumed = panel._handle_text_keystroke(
+        consumed = panel._text_edit.handle_keystroke(
             _MockEvent(type="A", value="RELEASE", unicode="a"),
         )
         assert consumed is False
@@ -2909,7 +2909,7 @@ class TestTextFieldKeyboard:
         panel = _make_panel()
         panel.begin_frame()
         self._activate(panel, mock)
-        consumed = panel._handle_text_keystroke(
+        consumed = panel._text_edit.handle_keystroke(
             _MockEvent(type="F1", unicode=""),
         )
         assert consumed is False
@@ -2920,7 +2920,7 @@ class TestTextFieldKeyboard:
         panel = _make_panel()
         panel.begin_frame()
         self._activate(panel, mock)
-        consumed = panel._handle_text_keystroke(
+        consumed = panel._text_edit.handle_keystroke(
             _MockEvent(type="Z", ctrl=True),
         )
         assert consumed is True
@@ -2932,9 +2932,9 @@ class TestTextFieldKeyboard:
         )
         panel = _make_panel()
         panel.begin_frame()
-        panel._textedit_update_fields.add("search_query")
+        panel._text_edit.textedit_update_fields.add("search_query")
         self._activate(panel, mock)
-        panel._handle_text_keystroke(
+        panel._text_edit.handle_keystroke(
             _MockEvent(type="X", unicode="x"),
         )
         assert mock.search_query == "abcx"
@@ -2945,11 +2945,11 @@ class TestTextFieldKeyboard:
         panel = _make_panel()
         panel.begin_frame()
         self._activate(panel, mock)
-        panel._handle_text_keystroke(
+        panel._text_edit.handle_keystroke(
             _MockEvent(type="X", unicode="x"),
         )
         # Buffer updated, but property NOT yet written.
-        assert panel._text_buffer == "abcx"
+        assert panel._text_edit.buffer == "abcx"
         assert mock.search_query == "abc"
 
 
@@ -2967,17 +2967,17 @@ class TestTextFieldClipboard:
         panel = _make_panel()
         panel.begin_frame()
         panel.activate_text_field("search_query", mock)
-        panel._text_selection_start = None
-        panel.text_cursor_pos = 1
+        panel._text_edit.selection_start = None
+        panel._text_edit.cursor_pos = 1
         with patch(
-            "melvil.ui.gpu.panel.bpy.context.window_manager"
+            "melvil.ui.gpu.text_edit.bpy.context.window_manager"
         ) as mock_wm:
             mock_wm.clipboard = "XY"
-            panel._handle_text_keystroke(
+            panel._text_edit.handle_keystroke(
                 _MockEvent(type="V", ctrl=True),
             )
-        assert panel._text_buffer == "aXYb"
-        assert panel.text_cursor_pos == 3
+        assert panel._text_edit.buffer == "aXYb"
+        assert panel._text_edit.cursor_pos == 3
 
     def test_paste_strips_newlines(self):
         """Pasted newlines are stripped for single-line field."""
@@ -2985,15 +2985,15 @@ class TestTextFieldClipboard:
         panel = _make_panel()
         panel.begin_frame()
         panel.activate_text_field("search_query", mock)
-        panel._text_selection_start = None
+        panel._text_edit.selection_start = None
         with patch(
-            "melvil.ui.gpu.panel.bpy.context.window_manager"
+            "melvil.ui.gpu.text_edit.bpy.context.window_manager"
         ) as mock_wm:
             mock_wm.clipboard = "a\nb\r\nc"
-            panel._handle_text_keystroke(
+            panel._text_edit.handle_keystroke(
                 _MockEvent(type="V", ctrl=True),
             )
-        assert panel._text_buffer == "abc"
+        assert panel._text_edit.buffer == "abc"
 
 
 # ===========================================================================
@@ -3010,8 +3010,8 @@ class TestTextFieldSelection:
         panel = _make_panel()
         panel.begin_frame()
         panel.activate_text_field("search_query", mock)
-        assert panel._text_selection_start == 0
-        assert panel.text_cursor_pos == 5
+        assert panel._text_edit.selection_start == 0
+        assert panel._text_edit.cursor_pos == 5
 
     def test_typing_replaces_selection(self):
         """Typing with select-all replaces all text."""
@@ -3020,10 +3020,10 @@ class TestTextFieldSelection:
         panel.begin_frame()
         panel.activate_text_field("search_query", mock)
         # select-all is active (selection_start=0, cursor=5)
-        panel._handle_text_keystroke(_MockEvent(type="X", unicode="x"))
-        assert panel._text_buffer == "x"
-        assert panel.text_cursor_pos == 1
-        assert panel._text_selection_start is None
+        panel._text_edit.handle_keystroke(_MockEvent(type="X", unicode="x"))
+        assert panel._text_edit.buffer == "x"
+        assert panel._text_edit.cursor_pos == 1
+        assert panel._text_edit.selection_start is None
 
     def test_backspace_deletes_selection(self):
         """Backspace with selection deletes the selected text."""
@@ -3032,9 +3032,9 @@ class TestTextFieldSelection:
         panel.begin_frame()
         panel.activate_text_field("search_query", mock)
         # select-all
-        panel._handle_text_keystroke(_MockEvent(type="BACK_SPACE"))
-        assert panel._text_buffer == ""
-        assert panel.text_cursor_pos == 0
+        panel._text_edit.handle_keystroke(_MockEvent(type="BACK_SPACE"))
+        assert panel._text_edit.buffer == ""
+        assert panel._text_edit.cursor_pos == 0
 
     def test_ctrl_a_selects_all(self):
         """Ctrl+A selects all text."""
@@ -3042,11 +3042,11 @@ class TestTextFieldSelection:
         panel = _make_panel()
         panel.begin_frame()
         panel.activate_text_field("search_query", mock)
-        panel._text_selection_start = None
-        panel.text_cursor_pos = 2
-        panel._handle_text_keystroke(_MockEvent(type="A", ctrl=True))
-        assert panel._text_selection_start == 0
-        assert panel.text_cursor_pos == 5
+        panel._text_edit.selection_start = None
+        panel._text_edit.cursor_pos = 2
+        panel._text_edit.handle_keystroke(_MockEvent(type="A", ctrl=True))
+        assert panel._text_edit.selection_start == 0
+        assert panel._text_edit.cursor_pos == 5
 
     def test_arrow_clears_selection(self):
         """Arrow keys clear the selection."""
@@ -3055,8 +3055,8 @@ class TestTextFieldSelection:
         panel.begin_frame()
         panel.activate_text_field("search_query", mock)
         # select-all is active
-        panel._handle_text_keystroke(_MockEvent(type="LEFT_ARROW"))
-        assert panel._text_selection_start is None
+        panel._text_edit.handle_keystroke(_MockEvent(type="LEFT_ARROW"))
+        assert panel._text_edit.selection_start is None
 
 
 # ===========================================================================
@@ -3074,11 +3074,11 @@ class TestTextFieldTabCycle:
         panel = _make_panel()
         panel.begin_frame()
         # Simulate tab order populated during draw.
-        panel._text_field_order = ["field_a", "field_b"]
-        panel._text_field_data = {"field_a": mock1, "field_b": mock2}
+        panel._text_edit.field_order = ["field_a", "field_b"]
+        panel._text_edit.field_data = {"field_a": mock1, "field_b": mock2}
         panel.activate_text_field("field_a", mock1)
-        panel._handle_text_keystroke(_MockEvent(type="TAB"))
-        assert panel.active_text_field == "field_b"
+        panel._text_edit.handle_keystroke(_MockEvent(type="TAB"))
+        assert panel._text_edit.active_field == "field_b"
 
     def test_tab_wraps_around(self):
         """Tab from the last field wraps to the first."""
@@ -3086,23 +3086,23 @@ class TestTextFieldTabCycle:
         mock2 = _mock_string_rna(current_value="two")
         panel = _make_panel()
         panel.begin_frame()
-        panel._text_field_order = ["field_a", "field_b"]
-        panel._text_field_data = {"field_a": mock1, "field_b": mock2}
+        panel._text_edit.field_order = ["field_a", "field_b"]
+        panel._text_edit.field_data = {"field_a": mock1, "field_b": mock2}
         panel.activate_text_field("field_b", mock2)
-        panel._handle_text_keystroke(_MockEvent(type="TAB"))
-        assert panel.active_text_field == "field_a"
+        panel._text_edit.handle_keystroke(_MockEvent(type="TAB"))
+        assert panel._text_edit.active_field == "field_a"
 
     def test_tab_with_single_field_confirms(self):
         """Tab with only one field confirms and re-activates it."""
         mock = _mock_string_rna(current_value="solo")
         panel = _make_panel()
         panel.begin_frame()
-        panel._text_field_order = ["search_query"]
-        panel._text_field_data = {"search_query": mock}
+        panel._text_edit.field_order = ["search_query"]
+        panel._text_edit.field_data = {"search_query": mock}
         panel.activate_text_field("search_query", mock)
-        panel._handle_text_keystroke(_MockEvent(type="TAB"))
+        panel._text_edit.handle_keystroke(_MockEvent(type="TAB"))
         # Re-activates the same (only) field.
-        assert panel.active_text_field == "search_query"
+        assert panel._text_edit.active_field == "search_query"
 
     def test_tab_with_no_fields_confirms(self):
         """Tab with empty field order just confirms."""
@@ -3110,8 +3110,8 @@ class TestTextFieldTabCycle:
         panel = _make_panel()
         panel.begin_frame()
         panel.activate_text_field("search_query", mock)
-        panel._handle_text_keystroke(_MockEvent(type="TAB"))
-        assert panel.active_text_field is None
+        panel._text_edit.handle_keystroke(_MockEvent(type="TAB"))
+        assert panel._text_edit.active_field is None
 
 
 # ===========================================================================
@@ -5412,7 +5412,7 @@ class TestHandleEventTextField:
 
         result = panel.handle_event(_MockEvent(type="ESC"))
 
-        assert panel.active_text_field is None
+        assert panel._text_edit.active_field is None
         assert result.consumed is True
         assert result.cancelled is False
         assert result.redraw is True
@@ -5422,27 +5422,27 @@ class TestHandleEventTextField:
 
         result = panel.handle_event(_MockEvent(type="RIGHTMOUSE"))
 
-        assert panel.active_text_field is None
+        assert panel._text_edit.active_field is None
         assert result.consumed is True
         assert result.cancelled is False
 
     def test_keystroke_routed_to_text_handler(self):
         panel, data = self._make_panel_with_text()
         # Clear the select-all so the character is appended.
-        panel._text_selection_start = None
+        panel._text_edit.selection_start = None
 
         result = panel.handle_event(
             _MockEvent(type="X", unicode="x"),
         )
 
-        assert panel._text_buffer == "hellox"
+        assert panel._text_edit.buffer == "hellox"
         assert result.consumed is True
         assert result.redraw is True
 
     def test_drag_mousemove_updates(self):
         panel, data = self._make_panel_with_text()
-        panel._text_dragging = True
-        panel._text_drag_field_rect = (0, 0, 200, 20)
+        panel._text_edit.dragging = True
+        panel._text_edit.drag_field_rect = (0, 0, 200, 20)
 
         result = panel.handle_event(
             _MockEvent(type="MOUSEMOVE", value="NOTHING", mouse_region_x=50),
@@ -5453,14 +5453,14 @@ class TestHandleEventTextField:
 
     def test_drag_release_ends(self):
         panel, data = self._make_panel_with_text()
-        panel._text_dragging = True
-        panel._text_drag_field_rect = (0, 0, 200, 20)
+        panel._text_edit.dragging = True
+        panel._text_edit.drag_field_rect = (0, 0, 200, 20)
 
         result = panel.handle_event(
             _MockEvent(type="LEFTMOUSE", value="RELEASE"),
         )
 
-        assert panel._text_dragging is False
+        assert panel._text_edit.dragging is False
         assert result.consumed is True
 
 
@@ -5535,7 +5535,7 @@ class TestHandleEventNormal:
             _MockEvent(type="LEFTMOUSE", mouse_region_x=50, mouse_region_y=15),
         )
 
-        assert panel.active_text_field == "name"
+        assert panel._text_edit.active_field == "name"
         assert result.consumed is True
         assert result.redraw is True
 
