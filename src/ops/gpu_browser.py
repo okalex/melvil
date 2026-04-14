@@ -516,7 +516,7 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
             if event.type == "LEFTMOUSE" and event.value == "PRESS":
                 idx = dd.hit_test(mx, my)
                 if idx >= 0:
-                    self._apply_dropdown_selection(dd, idx)
+                    dd.apply_selection(idx)
                 self._panel.close_dropdown()
                 if context.area is not None:
                     context.area.tag_redraw()
@@ -617,7 +617,8 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
                         pass
                     return {"RUNNING_MODAL"}
                 if hit is not None and hit.widget_type == "dropdown":
-                    self._open_dropdown_from_hit(hit)
+                    state = DropdownState.from_hit(hit, self._panel._ui_scale)
+                    self._panel.open_dropdown(state)
                     if context.area is not None:
                         context.area.tag_redraw()
                     return {"RUNNING_MODAL"}
@@ -688,105 +689,6 @@ class MELVIL_OT_gpu_browser(bpy.types.Operator):
                 bpy.ops.melvil.tag_rename("INVOKE_DEFAULT", tag_id=tag_item.tag_id)
         if context.area is not None:
             context.area.tag_redraw()
-
-    def _open_dropdown_from_hit(self, hit):
-        """Create a DropdownState from a dropdown HitResult and open it."""
-        kw = hit.kwargs
-        items = kw.get("items", [])
-
-        # Dynamic enum callbacks can't be resolved at build time (they
-        # need an operator instance).  Resolve them lazily here.
-        if not items and kw.get("mode") == "operator":
-            items = self._resolve_operator_enum_items(
-                kw.get("operator_id", ""), kw.get("property_name", ""),
-            )
-
-        state = DropdownState(
-            items=items,
-            anchor_rect=hit.rect,
-            mode=kw.get("mode", "prop"),
-            data=kw.get("data"),
-            property_name=kw.get("property_name", ""),
-            operator_id=kw.get("operator_id", ""),
-            operator_props=kw.get("operator_props", {}),
-        )
-        state.compute_rect(self._panel._ui_scale)
-        self._panel.open_dropdown(state)
-
-    @staticmethod
-    def _resolve_operator_enum_items(operator_id, property_name):
-        """Resolve enum items for *operator_id*'s *property_name* at runtime.
-
-        Dynamic enum callbacks require an operator instance.  Here we look
-        up the callback from the operator class's ``__annotations__`` (for
-        modules without ``from __future__ import annotations``) or from the
-        module-level function referenced in the ``_PropertyDeferred``.
-        """
-        import sys
-
-        items = []
-        try:
-            parts = operator_id.split(".", 1)
-            if len(parts) != 2:
-                return items
-            cls_name = f"{parts[0].upper()}_OT_{parts[1]}"
-            op_cls = getattr(bpy.types, cls_name, None)
-            if op_cls is None:
-                return items
-
-            # Look for the callback in the class annotations.
-            ann = getattr(op_cls, "__annotations__", {}).get(property_name)
-            kw = getattr(ann, "keywords", None) if ann else None
-            items_src = kw.get("items") if kw else None
-
-            # If annotations are stringified (from __future__ import
-            # annotations), find the callback in the operator's module.
-            if items_src is None:
-                mod_name = getattr(op_cls, "__module__", None)
-                mod = sys.modules.get(mod_name) if mod_name else None
-                if mod is not None:
-                    # Try common naming conventions:
-                    #   _get_kit_id_items  (property name as-is)
-                    #   _get_kit_items     (without _id suffix)
-                    for stem in (property_name, property_name.removesuffix("_id")):
-                        fn_name = f"_get_{stem}_items"
-                        items_src = getattr(mod, fn_name, None)
-                        if callable(items_src):
-                            break
-
-            if callable(items_src):
-                raw = items_src(None, bpy.context)
-                for entry in raw:
-                    if len(entry) >= 4:
-                        items.append((entry[0], entry[1], entry[2], entry[3]))
-                    else:
-                        items.append((entry[0], entry[1], "", "NONE"))
-        except Exception:  # noqa: BLE001
-            pass
-        return items
-
-    @staticmethod
-    def _apply_dropdown_selection(dd, idx):
-        """Perform the selection action for dropdown item *idx*."""
-        if idx < 0 or idx >= len(dd.items):
-            return
-        identifier = dd.items[idx][0]
-        if dd.mode == "prop" and dd.data is not None:
-            try:
-                setattr(dd.data, dd.property_name, identifier)
-            except Exception:  # noqa: BLE001
-                pass
-        elif dd.mode == "operator" and dd.operator_id:
-            try:
-                parts = dd.operator_id.split(".", 1)
-                if len(parts) == 2:
-                    op_fn = getattr(bpy.ops, parts[0])
-                    op_fn = getattr(op_fn, parts[1])
-                    props = dict(dd.operator_props)
-                    props[dd.property_name] = identifier
-                    op_fn("INVOKE_DEFAULT", **props)
-            except Exception:  # noqa: BLE001
-                pass
 
     def _cleanup(self, context):
         if self._panel is not None:

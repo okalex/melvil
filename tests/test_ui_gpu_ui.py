@@ -5086,6 +5086,98 @@ class TestDropdownState:
         # rect not yet computed
         assert state.is_inside(0, 0) is False
 
+    def test_apply_selection_prop_mode(self):
+        """apply_selection sets the property on data in prop mode."""
+        from melvil.ui.gpu import DropdownState
+
+        data = MagicMock()
+        state = DropdownState(
+            items=_MOCK_DROPDOWN_ITEMS,
+            anchor_rect=(0.0, 200.0, 200.0, 30.0),
+            mode="prop",
+            data=data,
+            property_name="color",
+        )
+        state.apply_selection(1)
+        assert data.color == "GREEN"
+
+    def test_apply_selection_out_of_range_ignored(self):
+        """apply_selection silently ignores out-of-range indices."""
+        from melvil.ui.gpu import DropdownState
+
+        data = MagicMock(spec=[])
+        state = DropdownState(
+            items=_MOCK_DROPDOWN_ITEMS,
+            anchor_rect=(0.0, 200.0, 200.0, 30.0),
+            mode="prop",
+            data=data,
+            property_name="color",
+        )
+        state.apply_selection(-1)
+        state.apply_selection(99)
+        assert not hasattr(data, "color")
+
+    def test_apply_selection_operator_mode(self):
+        """apply_selection invokes the operator in operator mode."""
+        from melvil.ui.gpu import DropdownState
+
+        state = DropdownState(
+            items=_MOCK_DROPDOWN_ITEMS,
+            anchor_rect=(0.0, 200.0, 200.0, 30.0),
+            mode="operator",
+            operator_id="melvil.load_asset",
+            operator_props={"extra": "val"},
+            property_name="color",
+        )
+        mock_ns = MagicMock()
+        with patch("bpy.ops", create=True) as mock_ops:
+            mock_ops.melvil = mock_ns
+            state.apply_selection(0)
+        mock_ns.load_asset.assert_called_once_with(
+            "INVOKE_DEFAULT", extra="val", color="RED",
+        )
+
+    def test_from_hit_prop_mode(self):
+        """from_hit creates a correctly populated state from a HitResult."""
+        from melvil.ui.gpu import DropdownState
+        from melvil.ui.gpu.panel import HitResult
+
+        hit = HitResult(
+            widget_type="dropdown",
+            id="test.color",
+            kwargs={
+                "items": _MOCK_DROPDOWN_ITEMS,
+                "mode": "prop",
+                "data": MagicMock(),
+                "property_name": "color",
+                "operator_id": "",
+                "operator_props": {},
+            },
+            rect=(10.0, 200.0, 150.0, 30.0),
+        )
+        state = DropdownState.from_hit(hit, ui_scale=1.0)
+        assert state.items == _MOCK_DROPDOWN_ITEMS
+        assert state.mode == "prop"
+        assert state.property_name == "color"
+        assert state.anchor_rect == (10.0, 200.0, 150.0, 30.0)
+        assert state.rect is not None  # compute_rect was called
+
+    def test_from_hit_defaults(self):
+        """from_hit handles minimal kwargs with sensible defaults."""
+        from melvil.ui.gpu import DropdownState
+        from melvil.ui.gpu.panel import HitResult
+
+        hit = HitResult(
+            widget_type="dropdown",
+            id="test.empty",
+            kwargs={"items": _MOCK_DROPDOWN_ITEMS},
+            rect=(0.0, 100.0, 100.0, 20.0),
+        )
+        state = DropdownState.from_hit(hit, ui_scale=1.0)
+        assert state.mode == "prop"
+        assert state.operator_id == ""
+        assert state.property_name == ""
+
 
 # ---------------------------------------------------------------------------
 # GpuPanel — dropdown lifecycle

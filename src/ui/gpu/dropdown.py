@@ -14,6 +14,7 @@ The dropdown supports two modes:
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -168,6 +169,127 @@ class DropdownState:
         if self.rect is None:
             return False
         return point_in_rect((mx, my), self.rect)
+
+    # -- Construction from HitResult ----------------------------------------
+
+    @classmethod
+    def from_hit(cls, hit: Any, ui_scale: float) -> DropdownState:
+        """Create a :class:`DropdownState` from a :class:`HitResult`.
+
+        Resolves dynamic enum items lazily when the hit carries no static
+        items and the mode is ``"operator"``.
+
+        Parameters
+        ----------
+        hit:
+            A :class:`~gpu.panel.HitResult` with ``widget_type == "dropdown"``.
+        ui_scale:
+            Current UI scale factor — forwarded to :meth:`compute_rect`.
+        """
+        kw = hit.kwargs
+        items = kw.get("items", [])
+
+        if not items and kw.get("mode") == "operator":
+            items = cls._resolve_operator_enum_items(
+                kw.get("operator_id", ""), kw.get("property_name", ""),
+            )
+
+        state = cls(
+            items=items,
+            anchor_rect=hit.rect,
+            mode=kw.get("mode", "prop"),
+            data=kw.get("data"),
+            property_name=kw.get("property_name", ""),
+            operator_id=kw.get("operator_id", ""),
+            operator_props=kw.get("operator_props", {}),
+        )
+        state.compute_rect(ui_scale)
+        return state
+
+    # -- Selection -----------------------------------------------------------
+
+    def apply_selection(self, idx: int) -> None:
+        """Perform the action for item at *idx*.
+
+        In ``"prop"`` mode the matching property is set on :attr:`data`.
+        In ``"operator"`` mode the operator is invoked with the selected
+        enum value.  Out-of-range indices are silently ignored.
+        """
+        import bpy
+
+        if idx < 0 or idx >= len(self.items):
+            return
+        identifier = self.items[idx][0]
+        if self.mode == "prop" and self.data is not None:
+            try:
+                setattr(self.data, self.property_name, identifier)
+            except Exception:  # noqa: BLE001
+                pass
+        elif self.mode == "operator" and self.operator_id:
+            try:
+                parts = self.operator_id.split(".", 1)
+                if len(parts) == 2:
+                    op_fn = getattr(bpy.ops, parts[0])
+                    op_fn = getattr(op_fn, parts[1])
+                    props = dict(self.operator_props)
+                    props[self.property_name] = identifier
+                    op_fn("INVOKE_DEFAULT", **props)
+            except Exception:  # noqa: BLE001
+                pass
+
+    # -- Dynamic enum resolution --------------------------------------------
+
+    @staticmethod
+    def _resolve_operator_enum_items(
+        operator_id: str, property_name: str,
+    ) -> list[tuple[str, str, str, str]]:
+        """Resolve enum items for *operator_id*'s *property_name* at runtime.
+
+        Dynamic enum callbacks require an operator instance.  This method
+        looks up the callback from the operator class's ``__annotations__``
+        (for modules without ``from __future__ import annotations``) or
+        from the module-level function referenced in the
+        ``_PropertyDeferred``.
+        """
+        import bpy
+
+        items: list[tuple[str, str, str, str]] = []
+        try:
+            parts = operator_id.split(".", 1)
+            if len(parts) != 2:
+                return items
+            cls_name = f"{parts[0].upper()}_OT_{parts[1]}"
+            op_cls = getattr(bpy.types, cls_name, None)
+            if op_cls is None:
+                return items
+
+            # Look for the callback in the class annotations.
+            ann = getattr(op_cls, "__annotations__", {}).get(property_name)
+            kw = getattr(ann, "keywords", None) if ann else None
+            items_src = kw.get("items") if kw else None
+
+            # If annotations are stringified (from __future__ import
+            # annotations), find the callback in the operator's module.
+            if items_src is None:
+                mod_name = getattr(op_cls, "__module__", None)
+                mod = sys.modules.get(mod_name) if mod_name else None
+                if mod is not None:
+                    for stem in (property_name, property_name.removesuffix("_id")):
+                        fn_name = f"_get_{stem}_items"
+                        items_src = getattr(mod, fn_name, None)
+                        if callable(items_src):
+                            break
+
+            if callable(items_src):
+                raw = items_src(None, bpy.context)
+                for entry in raw:
+                    if len(entry) >= 4:
+                        items.append((entry[0], entry[1], entry[2], entry[3]))
+                    else:
+                        items.append((entry[0], entry[1], "", "NONE"))
+        except Exception:  # noqa: BLE001
+            pass
+        return items
 
 
 # ---------------------------------------------------------------------------
