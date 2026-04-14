@@ -114,7 +114,7 @@ class ThemeColors:
             button_bg=_rgba(ui.wcol_tool.inner),
             button_bg_hover=_rgba(ui.wcol_tool.inner_sel),
             button_text=_rgba(ui.wcol_tool.text),
-            box_bg=_rgba(ui.wcol_box.inner),
+            box_bg=(box_inner[0], box_inner[1], box_inner[2], 1.0),
             list_item_bg=(min(1.0, panel_bg[0] + 0.05),
                           min(1.0, panel_bg[1] + 0.05),
                           min(1.0, panel_bg[2] + 0.05),
