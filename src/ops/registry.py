@@ -21,7 +21,7 @@ from .load_material import (
     MELVIL_UL_MaterialList,
 )
 from .open_blend_file import MELVIL_OT_open_blend_file, MELVIL_OT_reveal_blend_file
-from .gpu_browser import MELVIL_OT_gpu_browser
+from .open_browser import MELVIL_OT_open_browser
 from .save import MELVIL_OT_save_asset, MELVIL_OT_save_nodes_as_asset
 from ..ui.gpu.grid_list import MELVIL_OT_grid_scroll_nav
 from .set_active_kit import MELVIL_OT_set_active_kit
@@ -52,7 +52,7 @@ _classes = (
     MELVIL_OT_delete_asset,
     MELVIL_OT_open_blend_file,
     MELVIL_OT_reveal_blend_file,
-    MELVIL_OT_gpu_browser,
+    MELVIL_OT_open_browser,
     MELVIL_OT_grid_scroll_nav,
     MELVIL_OT_set_active_kit,
     MELVIL_OT_set_preview_object,

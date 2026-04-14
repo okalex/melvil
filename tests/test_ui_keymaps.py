@@ -27,7 +27,7 @@ class TestRegister:
             name="3D View", space_type="VIEW_3D"
         )
         mock_km.keymap_items.new.assert_called_once_with(
-            "melvil.gpu_browser",
+            "melvil.open_browser",
             type="A",
             value="PRESS",
             ctrl=True,
