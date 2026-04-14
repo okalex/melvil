@@ -37,7 +37,7 @@ import bpy
 from bpy.props import BoolProperty, CollectionProperty, IntProperty, PointerProperty, StringProperty
 from bpy.types import PropertyGroup
 
-from .grid_list import MelvilGridScrollProps
+from .gpu.grid_list import MelvilGridScrollProps
 
 
 # Guard flag: set True while draw() rebuilds melvil_filter_tags so that the

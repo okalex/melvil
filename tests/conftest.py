@@ -230,7 +230,7 @@ if "bpy" not in sys.modules:
 # ---------------------------------------------------------------------------
 # Mock Blender-only C modules (gpu, blf, gpu_extras)
 # ---------------------------------------------------------------------------
-# These are only available inside Blender's embedded Python.  grid_list.py
+# These are only available inside Blender's embedded Python.  gpu/grid_list.py
 # imports them at module level, so they must exist before exec_module runs.
 
 if "gpu" not in sys.modules:

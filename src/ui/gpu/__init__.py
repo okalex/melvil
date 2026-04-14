@@ -45,7 +45,7 @@ from .drawing import (
 from .button import GpuButton, GpuOperatorProps
 from .dropdown import DropdownState, GpuDropdown
 from .enum_buttons import GpuEnumButtons
-from .grid_list import GpuGridList, ScrollState
+from .grid_list import GpuGridList, ScrollState, MelvilGridScrollProps, MELVIL_OT_grid_scroll_nav, compute_max_offset
 from .icon_button import GpuIconButton
 from .layout import GpuLayout
 from .label import GpuLabel
