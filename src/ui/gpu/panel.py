@@ -207,6 +207,16 @@ class GpuPanel:
         finally:
             gpu.state.blend_set("NONE")
 
+    # -- Public widget accessors ---------------------------------------------
+
+    def get_mouse_pos(self) -> tuple[float, float] | None:
+        """Return the current mouse position, or ``None`` if unknown."""
+        return self._mouse_pos
+
+    def get_list_selection(self, list_id: str) -> int:
+        """Return the selected index for *list_id*, or ``-1``."""
+        return self._list_selections.get(list_id, -1)
+
     # -- Hit testing ---------------------------------------------------------
 
     def register_hit(self, hit: HitResult) -> None:
@@ -539,7 +549,7 @@ class GpuPanel:
 
     # -- Scroll state --------------------------------------------------------
 
-    def _get_scroll_state(self, list_id: str) -> ScrollState:
+    def get_scroll_state(self, list_id: str) -> ScrollState:
         """Return the :class:`ScrollState` for *list_id*, creating if needed."""
         if list_id not in self._scroll_states:
             self._scroll_states[list_id] = ScrollState()

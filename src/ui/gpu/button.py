@@ -69,7 +69,7 @@ class GpuButton(GpuWidget):
         x, y, w, h = self.rect
         theme = get_theme()
         is_enabled = self.enabled and parent_enabled
-        hovered = is_enabled and point_in_rect(panel._mouse_pos, self.rect)
+        hovered = is_enabled and point_in_rect(panel.get_mouse_pos(), self.rect)
         r = scaled(4.0, s)
 
         # -- Background ------------------------------------------------------

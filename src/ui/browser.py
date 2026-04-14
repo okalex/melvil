@@ -266,7 +266,7 @@ def build_browser(operator, panel, layout):
         )
         tag_btn_col.separator(factor=0.5)
         selected_idx = (
-            panel._list_selections.get("gpu_tag_filter", -1)
+            panel.get_list_selection("gpu_tag_filter")
             if panel is not None else -1
         )
         selected_tag = (

@@ -63,7 +63,7 @@ class GpuIconButton(GpuWidget):
         theme = get_theme()
         x, y, w, h = self.rect
         is_enabled = self.enabled and parent_enabled
-        hovered = is_enabled and point_in_rect(panel._mouse_pos, self.rect)
+        hovered = is_enabled and point_in_rect(panel.get_mouse_pos(), self.rect)
 
         # Subtle hover highlight behind the icon (skipped for GHOST style).
         if hovered and self.style != "GHOST":

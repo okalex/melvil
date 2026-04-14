@@ -118,10 +118,10 @@ class GpuGridList(GpuWidget):
         # Visual selection is tracked on the panel separately from the
         # data-model active index so that property update callbacks
         # (which may reset the index) don't clear the highlight.
-        selected_index = panel._list_selections.get(self.list_id, -1)
+        selected_index = panel.get_list_selection(self.list_id)
 
         # --- Scroll state ---
-        scroll = panel._get_scroll_state(self.list_id)
+        scroll = panel.get_scroll_state(self.list_id)
         scroll.total_items = total
         scroll.max_visible = self.rows_visible
         max_visible_cells = self.rows_visible * self.cols
@@ -181,14 +181,14 @@ class GpuGridList(GpuWidget):
                     draw_rect_rounded(
                         cell_x, cursor_y, cell_w, ch, r, theme.selection_bg,
                     )
-                elif point_in_rect(panel._mouse_pos, cell_rect):
+                elif point_in_rect(panel.get_mouse_pos(), cell_rect):
                     draw_rect_rounded(
                         cell_x, cursor_y, cell_w, ch, r, theme.list_item_bg,
                     )
 
                 # Draw cell content via callback.
                 row_layout = GpuLayout(panel, direction="ROW")
-                is_hovered = point_in_rect(panel._mouse_pos, cell_rect)
+                is_hovered = point_in_rect(panel.get_mouse_pos(), cell_rect)
                 row_layout._list_context = {
                     "list_id": self.list_id,
                     "index": idx,
@@ -230,7 +230,7 @@ class GpuGridList(GpuWidget):
         self, event_type: str, panel: GpuPanel, **kwargs: Any,
     ) -> bool:
         """Handle scroll events.  Returns ``True`` if consumed."""
-        scroll = panel._get_scroll_state(self.list_id)
+        scroll = panel.get_scroll_state(self.list_id)
         collection = getattr(self.dataptr, self.propname, [])
         total = len(collection)
         total_rows = math.ceil(total / self.cols) if self.cols > 0 else 0

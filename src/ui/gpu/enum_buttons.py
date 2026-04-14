@@ -57,7 +57,7 @@ class GpuEnumButtons(GpuWidget):
             cursor_y -= btn_h
             btn_rect = (x, cursor_y, w, btn_h)
             is_active = identifier == self.active_value
-            hovered = is_enabled and point_in_rect(panel._mouse_pos, btn_rect)
+            hovered = is_enabled and point_in_rect(panel.get_mouse_pos(), btn_rect)
 
             # -- Background ---------------------------------------------------
             if is_active:

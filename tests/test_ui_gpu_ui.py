@@ -3769,7 +3769,7 @@ class TestGpuGridListDraw:
     def test_draw_with_scroll_offset(self):
         gl, items, _, _ = self._make_grid_list(10, rows=5)
         panel = _make_panel()
-        scroll = panel._get_scroll_state("test_list")
+        scroll = panel.get_scroll_state("test_list")
         scroll.offset = 3
         panel.begin_frame()
         h = gl.measure_height(1.0)
@@ -4190,7 +4190,7 @@ class TestGpuGridListHandleEvent:
             active_propname="my_collection_index",
         )
         panel = _make_panel()
-        scroll = panel._get_scroll_state("ev_test")
+        scroll = panel.get_scroll_state("ev_test")
         scroll.offset = offset
         return gl, panel, scroll
 
@@ -4438,7 +4438,7 @@ class TestEventBubbling:
             "SCROLL_DOWN", gx + 5, gy + 5,
         )
         assert consumed is True
-        scroll = panel._get_scroll_state("bubble_test")
+        scroll = panel.get_scroll_state("bubble_test")
         assert scroll.offset == 1
 
     def test_dispatch_outside_panel_not_consumed(self):
@@ -4540,22 +4540,22 @@ class TestPanelScrollState:
         from melvil.ui.gpu import ScrollState
 
         panel = _make_panel()
-        ss = panel._get_scroll_state("my_list")
+        ss = panel.get_scroll_state("my_list")
         assert isinstance(ss, ScrollState)
         assert ss.offset == 0
 
     def test_get_returns_same_instance(self):
         panel = _make_panel()
-        ss1 = panel._get_scroll_state("my_list")
+        ss1 = panel.get_scroll_state("my_list")
         ss1.offset = 7
-        ss2 = panel._get_scroll_state("my_list")
+        ss2 = panel.get_scroll_state("my_list")
         assert ss1 is ss2
         assert ss2.offset == 7
 
     def test_different_ids_different_states(self):
         panel = _make_panel()
-        a = panel._get_scroll_state("list_a")
-        b = panel._get_scroll_state("list_b")
+        a = panel.get_scroll_state("list_a")
+        b = panel.get_scroll_state("list_b")
         a.offset = 5
         assert b.offset == 0
 
@@ -4564,7 +4564,7 @@ class TestPanelScrollState:
 
         panel = _make_panel()
         panel.attach(MagicMock())
-        panel._get_scroll_state("test").offset = 5
+        panel.get_scroll_state("test").offset = 5
         panel.detach()
         assert len(panel._scroll_states) == 0
 
