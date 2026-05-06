@@ -1,6 +1,6 @@
 """
-MELVIL_OT_open_blend_file — open a managed .blend file in a new Blender window.
-MELVIL_OT_reveal_blend_file — reveal a managed .blend file in the OS file explorer.
+BLAMMO_OT_open_blend_file — open a managed .blend file in a new Blender window.
+BLAMMO_OT_reveal_blend_file — reveal a managed .blend file in the OS file explorer.
 
 Both operators accept *blend_path* as an absolute filesystem path.  The asset
 detail panel sets this from ``<library_root> / asset["blend_path"]``.
@@ -16,10 +16,10 @@ import bpy
 from bpy.props import StringProperty
 
 
-class MELVIL_OT_open_blend_file(bpy.types.Operator):
-    """Open a Melvil .blend file in a new Blender window"""
+class BLAMMO_OT_open_blend_file(bpy.types.Operator):
+    """Open a Blammo .blend file in a new Blender window"""
 
-    bl_idname = "melvil.open_blend_file"
+    bl_idname = "blammo.open_blend_file"
     bl_label = "Open in Blender"
     bl_options = {"REGISTER"}
 
@@ -37,25 +37,25 @@ class MELVIL_OT_open_blend_file(bpy.types.Operator):
     def execute(self, context):
         path = self.blend_path.strip()
         if not path:
-            self.report({"ERROR"}, "Melvil: no blend file path provided.")
+            self.report({"ERROR"}, "Blammo!: no blend file path provided.")
             return {"CANCELLED"}
         if not Path(path).is_file():
-            self.report({"ERROR"}, f"Melvil: blend file not found: {path}")
+            self.report({"ERROR"}, f"Blammo!: blend file not found: {path}")
             return {"CANCELLED"}
 
         try:
             subprocess.Popen([bpy.app.binary_path, path])
         except Exception as exc:  # noqa: BLE001
-            self.report({"ERROR"}, f"Melvil: could not open Blender — {exc}")
+            self.report({"ERROR"}, f"Blammo!: could not open Blender — {exc}")
             return {"CANCELLED"}
 
         return {"FINISHED"}
 
 
-class MELVIL_OT_reveal_blend_file(bpy.types.Operator):
-    """Reveal a Melvil .blend file in the OS file explorer"""
+class BLAMMO_OT_reveal_blend_file(bpy.types.Operator):
+    """Reveal a Blammo .blend file in the OS file explorer"""
 
-    bl_idname = "melvil.reveal_blend_file"
+    bl_idname = "blammo.reveal_blend_file"
     bl_label = "Reveal in File Explorer"
     bl_options = {"REGISTER"}
 
@@ -73,7 +73,7 @@ class MELVIL_OT_reveal_blend_file(bpy.types.Operator):
     def execute(self, context):
         path = self.blend_path.strip()
         if not path:
-            self.report({"ERROR"}, "Melvil: no blend file path provided.")
+            self.report({"ERROR"}, "Blammo!: no blend file path provided.")
             return {"CANCELLED"}
 
         try:
@@ -85,7 +85,7 @@ class MELVIL_OT_reveal_blend_file(bpy.types.Operator):
                 # Linux: open the containing directory
                 subprocess.Popen(["xdg-open", str(Path(path).parent)])
         except Exception as exc:  # noqa: BLE001
-            self.report({"ERROR"}, f"Melvil: could not reveal file — {exc}")
+            self.report({"ERROR"}, f"Blammo!: could not reveal file — {exc}")
             return {"CANCELLED"}
 
         return {"FINISHED"}

@@ -1,13 +1,13 @@
-"""Tests for melvil.db.assets — CRUD helpers."""
+"""Tests for blammo.db.assets — CRUD helpers."""
 
 from __future__ import annotations
 
 import sqlite3
 import pytest
 
-from melvil.db.connection import migrate
-from melvil.db import assets as assets_db
-from melvil.db.kits import DEFAULT_KIT_ID
+from blammo.db.connection import migrate
+from blammo.db import assets as assets_db
+from blammo.db.kits import DEFAULT_KIT_ID
 
 
 @pytest.fixture
@@ -110,7 +110,7 @@ CUSTOM_KIT_ID = "bbbbbbbb-0000-4000-8000-000000000001"
 @pytest.fixture
 def conn_with_kit(conn):
     """Fixture that adds a second kit alongside the default General kit."""
-    from melvil.db import kits as kits_db
+    from blammo.db import kits as kits_db
     kits_db.insert_kit(conn, id=CUSTOM_KIT_ID, name="Game Project")
     return conn
 

@@ -13,7 +13,7 @@ import bpy
 
 from ..db import open_db
 
-BLENDER_ASSET_LIBRARY_NAME = "Melvil Assets"
+BLENDER_ASSET_LIBRARY_NAME = "Blammo! Assets"
 
 
 class LibraryNotConfiguredError(Exception):
@@ -21,27 +21,27 @@ class LibraryNotConfiguredError(Exception):
 
 
 def get_prefs():
-    from ..preferences import MelvilPreferences
-    return bpy.context.preferences.addons[MelvilPreferences.bl_idname].preferences
+    from ..preferences import BlammoPreferences
+    return bpy.context.preferences.addons[BlammoPreferences.bl_idname].preferences
 
 
 def _os_app_data_dir() -> Path:
     """
-    Return the platform-appropriate application data directory for Melvil.
+    Return the platform-appropriate application data directory for Blammo.
 
-    - macOS:  ~/Library/Application Support/Melvil
-    - Windows: %APPDATA%/Melvil
-    - Linux:   $XDG_DATA_HOME/melvil  (falls back to ~/.local/share/melvil)
+    - macOS:  ~/Library/Application Support/Blammo
+    - Windows: %APPDATA%/Blammo
+    - Linux:   $XDG_DATA_HOME/blammo  (falls back to ~/.local/share/blammo)
     """
     if sys.platform == "win32":
         base = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
-        return base / "Melvil"
+        return base / "Blammo"
     if sys.platform == "darwin":
-        return Path.home() / "Library" / "Application Support" / "Melvil"
+        return Path.home() / "Library" / "Application Support" / "Blammo"
     # Linux / other POSIX
     xdg = os.environ.get("XDG_DATA_HOME", "")
     base = Path(xdg) if xdg else Path.home() / ".local" / "share"
-    return base / "melvil"
+    return base / "blammo"
 
 
 def _default_library_root() -> Path:
@@ -49,9 +49,9 @@ def _default_library_root() -> Path:
     Return the default assets directory when no explicit path is configured.
 
     Resolves to the platform app data dir + 'assets/', e.g.:
-        ~/Library/Application Support/Melvil/assets/   (macOS)
-        %APPDATA%/Melvil/assets/                        (Windows)
-        ~/.local/share/melvil/assets/                   (Linux)
+        ~/Library/Application Support/Blammo/assets/   (macOS)
+        %APPDATA%/Blammo/assets/                        (Windows)
+        ~/.local/share/blammo/assets/                   (Linux)
     """
     return _os_app_data_dir() / "assets"
 
@@ -76,11 +76,11 @@ def _default_db_path() -> Path:
     Return the default DB path in the platform app data directory.
 
     Resolves to, e.g.:
-        ~/Library/Application Support/Melvil/melvil.db   (macOS)
-        %APPDATA%/Melvil/melvil.db                        (Windows)
-        ~/.local/share/melvil/melvil.db                   (Linux)
+        ~/Library/Application Support/Blammo/blammo.db   (macOS)
+        %APPDATA%/Blammo/blammo.db                        (Windows)
+        ~/.local/share/blammo/blammo.db                   (Linux)
     """
-    return _os_app_data_dir() / "melvil.db"
+    return _os_app_data_dir() / "blammo.db"
 
 
 def resolve_db_path() -> Path:
@@ -99,7 +99,7 @@ def resolve_db_path() -> Path:
 
 def sync_blender_asset_library() -> None:
     """
-    Ensure Blender's asset library list contains a 'Melvil Assets' entry that
+    Ensure Blender's asset library list contains a 'Blammo! Assets' entry that
     points to the current assets directory.
 
     This is idempotent: it creates the entry if absent, and updates the path if

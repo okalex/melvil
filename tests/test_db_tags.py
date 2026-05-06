@@ -1,13 +1,13 @@
-"""Tests for melvil.db.tags — CRUD helpers."""
+"""Tests for blammo.db.tags — CRUD helpers."""
 
 from __future__ import annotations
 
 import sqlite3
 import pytest
 
-from melvil.db.connection import migrate
-from melvil.db import assets as assets_db
-from melvil.db import tags as tags_db
+from blammo.db.connection import migrate
+from blammo.db import assets as assets_db
+from blammo.db import tags as tags_db
 
 
 @pytest.fixture

@@ -2,7 +2,7 @@
 Configure bpy mock and import path for tests.
 
 Blender's bpy module is only available at runtime inside Blender, so we mock
-it here. We also register src/ as the 'melvil' package so that tests can
+it here. We also register src/ as the 'blammo' package so that tests can
 import it by its addon name without requiring an installed package.
 """
 
@@ -162,8 +162,8 @@ def _make_bpy_mock() -> types.ModuleType:
     bpy_utils = types.ModuleType("bpy.utils")
     bpy_utils.register_class = MagicMock()
     bpy_utils.unregister_class = MagicMock()
-    bpy_utils.extension_path_user = MagicMock(return_value="/tmp/melvil_test_data")
-    bpy_utils.user_resource = MagicMock(return_value="/tmp/melvil_test_config")
+    bpy_utils.extension_path_user = MagicMock(return_value="/tmp/blammo_test_data")
+    bpy_utils.user_resource = MagicMock(return_value="/tmp/blammo_test_config")
     bpy_utils_previews = types.ModuleType("bpy.utils.previews")
     bpy_utils_previews.new = MagicMock(return_value=MagicMock())
     bpy_utils_previews.remove = MagicMock()
@@ -258,22 +258,22 @@ if "gpu_extras.batch" not in sys.modules:
     sys.modules["gpu_extras.batch"] = _gpu_extras_batch
 
 # ---------------------------------------------------------------------------
-# Register src/ as the 'melvil' package
+# Register src/ as the 'blammo' package
 # ---------------------------------------------------------------------------
-# src/ is the addon root. Because it isn't named 'melvil', Python won't find
-# it via normal sys.path searching. We load it explicitly under the 'melvil'
-# name so that `import melvil` and all relative imports within the package
+# src/ is the addon root. Because it isn't named 'blammo', Python won't find
+# it via normal sys.path searching. We load it explicitly under the 'blammo'
+# name so that `import blammo` and all relative imports within the package
 # work as they do inside Blender.
 
 _src = str(Path(__file__).parent.parent / "src")
 
-if "melvil" not in sys.modules:
+if "blammo" not in sys.modules:
     _spec = importlib.util.spec_from_file_location(
-        "melvil",
+        "blammo",
         f"{_src}/__init__.py",
         submodule_search_locations=[_src],
     )
     _mod = importlib.util.module_from_spec(_spec)
-    _mod.__package__ = "melvil"
-    sys.modules["melvil"] = _mod
+    _mod.__package__ = "blammo"
+    sys.modules["blammo"] = _mod
     _spec.loader.exec_module(_mod)

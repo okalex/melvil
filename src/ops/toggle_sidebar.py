@@ -1,10 +1,10 @@
 """
-MELVIL_OT_toggle_sidebar — open or close the Melvil N-panel tab.
+BLAMMO_OT_toggle_sidebar — open or close the Blammo N-panel tab.
 
 Bound to ``Ctrl+Shift+A`` in the 3D View by ``ui/keymaps.py``.
 
 Toggling ``space_data.show_region_ui`` opens or closes the sidebar.
-Because the Melvil tab is in the ``"Melvil"`` category the user lands
+Because the Blammo tab is in the ``"Blammo"`` category the user lands
 on it naturally when the sidebar opens, provided no other tab was
 previously active before it was closed.
 """
@@ -14,11 +14,11 @@ from __future__ import annotations
 import bpy
 
 
-class MELVIL_OT_toggle_sidebar(bpy.types.Operator):
-    """Toggle the Melvil sidebar panel (Ctrl+Shift+A)"""
+class BLAMMO_OT_toggle_sidebar(bpy.types.Operator):
+    """Toggle the Blammo sidebar panel (Ctrl+Shift+A)"""
 
-    bl_idname = "melvil.toggle_sidebar"
-    bl_label = "Toggle Melvil Panel"
+    bl_idname = "blammo.toggle_sidebar"
+    bl_label = "Toggle Blammo! Panel"
     bl_options = {"REGISTER"}
 
     @classmethod

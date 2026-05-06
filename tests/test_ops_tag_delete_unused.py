@@ -1,4 +1,4 @@
-"""Tests for ops/tag_delete_unused.py — MELVIL_OT_tag_delete_unused."""
+"""Tests for ops/tag_delete_unused.py — BLAMMO_OT_tag_delete_unused."""
 
 from __future__ import annotations
 
@@ -8,10 +8,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from melvil.db.connection import migrate
-from melvil.db import assets as assets_db
-from melvil.db import tags as tags_db
-from melvil.db.kits import DEFAULT_KIT_ID
+from blammo.db.connection import migrate
+from blammo.db import assets as assets_db
+from blammo.db import tags as tags_db
+from blammo.db.kits import DEFAULT_KIT_ID
 
 
 @pytest.fixture
@@ -32,9 +32,9 @@ def _mock_open_db(conn):
 
 
 def _make_op():
-    from melvil.ops.tag_delete_unused import MELVIL_OT_tag_delete_unused
+    from blammo.ops.tag_delete_unused import BLAMMO_OT_tag_delete_unused
 
-    return MELVIL_OT_tag_delete_unused()
+    return BLAMMO_OT_tag_delete_unused()
 
 
 # ---------------------------------------------------------------------------
@@ -43,15 +43,15 @@ def _make_op():
 
 
 def test_bl_idname():
-    from melvil.ops.tag_delete_unused import MELVIL_OT_tag_delete_unused
+    from blammo.ops.tag_delete_unused import BLAMMO_OT_tag_delete_unused
 
-    assert MELVIL_OT_tag_delete_unused.bl_idname == "melvil.tag_delete_unused"
+    assert BLAMMO_OT_tag_delete_unused.bl_idname == "blammo.tag_delete_unused"
 
 
 def test_bl_label():
-    from melvil.ops.tag_delete_unused import MELVIL_OT_tag_delete_unused
+    from blammo.ops.tag_delete_unused import BLAMMO_OT_tag_delete_unused
 
-    assert "Delete" in MELVIL_OT_tag_delete_unused.bl_label
+    assert "Delete" in BLAMMO_OT_tag_delete_unused.bl_label
 
 
 # ---------------------------------------------------------------------------
@@ -60,9 +60,9 @@ def test_bl_label():
 
 
 def test_poll_always_returns_true():
-    from melvil.ops.tag_delete_unused import MELVIL_OT_tag_delete_unused
+    from blammo.ops.tag_delete_unused import BLAMMO_OT_tag_delete_unused
 
-    assert MELVIL_OT_tag_delete_unused.poll(MagicMock()) is True
+    assert BLAMMO_OT_tag_delete_unused.poll(MagicMock()) is True
 
 
 # ---------------------------------------------------------------------------
@@ -81,8 +81,8 @@ class TestInvoke:
 
         op = _make_op()
 
-        with patch("melvil.ops.tag_delete_unused.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.tag_delete_unused.open_db", _mock_open_db(conn)):
+        with patch("blammo.ops.tag_delete_unused.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.tag_delete_unused.open_db", _mock_open_db(conn)):
             result = op.invoke(MagicMock(), MagicMock())
 
         assert result == {"CANCELLED"}
@@ -94,8 +94,8 @@ class TestInvoke:
         op = _make_op()
         ctx = MagicMock()
 
-        with patch("melvil.ops.tag_delete_unused.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.tag_delete_unused.open_db", _mock_open_db(conn)):
+        with patch("blammo.ops.tag_delete_unused.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.tag_delete_unused.open_db", _mock_open_db(conn)):
             ctx.window_manager.invoke_props_dialog.return_value = {"RUNNING_MODAL"}
             result = op.invoke(ctx, MagicMock())
 
@@ -109,17 +109,17 @@ class TestInvoke:
         op = _make_op()
         ctx = MagicMock()
 
-        with patch("melvil.ops.tag_delete_unused.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.tag_delete_unused.open_db", _mock_open_db(conn)):
+        with patch("blammo.ops.tag_delete_unused.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.tag_delete_unused.open_db", _mock_open_db(conn)):
             op.invoke(ctx, MagicMock())
 
         assert op._unused_count == 2
 
     def test_returns_cancelled_on_db_error(self):
-        from melvil.core.library import LibraryNotConfiguredError
+        from blammo.core.library import LibraryNotConfiguredError
 
         op = _make_op()
-        with patch("melvil.ops.tag_delete_unused.resolve_db_path",
+        with patch("blammo.ops.tag_delete_unused.resolve_db_path",
                    side_effect=LibraryNotConfiguredError("not set")):
             result = op.invoke(MagicMock(), MagicMock())
 
@@ -140,8 +140,8 @@ class TestDraw:
         op = _make_op()
         ctx = MagicMock()
 
-        with patch("melvil.ops.tag_delete_unused.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.tag_delete_unused.open_db", _mock_open_db(conn)):
+        with patch("blammo.ops.tag_delete_unused.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.tag_delete_unused.open_db", _mock_open_db(conn)):
             op.invoke(ctx, MagicMock())
 
         layout = MagicMock()
@@ -171,8 +171,8 @@ class TestExecute:
 
         op = _make_op()
 
-        with patch("melvil.ops.tag_delete_unused.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.tag_delete_unused.open_db", _mock_open_db(conn)):
+        with patch("blammo.ops.tag_delete_unused.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.tag_delete_unused.open_db", _mock_open_db(conn)):
             result = op.execute(MagicMock())
 
         assert result == {"FINISHED"}
@@ -191,8 +191,8 @@ class TestExecute:
 
         op = _make_op()
 
-        with patch("melvil.ops.tag_delete_unused.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.tag_delete_unused.open_db", _mock_open_db(conn)):
+        with patch("blammo.ops.tag_delete_unused.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.tag_delete_unused.open_db", _mock_open_db(conn)):
             result = op.execute(MagicMock())
 
         assert result == {"FINISHED"}
@@ -209,17 +209,17 @@ class TestExecute:
 
         op = _make_op()
 
-        with patch("melvil.ops.tag_delete_unused.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.tag_delete_unused.open_db", _mock_open_db(conn)):
+        with patch("blammo.ops.tag_delete_unused.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.tag_delete_unused.open_db", _mock_open_db(conn)):
             result = op.execute(MagicMock())
 
         assert result == {"FINISHED"}
 
     def test_returns_cancelled_on_db_error(self):
-        from melvil.core.library import LibraryNotConfiguredError
+        from blammo.core.library import LibraryNotConfiguredError
 
         op = _make_op()
-        with patch("melvil.ops.tag_delete_unused.resolve_db_path",
+        with patch("blammo.ops.tag_delete_unused.resolve_db_path",
                    side_effect=LibraryNotConfiguredError("not set")):
             result = op.execute(MagicMock())
 

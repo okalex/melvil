@@ -8,8 +8,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from melvil.db.connection import migrate
-from melvil.db import assets as assets_db
+from blammo.db.connection import migrate
+from blammo.db import assets as assets_db
 
 
 # ---------------------------------------------------------------------------
@@ -56,19 +56,19 @@ SAMPLE_MESH = dict(
 
 class TestAssetReaderRead:
     def test_raises_for_unknown_asset(self, library_root, conn):
-        from melvil.core.asset_reader import AssetReader, AssetNotFoundError
+        from blammo.core.asset_reader import AssetReader, AssetNotFoundError
 
         reader = AssetReader(library_root, conn)
         with pytest.raises(AssetNotFoundError):
             reader.read("does-not-exist")
 
     def test_loads_material_from_correct_path(self, library_root, conn):
-        from melvil.core.asset_reader import AssetReader
+        from blammo.core.asset_reader import AssetReader
 
         assets_db.insert_asset(conn, **SAMPLE_MATERIAL)
         mock_material = MagicMock()
 
-        with patch("melvil.core.asset_reader._load_datablock", return_value=mock_material) as mock_load:
+        with patch("blammo.core.asset_reader._load_datablock", return_value=mock_material) as mock_load:
             reader = AssetReader(library_root, conn)
             result = reader.read(SAMPLE_MATERIAL["id"])
 
@@ -77,12 +77,12 @@ class TestAssetReaderRead:
         assert result is mock_material
 
     def test_loads_mesh_with_objects_collection(self, library_root, conn):
-        from melvil.core.asset_reader import AssetReader
+        from blammo.core.asset_reader import AssetReader
 
         assets_db.insert_asset(conn, **SAMPLE_MESH)
         mock_obj = MagicMock()
 
-        with patch("melvil.core.asset_reader._load_datablock", return_value=mock_obj) as mock_load:
+        with patch("blammo.core.asset_reader._load_datablock", return_value=mock_obj) as mock_load:
             reader = AssetReader(library_root, conn)
             result = reader.read(SAMPLE_MESH["id"])
 
@@ -91,7 +91,7 @@ class TestAssetReaderRead:
         assert result is mock_obj
 
     def test_raises_for_unsupported_type(self, library_root, conn):
-        from melvil.core.asset_reader import AssetReader
+        from blammo.core.asset_reader import AssetReader
 
         assets_db.insert_asset(
             conn,
@@ -106,7 +106,7 @@ class TestAssetReaderRead:
             reader.read("cccccccc-0000-4000-8000-000000000003")
 
     def test_blend_path_resolved_relative_to_library_root(self, library_root, conn):
-        from melvil.core.asset_reader import AssetReader
+        from blammo.core.asset_reader import AssetReader
 
         assets_db.insert_asset(conn, **SAMPLE_MATERIAL)
 
@@ -116,7 +116,7 @@ class TestAssetReaderRead:
             captured["filepath"] = filepath
             return MagicMock()
 
-        with patch("melvil.core.asset_reader._load_datablock", side_effect=fake_load):
+        with patch("blammo.core.asset_reader._load_datablock", side_effect=fake_load):
             reader = AssetReader(library_root, conn)
             reader.read(SAMPLE_MATERIAL["id"])
 
@@ -130,11 +130,11 @@ class TestAssetReaderRead:
 
 class TestAssetNotFoundError:
     def test_is_exception_subclass(self):
-        from melvil.core.asset_reader import AssetNotFoundError
+        from blammo.core.asset_reader import AssetNotFoundError
         assert issubclass(AssetNotFoundError, Exception)
 
     def test_message_contains_id(self, library_root, conn):
-        from melvil.core.asset_reader import AssetReader, AssetNotFoundError
+        from blammo.core.asset_reader import AssetReader, AssetNotFoundError
 
         reader = AssetReader(library_root, conn)
         with pytest.raises(AssetNotFoundError, match="missing-id"):
@@ -151,12 +151,12 @@ SAMPLE_NODE_GROUP = dict(
 
 class TestAssetReaderReadNodeGroup:
     def test_loads_node_group_with_node_groups_collection(self, library_root, conn):
-        from melvil.core.asset_reader import AssetReader
+        from blammo.core.asset_reader import AssetReader
 
         assets_db.insert_asset(conn, **SAMPLE_NODE_GROUP)
         mock_ng = MagicMock()
 
-        with patch("melvil.core.asset_reader._load_datablock", return_value=mock_ng) as mock_load:
+        with patch("blammo.core.asset_reader._load_datablock", return_value=mock_ng) as mock_load:
             reader = AssetReader(library_root, conn)
             result = reader.read(SAMPLE_NODE_GROUP["id"])
 
@@ -165,7 +165,7 @@ class TestAssetReaderReadNodeGroup:
         assert result is mock_ng
 
     def test_node_group_blend_path_resolved_correctly(self, library_root, conn):
-        from melvil.core.asset_reader import AssetReader
+        from blammo.core.asset_reader import AssetReader
 
         assets_db.insert_asset(conn, **SAMPLE_NODE_GROUP)
         captured = {}
@@ -174,7 +174,7 @@ class TestAssetReaderReadNodeGroup:
             captured["filepath"] = filepath
             return MagicMock()
 
-        with patch("melvil.core.asset_reader._load_datablock", side_effect=fake_load):
+        with patch("blammo.core.asset_reader._load_datablock", side_effect=fake_load):
             reader = AssetReader(library_root, conn)
             reader.read(SAMPLE_NODE_GROUP["id"])
 

@@ -6,7 +6,7 @@ in Blender.  All drawing functions use Blender's ``gpu`` and ``blf``
 modules to render directly into a ``SpaceView3D`` ``POST_PIXEL`` draw
 handler.
 
-The package has **no dependencies** on the rest of the Melvil addon and
+The package has **no dependencies** on the rest of the Blammo addon and
 can be extracted into a standalone library.
 
 See projects/006-gpu-ui.md for the full design spec.

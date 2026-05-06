@@ -26,7 +26,7 @@ class GpuOperatorProps:
     Returned by :meth:`GpuLayout.operator` so callers can set operator
     properties exactly like Blender's ``layout.operator()``::
 
-        op = layout.operator("melvil.load_asset", text="Load")
+        op = layout.operator("blammo.load_asset", text="Load")
         op.asset_id = "abc"
     """
 

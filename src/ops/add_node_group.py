@@ -1,8 +1,8 @@
 """
-MELVIL_OT_add_node_group — append a saved node group into the active node
+BLAMMO_OT_add_node_group — append a saved node group into the active node
 tree and place it at the cursor so it floats interactively.
 
-Invoked from the Melvil sub-menu inside the Node Editor Add menu (Shift+A).
+Invoked from the Blammo sub-menu inside the Node Editor Add menu (Shift+A).
 
 The operator:
 
@@ -33,10 +33,10 @@ _TREE_TYPE_TO_GROUP_NODE: dict[str, str] = {
 }
 
 
-class MELVIL_OT_add_node_group(bpy.types.Operator):
+class BLAMMO_OT_add_node_group(bpy.types.Operator):
     """Append a saved node group into the active node tree"""
 
-    bl_idname = "melvil.add_node_group"
+    bl_idname = "blammo.add_node_group"
     bl_label = "Add Node Group"
     bl_options = {"REGISTER", "UNDO"}
 
@@ -78,11 +78,11 @@ class MELVIL_OT_add_node_group(bpy.types.Operator):
             self.report({"ERROR"}, str(exc))
             return {"CANCELLED"}
         except Exception as exc:  # noqa: BLE001
-            self.report({"ERROR"}, f"Melvil: could not load node group — {exc}")
+            self.report({"ERROR"}, f"Blammo!: could not load node group — {exc}")
             return {"CANCELLED"}
 
         if ng is None:
-            self.report({"ERROR"}, "Melvil: node group not found in the blend file.")
+            self.report({"ERROR"}, "Blammo!: node group not found in the blend file.")
             return {"CANCELLED"}
 
         # --- Determine the group-node type for this editor -----------------
@@ -91,7 +91,7 @@ class MELVIL_OT_add_node_group(bpy.types.Operator):
         group_node_type = _TREE_TYPE_TO_GROUP_NODE.get(tree_type)
 
         if group_node_type is None:
-            self.report({"ERROR"}, f"Melvil: unsupported node tree type '{tree_type}'.")
+            self.report({"ERROR"}, f"Blammo!: unsupported node tree type '{tree_type}'.")
             return {"CANCELLED"}
 
         # Verify the loaded group's type matches the editor.
@@ -99,7 +99,7 @@ class MELVIL_OT_add_node_group(bpy.types.Operator):
         if ng_type and ng_type != tree_type:
             self.report(
                 {"ERROR"},
-                f"Melvil: '{ng.name}' is a {ng_type} node group and cannot be added"
+                f"Blammo!: '{ng.name}' is a {ng_type} node group and cannot be added"
                 f" to a {tree_type} node tree.",
             )
             return {"CANCELLED"}

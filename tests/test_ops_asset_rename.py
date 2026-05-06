@@ -1,4 +1,4 @@
-"""Tests for ops/asset_rename.py — MELVIL_OT_asset_name_confirm."""
+"""Tests for ops/asset_rename.py — BLAMMO_OT_asset_name_confirm."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from melvil.db.connection import migrate
-from melvil.db import assets as assets_db
+from blammo.db.connection import migrate
+from blammo.db import assets as assets_db
 
 _ASSET_ID = "aaaaaaaa-0000-4000-8000-000000000001"
 
@@ -39,43 +39,43 @@ def _mock_open_db(conn):
 
 
 def _make_confirm_op(asset_id=""):
-    from melvil.ops.asset_rename import MELVIL_OT_asset_name_confirm
+    from blammo.ops.asset_rename import BLAMMO_OT_asset_name_confirm
 
-    op = MELVIL_OT_asset_name_confirm()
+    op = BLAMMO_OT_asset_name_confirm()
     op.asset_id = asset_id
     return op
 
 
 def _make_confirm_ctx(pending_name=""):
     ctx = MagicMock()
-    ctx.window_manager.melvil_pending_name = pending_name
+    ctx.window_manager.blammo_pending_name = pending_name
     return ctx
 
 
 # ---------------------------------------------------------------------------
-# MELVIL_OT_asset_name_confirm — metadata
+# BLAMMO_OT_asset_name_confirm — metadata
 # ---------------------------------------------------------------------------
 
 
 class TestAssetNameConfirmMetadata:
     def test_bl_idname(self):
-        from melvil.ops.asset_rename import MELVIL_OT_asset_name_confirm
+        from blammo.ops.asset_rename import BLAMMO_OT_asset_name_confirm
 
-        assert MELVIL_OT_asset_name_confirm.bl_idname == "melvil.asset_name_confirm"
+        assert BLAMMO_OT_asset_name_confirm.bl_idname == "blammo.asset_name_confirm"
 
     def test_bl_label(self):
-        from melvil.ops.asset_rename import MELVIL_OT_asset_name_confirm
+        from blammo.ops.asset_rename import BLAMMO_OT_asset_name_confirm
 
-        assert MELVIL_OT_asset_name_confirm.bl_label == "Confirm Name"
+        assert BLAMMO_OT_asset_name_confirm.bl_label == "Confirm Name"
 
     def test_poll_always_true(self):
-        from melvil.ops.asset_rename import MELVIL_OT_asset_name_confirm
+        from blammo.ops.asset_rename import BLAMMO_OT_asset_name_confirm
 
-        assert MELVIL_OT_asset_name_confirm.poll(MagicMock()) is True
+        assert BLAMMO_OT_asset_name_confirm.poll(MagicMock()) is True
 
 
 # ---------------------------------------------------------------------------
-# MELVIL_OT_asset_name_confirm — execute()
+# BLAMMO_OT_asset_name_confirm — execute()
 # ---------------------------------------------------------------------------
 
 
@@ -95,8 +95,8 @@ class TestAssetNameConfirmExecute:
     def test_renames_asset_in_db(self, conn):
         op = _make_confirm_op(asset_id=_ASSET_ID)
         ctx = _make_confirm_ctx(pending_name="Confirmed Name")
-        with patch("melvil.ops.asset_rename.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.asset_rename.open_db", _mock_open_db(conn)):
+        with patch("blammo.ops.asset_rename.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.asset_rename.open_db", _mock_open_db(conn)):
             result = op.execute(ctx)
         assert result == {"FINISHED"}
         row = assets_db.get_asset(conn, _ASSET_ID)
@@ -105,8 +105,8 @@ class TestAssetNameConfirmExecute:
     def test_strips_whitespace_from_pending_name(self, conn):
         op = _make_confirm_op(asset_id=_ASSET_ID)
         ctx = _make_confirm_ctx(pending_name="  Trimmed  ")
-        with patch("melvil.ops.asset_rename.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.asset_rename.open_db", _mock_open_db(conn)):
+        with patch("blammo.ops.asset_rename.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.asset_rename.open_db", _mock_open_db(conn)):
             op.execute(ctx)
         row = assets_db.get_asset(conn, _ASSET_ID)
         assert row["name"] == "Trimmed"
@@ -114,25 +114,25 @@ class TestAssetNameConfirmExecute:
     def test_resets_pending_name_asset_id_on_success(self, conn):
         op = _make_confirm_op(asset_id=_ASSET_ID)
         ctx = _make_confirm_ctx(pending_name="New Name")
-        ctx.window_manager.melvil_pending_name_asset_id = _ASSET_ID
-        with patch("melvil.ops.asset_rename.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.asset_rename.open_db", _mock_open_db(conn)):
+        ctx.window_manager.blammo_pending_name_asset_id = _ASSET_ID
+        with patch("blammo.ops.asset_rename.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.asset_rename.open_db", _mock_open_db(conn)):
             op.execute(ctx)
-        assert ctx.window_manager.melvil_pending_name_asset_id == ""
+        assert ctx.window_manager.blammo_pending_name_asset_id == ""
 
     def test_unknown_asset_returns_cancelled(self, conn):
         op = _make_confirm_op(asset_id="unknown-id")
         ctx = _make_confirm_ctx(pending_name="New Name")
-        with patch("melvil.ops.asset_rename.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.asset_rename.open_db", _mock_open_db(conn)):
+        with patch("blammo.ops.asset_rename.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.asset_rename.open_db", _mock_open_db(conn)):
             result = op.execute(ctx)
         assert result == {"CANCELLED"}
 
     def test_db_error_returns_cancelled(self):
         op = _make_confirm_op(asset_id=_ASSET_ID)
         ctx = _make_confirm_ctx(pending_name="New Name")
-        with patch("melvil.ops.asset_rename.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.asset_rename.open_db", side_effect=Exception("boom")):
+        with patch("blammo.ops.asset_rename.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.asset_rename.open_db", side_effect=Exception("boom")):
             result = op.execute(ctx)
         assert result == {"CANCELLED"}
 

@@ -57,11 +57,11 @@ def create_asset_submenu(
     Parameters
     ----------
     bl_idname:
-        Unique Blender menu identifier, e.g. ``"MELVIL_MT_add_submenu"``.
+        Unique Blender menu identifier, e.g. ``"BLAMMO_MT_add_submenu"``.
     asset_type:
         Asset type string passed to ``load_assets`` (``"MESH"``, ``"NODE_GROUP"``, …).
     operator_id:
-        Operator idname invoked per asset row (``"melvil.load_asset"``, …).
+        Operator idname invoked per asset row (``"blammo.load_asset"``, …).
     icon:
         Blender icon name for each operator row.
     empty_label:
@@ -73,13 +73,13 @@ def create_asset_submenu(
     """
 
     class _Menu(bpy.types.Menu):
-        bl_label = "Melvil"
+        bl_label = "Blammo!"
 
         def draw(self, context):
             layout = self.layout
 
             scene = getattr(context, "scene", None)
-            active_kit_id = getattr(scene, "melvil_active_kit_id", None)
+            active_kit_id = getattr(scene, "blammo_active_kit_id", None)
             kit_id = None
             if isinstance(active_kit_id, str) and active_kit_id != "ALL_KITS":
                 kit_id = active_kit_id

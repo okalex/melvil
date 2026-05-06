@@ -1,4 +1,4 @@
-"""Tests for ops/kit_rename.py — MELVIL_OT_kit_rename."""
+"""Tests for ops/kit_rename.py — BLAMMO_OT_kit_rename."""
 
 from __future__ import annotations
 
@@ -7,9 +7,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from melvil.db.connection import migrate
-from melvil.db import kits as kits_db
-from melvil.db.kits import DEFAULT_KIT_ID
+from blammo.db.connection import migrate
+from blammo.db import kits as kits_db
+from blammo.db.kits import DEFAULT_KIT_ID
 
 _KIT_B_ID = "bbbbbbbb-0000-4000-8000-000000000001"
 _KIT_B_NAME = "Campaign Assets"
@@ -27,9 +27,9 @@ def conn():
 
 
 def _make_op(kit_id="", name=""):
-    from melvil.ops.kit_rename import MELVIL_OT_kit_rename
+    from blammo.ops.kit_rename import BLAMMO_OT_kit_rename
 
-    op = MELVIL_OT_kit_rename()
+    op = BLAMMO_OT_kit_rename()
     op.kit_id = kit_id
     op.name = name
     return op
@@ -45,15 +45,15 @@ def _make_ctx():
 
 
 def test_bl_idname():
-    from melvil.ops.kit_rename import MELVIL_OT_kit_rename
+    from blammo.ops.kit_rename import BLAMMO_OT_kit_rename
 
-    assert MELVIL_OT_kit_rename.bl_idname == "melvil.kit_rename"
+    assert BLAMMO_OT_kit_rename.bl_idname == "blammo.kit_rename"
 
 
 def test_bl_label():
-    from melvil.ops.kit_rename import MELVIL_OT_kit_rename
+    from blammo.ops.kit_rename import BLAMMO_OT_kit_rename
 
-    assert MELVIL_OT_kit_rename.bl_label == "Rename Kit"
+    assert BLAMMO_OT_kit_rename.bl_label == "Rename Kit"
 
 
 # ---------------------------------------------------------------------------
@@ -62,9 +62,9 @@ def test_bl_label():
 
 
 def test_poll_always_true():
-    from melvil.ops.kit_rename import MELVIL_OT_kit_rename
+    from blammo.ops.kit_rename import BLAMMO_OT_kit_rename
 
-    assert MELVIL_OT_kit_rename.poll(MagicMock()) is True
+    assert BLAMMO_OT_kit_rename.poll(MagicMock()) is True
 
 
 # ---------------------------------------------------------------------------
@@ -81,8 +81,8 @@ def test_invoke_no_kit_id_returns_cancelled():
 def test_invoke_populates_name_from_db(conn):
     op = _make_op(kit_id=_KIT_B_ID)
 
-    with patch("melvil.ops.kit_rename.open_db") as mock_open, \
-         patch("melvil.ops.kit_rename.resolve_db_path"):
+    with patch("blammo.ops.kit_rename.open_db") as mock_open, \
+         patch("blammo.ops.kit_rename.resolve_db_path"):
         mock_open.return_value.__enter__ = lambda s: conn
         mock_open.return_value.__exit__ = MagicMock(return_value=False)
         op.invoke(_make_ctx(), MagicMock())
@@ -93,8 +93,8 @@ def test_invoke_populates_name_from_db(conn):
 def test_invoke_unknown_kit_id_returns_cancelled(conn):
     op = _make_op(kit_id="nonexistent-uuid")
 
-    with patch("melvil.ops.kit_rename.open_db") as mock_open, \
-         patch("melvil.ops.kit_rename.resolve_db_path"):
+    with patch("blammo.ops.kit_rename.open_db") as mock_open, \
+         patch("blammo.ops.kit_rename.resolve_db_path"):
         mock_open.return_value.__enter__ = lambda s: conn
         mock_open.return_value.__exit__ = MagicMock(return_value=False)
         result = op.invoke(_make_ctx(), MagicMock())
@@ -106,8 +106,8 @@ def test_invoke_calls_dialog(conn):
     op = _make_op(kit_id=_KIT_B_ID)
     ctx = _make_ctx()
 
-    with patch("melvil.ops.kit_rename.open_db") as mock_open, \
-         patch("melvil.ops.kit_rename.resolve_db_path"):
+    with patch("blammo.ops.kit_rename.open_db") as mock_open, \
+         patch("blammo.ops.kit_rename.resolve_db_path"):
         mock_open.return_value.__enter__ = lambda s: conn
         mock_open.return_value.__exit__ = MagicMock(return_value=False)
         op.invoke(ctx, MagicMock())
@@ -123,8 +123,8 @@ def test_invoke_calls_dialog(conn):
 def test_execute_empty_name_returns_cancelled(conn):
     op = _make_op(kit_id=_KIT_B_ID, name="  ")
 
-    with patch("melvil.ops.kit_rename.open_db") as mock_open, \
-         patch("melvil.ops.kit_rename.resolve_db_path"):
+    with patch("blammo.ops.kit_rename.open_db") as mock_open, \
+         patch("blammo.ops.kit_rename.resolve_db_path"):
         mock_open.return_value.__enter__ = lambda s: conn
         mock_open.return_value.__exit__ = MagicMock(return_value=False)
         result = op.execute(_make_ctx())
@@ -135,8 +135,8 @@ def test_execute_empty_name_returns_cancelled(conn):
 def test_execute_duplicate_name_returns_cancelled(conn):
     op = _make_op(kit_id=_KIT_B_ID, name="General")  # General already exists
 
-    with patch("melvil.ops.kit_rename.open_db") as mock_open, \
-         patch("melvil.ops.kit_rename.resolve_db_path"):
+    with patch("blammo.ops.kit_rename.open_db") as mock_open, \
+         patch("blammo.ops.kit_rename.resolve_db_path"):
         mock_open.return_value.__enter__ = lambda s: conn
         mock_open.return_value.__exit__ = MagicMock(return_value=False)
         result = op.execute(_make_ctx())
@@ -147,8 +147,8 @@ def test_execute_duplicate_name_returns_cancelled(conn):
 def test_execute_duplicate_case_insensitive(conn):
     op = _make_op(kit_id=_KIT_B_ID, name="general")  # "General" already exists
 
-    with patch("melvil.ops.kit_rename.open_db") as mock_open, \
-         patch("melvil.ops.kit_rename.resolve_db_path"):
+    with patch("blammo.ops.kit_rename.open_db") as mock_open, \
+         patch("blammo.ops.kit_rename.resolve_db_path"):
         mock_open.return_value.__enter__ = lambda s: conn
         mock_open.return_value.__exit__ = MagicMock(return_value=False)
         result = op.execute(_make_ctx())
@@ -160,8 +160,8 @@ def test_execute_rename_to_same_name_is_allowed(conn):
     """Renaming a kit to its own current name should succeed."""
     op = _make_op(kit_id=_KIT_B_ID, name=_KIT_B_NAME)
 
-    with patch("melvil.ops.kit_rename.open_db") as mock_open, \
-         patch("melvil.ops.kit_rename.resolve_db_path"):
+    with patch("blammo.ops.kit_rename.open_db") as mock_open, \
+         patch("blammo.ops.kit_rename.resolve_db_path"):
         mock_open.return_value.__enter__ = lambda s: conn
         mock_open.return_value.__exit__ = MagicMock(return_value=False)
         result = op.execute(_make_ctx())
@@ -177,8 +177,8 @@ def test_execute_rename_to_same_name_is_allowed(conn):
 def test_execute_renames_kit(conn):
     op = _make_op(kit_id=_KIT_B_ID, name="Game Project")
 
-    with patch("melvil.ops.kit_rename.open_db") as mock_open, \
-         patch("melvil.ops.kit_rename.resolve_db_path"):
+    with patch("blammo.ops.kit_rename.open_db") as mock_open, \
+         patch("blammo.ops.kit_rename.resolve_db_path"):
         mock_open.return_value.__enter__ = lambda s: conn
         mock_open.return_value.__exit__ = MagicMock(return_value=False)
         result = op.execute(_make_ctx())
@@ -191,8 +191,8 @@ def test_execute_renames_kit(conn):
 def test_execute_strips_whitespace(conn):
     op = _make_op(kit_id=_KIT_B_ID, name="  Renamed  ")
 
-    with patch("melvil.ops.kit_rename.open_db") as mock_open, \
-         patch("melvil.ops.kit_rename.resolve_db_path"):
+    with patch("blammo.ops.kit_rename.open_db") as mock_open, \
+         patch("blammo.ops.kit_rename.resolve_db_path"):
         mock_open.return_value.__enter__ = lambda s: conn
         mock_open.return_value.__exit__ = MagicMock(return_value=False)
         op.execute(_make_ctx())
@@ -202,11 +202,11 @@ def test_execute_strips_whitespace(conn):
 
 
 def test_execute_library_not_configured_returns_cancelled():
-    from melvil.core.library import LibraryNotConfiguredError
+    from blammo.core.library import LibraryNotConfiguredError
 
     op = _make_op(kit_id=_KIT_B_ID, name="New Name")
 
-    with patch("melvil.ops.kit_rename.resolve_db_path", side_effect=LibraryNotConfiguredError("not configured")):
+    with patch("blammo.ops.kit_rename.resolve_db_path", side_effect=LibraryNotConfiguredError("not configured")):
         result = op.execute(_make_ctx())
 
     assert result == {"CANCELLED"}

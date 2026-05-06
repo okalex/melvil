@@ -1,4 +1,4 @@
-"""Tests for ui/menus_node_editor.py — MELVIL_MT_node_editor_submenu."""
+"""Tests for ui/menus_node_editor.py — BLAMMO_MT_node_editor_submenu."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 
 def _fresh():
     import importlib
-    import melvil.ui.menus_node_editor as m
+    import blammo.ui.menus_node_editor as m
     importlib.reload(m)
     return m
 
@@ -47,17 +47,17 @@ def _make_context(nodes=None, has_space=True):
 
 class TestMenuMetadata:
     def test_bl_idname(self):
-        from melvil.ui.menus_node_editor import MELVIL_MT_node_editor_submenu
-        assert MELVIL_MT_node_editor_submenu.bl_idname == "MELVIL_MT_node_editor_submenu"
+        from blammo.ui.menus_node_editor import BLAMMO_MT_node_editor_submenu
+        assert BLAMMO_MT_node_editor_submenu.bl_idname == "BLAMMO_MT_node_editor_submenu"
 
     def test_bl_label(self):
-        from melvil.ui.menus_node_editor import MELVIL_MT_node_editor_submenu
-        assert MELVIL_MT_node_editor_submenu.bl_label == "Melvil"
+        from blammo.ui.menus_node_editor import BLAMMO_MT_node_editor_submenu
+        assert BLAMMO_MT_node_editor_submenu.bl_label == "Blammo!"
 
     def test_inherits_menu(self):
         import bpy
-        from melvil.ui.menus_node_editor import MELVIL_MT_node_editor_submenu
-        assert issubclass(MELVIL_MT_node_editor_submenu, bpy.types.Menu)
+        from blammo.ui.menus_node_editor import BLAMMO_MT_node_editor_submenu
+        assert issubclass(BLAMMO_MT_node_editor_submenu, bpy.types.Menu)
 
 
 # ---------------------------------------------------------------------------
@@ -67,14 +67,14 @@ class TestMenuMetadata:
 
 class TestDraw:
     def test_draw_shows_save_nodes_operator(self):
-        from melvil.ui.menus_node_editor import MELVIL_MT_node_editor_submenu
+        from blammo.ui.menus_node_editor import BLAMMO_MT_node_editor_submenu
 
-        menu = MELVIL_MT_node_editor_submenu()
+        menu = BLAMMO_MT_node_editor_submenu()
         menu.layout = MagicMock()
         menu.draw(MagicMock())
 
         called_ids = [c.args[0] for c in menu.layout.operator.call_args_list]
-        assert "melvil.save_nodes_as_asset" in called_ids
+        assert "blammo.save_nodes_as_asset" in called_ids
 
 
 # ---------------------------------------------------------------------------
@@ -84,8 +84,8 @@ class TestDraw:
 
 class TestNodeEditorEntry:
     def test_entry_shown_when_node_selected(self):
-        from melvil.ui.menus_node_editor import (
-            MELVIL_MT_node_editor_submenu,
+        from blammo.ui.menus_node_editor import (
+            BLAMMO_MT_node_editor_submenu,
             _draw_node_editor_entry,
         )
 
@@ -94,10 +94,10 @@ class TestNodeEditorEntry:
 
         _draw_node_editor_entry(fake_self, ctx)
 
-        fake_self.layout.menu.assert_called_once_with(MELVIL_MT_node_editor_submenu.bl_idname)
+        fake_self.layout.menu.assert_called_once_with(BLAMMO_MT_node_editor_submenu.bl_idname)
 
     def test_entry_hidden_when_no_nodes_selected(self):
-        from melvil.ui.menus_node_editor import _draw_node_editor_entry
+        from blammo.ui.menus_node_editor import _draw_node_editor_entry
 
         fake_self = MagicMock()
         ctx = _make_context(nodes=[_make_node(select=False)])
@@ -107,7 +107,7 @@ class TestNodeEditorEntry:
         fake_self.layout.menu.assert_not_called()
 
     def test_entry_hidden_when_node_tree_is_none(self):
-        from melvil.ui.menus_node_editor import _draw_node_editor_entry
+        from blammo.ui.menus_node_editor import _draw_node_editor_entry
 
         fake_self = MagicMock()
         ctx = MagicMock()
@@ -118,7 +118,7 @@ class TestNodeEditorEntry:
         fake_self.layout.menu.assert_not_called()
 
     def test_entry_hidden_when_space_data_is_none(self):
-        from melvil.ui.menus_node_editor import _draw_node_editor_entry
+        from blammo.ui.menus_node_editor import _draw_node_editor_entry
 
         fake_self = MagicMock()
         ctx = _make_context(has_space=False)
@@ -128,7 +128,7 @@ class TestNodeEditorEntry:
         fake_self.layout.menu.assert_not_called()
 
     def test_entry_hidden_when_node_list_empty(self):
-        from melvil.ui.menus_node_editor import _draw_node_editor_entry
+        from blammo.ui.menus_node_editor import _draw_node_editor_entry
 
         fake_self = MagicMock()
         ctx = _make_context(nodes=[])
@@ -171,7 +171,7 @@ class TestHostMenuRegistration:
         m = _fresh()
         with patch.object(bpy.utils, "register_class") as mock_reg:
             m.register()
-        mock_reg.assert_called_once_with(m.MELVIL_MT_node_editor_submenu)
+        mock_reg.assert_called_once_with(m.BLAMMO_MT_node_editor_submenu)
 
     def test_unregister_calls_unregister_class(self):
         import bpy
@@ -180,4 +180,4 @@ class TestHostMenuRegistration:
              patch.object(bpy.utils, "unregister_class") as mock_unreg:
             m.register()
             m.unregister()
-        mock_unreg.assert_called_once_with(m.MELVIL_MT_node_editor_submenu)
+        mock_unreg.assert_called_once_with(m.BLAMMO_MT_node_editor_submenu)

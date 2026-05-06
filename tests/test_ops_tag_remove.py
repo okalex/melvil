@@ -1,4 +1,4 @@
-"""Tests for ops/tag_remove.py — MELVIL_OT_tag_remove."""
+"""Tests for ops/tag_remove.py — BLAMMO_OT_tag_remove."""
 
 from __future__ import annotations
 
@@ -8,9 +8,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from melvil.db.connection import migrate
-from melvil.db import assets as assets_db
-from melvil.db import tags as tags_db
+from blammo.db.connection import migrate
+from blammo.db import assets as assets_db
+from blammo.db import tags as tags_db
 
 ASSET_ID = "aaaaaaaa-0000-4000-8000-000000000001"
 
@@ -40,8 +40,8 @@ def _mock_open_db(conn):
 
 
 def _make_op(asset_id="", tag_id=""):
-    from melvil.ops.tag_remove import MELVIL_OT_tag_remove
-    op = MELVIL_OT_tag_remove()
+    from blammo.ops.tag_remove import BLAMMO_OT_tag_remove
+    op = BLAMMO_OT_tag_remove()
     op.asset_id = asset_id
     op.tag_id = tag_id
     return op
@@ -53,13 +53,13 @@ def _make_op(asset_id="", tag_id=""):
 
 
 def test_bl_idname():
-    from melvil.ops.tag_remove import MELVIL_OT_tag_remove
-    assert MELVIL_OT_tag_remove.bl_idname == "melvil.tag_remove"
+    from blammo.ops.tag_remove import BLAMMO_OT_tag_remove
+    assert BLAMMO_OT_tag_remove.bl_idname == "blammo.tag_remove"
 
 
 def test_poll_always_true():
-    from melvil.ops.tag_remove import MELVIL_OT_tag_remove
-    assert MELVIL_OT_tag_remove.poll(MagicMock()) is True
+    from blammo.ops.tag_remove import BLAMMO_OT_tag_remove
+    assert BLAMMO_OT_tag_remove.poll(MagicMock()) is True
 
 
 # ---------------------------------------------------------------------------
@@ -70,13 +70,13 @@ def test_poll_always_true():
 class TestExecute:
     def test_no_asset_id_returns_cancelled(self):
         op = _make_op(asset_id="", tag_id="some-uuid")
-        with patch("melvil.ops.tag_remove.resolve_db_path", return_value=":memory:"):
+        with patch("blammo.ops.tag_remove.resolve_db_path", return_value=":memory:"):
             result = op.execute(MagicMock())
         assert result == {"CANCELLED"}
 
     def test_no_tag_id_returns_cancelled(self):
         op = _make_op(asset_id=ASSET_ID, tag_id="")
-        with patch("melvil.ops.tag_remove.resolve_db_path", return_value=":memory:"):
+        with patch("blammo.ops.tag_remove.resolve_db_path", return_value=":memory:"):
             result = op.execute(MagicMock())
         assert result == {"CANCELLED"}
 
@@ -85,8 +85,8 @@ class TestExecute:
         tag_id = tags_db.get_tag_by_name(conn, "metal")["id"]
 
         op = _make_op(asset_id=ASSET_ID, tag_id=tag_id)
-        with patch("melvil.ops.tag_remove.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.tag_remove.open_db", _mock_open_db(conn)):
+        with patch("blammo.ops.tag_remove.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.tag_remove.open_db", _mock_open_db(conn)):
             result = op.execute(MagicMock())
 
         assert result == {"FINISHED"}
@@ -95,14 +95,14 @@ class TestExecute:
     def test_nonexistent_association_is_noop(self, conn):
         fake_tag_id = "00000000-0000-4000-8000-000000000099"
         op = _make_op(asset_id=ASSET_ID, tag_id=fake_tag_id)
-        with patch("melvil.ops.tag_remove.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.tag_remove.open_db", _mock_open_db(conn)):
+        with patch("blammo.ops.tag_remove.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.tag_remove.open_db", _mock_open_db(conn)):
             result = op.execute(MagicMock())
         assert result == {"FINISHED"}
 
     def test_library_not_configured_returns_cancelled(self):
-        from melvil.core.library import LibraryNotConfiguredError
+        from blammo.core.library import LibraryNotConfiguredError
         op = _make_op(asset_id=ASSET_ID, tag_id="some-uuid")
-        with patch("melvil.ops.tag_remove.resolve_db_path", side_effect=LibraryNotConfiguredError("x")):
+        with patch("blammo.ops.tag_remove.resolve_db_path", side_effect=LibraryNotConfiguredError("x")):
             result = op.execute(MagicMock())
         assert result == {"CANCELLED"}

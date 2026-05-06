@@ -1,4 +1,4 @@
-"""MELVIL_OT_tag_remove — remove a tag from an asset."""
+"""BLAMMO_OT_tag_remove — remove a tag from an asset."""
 
 from __future__ import annotations
 
@@ -10,10 +10,10 @@ from ..db import open_db
 from ..db.tags import remove_asset_tag
 
 
-class MELVIL_OT_tag_remove(bpy.types.Operator):
-    """Remove a tag from a Melvil asset"""
+class BLAMMO_OT_tag_remove(bpy.types.Operator):
+    """Remove a tag from a Blammo asset"""
 
-    bl_idname = "melvil.tag_remove"
+    bl_idname = "blammo.tag_remove"
     bl_label = "Remove Tag"
     bl_options = {"REGISTER"}
 
@@ -40,10 +40,10 @@ class MELVIL_OT_tag_remove(bpy.types.Operator):
         tag_id = self.tag_id.strip()
 
         if not asset_id:
-            self.report({"ERROR"}, "Melvil: no asset ID provided.")
+            self.report({"ERROR"}, "Blammo!: no asset ID provided.")
             return {"CANCELLED"}
         if not tag_id:
-            self.report({"ERROR"}, "Melvil: no tag ID provided.")
+            self.report({"ERROR"}, "Blammo!: no tag ID provided.")
             return {"CANCELLED"}
 
         try:
@@ -54,7 +54,7 @@ class MELVIL_OT_tag_remove(bpy.types.Operator):
             self.report({"ERROR"}, str(exc))
             return {"CANCELLED"}
         except Exception as exc:  # noqa: BLE001
-            self.report({"ERROR"}, f"Melvil: could not remove tag — {exc}")
+            self.report({"ERROR"}, f"Blammo!: could not remove tag — {exc}")
             return {"CANCELLED"}
 
         return {"FINISHED"}

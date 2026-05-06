@@ -1,5 +1,5 @@
 [project]
-name = "melvil"
+name = "blammo"
 version = "0.1.0"
 description = "A Blender add-on"
 requires-python = ">=3.11"

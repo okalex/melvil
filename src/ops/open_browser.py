@@ -1,8 +1,8 @@
 """
-MELVIL_OT_open_browser — open the GPU-drawn asset browser.
+BLAMMO_OT_open_browser — open the GPU-drawn asset browser.
 
 Invoked by ``Ctrl+Shift+A`` in the 3D View.  Creates a :class:`UiContext`
-whose rendering and build logic live in :mod:`melvil.ui.browser`.
+whose rendering and build logic live in :mod:`blammo.ui.browser`.
 Press ``ESC`` or ``RMB`` to dismiss.
 """
 
@@ -22,9 +22,9 @@ from ..ui.browser import (
 )
 
 
-class MELVIL_OT_open_browser(bpy.types.Operator):
-    bl_idname = "melvil.open_browser"
-    bl_label = "Melvil Browser (GPU)"
+class BLAMMO_OT_open_browser(bpy.types.Operator):
+    bl_idname = "blammo.open_browser"
+    bl_label = "Blammo! Browser (GPU)"
     bl_options = {"REGISTER", "INTERNAL"}
 
     type_filter: EnumProperty(
@@ -60,13 +60,13 @@ class MELVIL_OT_open_browser(bpy.types.Operator):
             build_fn=lambda layout: build_browser(self, self._ui_context, layout),
         )
         self._ui_context.register_list_drawer(
-            "MELVIL_UL_filter_tags", draw_filter_tag_item,
+            "BLAMMO_UL_filter_tags", draw_filter_tag_item,
         )
         self._ui_context.register_list_drawer(
-            "MELVIL_UL_asset_grid", draw_asset_card,
+            "BLAMMO_UL_asset_grid", draw_asset_card,
         )
         self._ui_context.register_list_drawer(
-            "MELVIL_UL_asset_tags", draw_asset_tag_item,
+            "BLAMMO_UL_asset_tags", draw_asset_tag_item,
         )
         self._ui_context.register_widget_handler(
             "icon_button", handle_icon_button,

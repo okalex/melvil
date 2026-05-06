@@ -1,4 +1,4 @@
-"""Tests for ops/load_material.py — MELVIL_OT_load_material_to_slot."""
+"""Tests for ops/load_material.py — BLAMMO_OT_load_material_to_slot."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from melvil.db.connection import migrate
-from melvil.db import assets as assets_db
+from blammo.db.connection import migrate
+from blammo.db import assets as assets_db
 
 
 # ---------------------------------------------------------------------------
@@ -50,9 +50,9 @@ SAMPLE_MATERIAL_B = dict(
 
 
 def _make_op(slot_mode="NEW", asset_id="", material_index=-1):
-    from melvil.ops.load_material import MELVIL_OT_load_material_to_slot
+    from blammo.ops.load_material import BLAMMO_OT_load_material_to_slot
 
-    op = MELVIL_OT_load_material_to_slot()
+    op = BLAMMO_OT_load_material_to_slot()
     op.slot_mode = slot_mode
     op.asset_id = asset_id
     op.material_index = material_index
@@ -62,13 +62,13 @@ def _make_op(slot_mode="NEW", asset_id="", material_index=-1):
 def _make_context(obj=None):
     ctx = MagicMock()
     ctx.active_object = obj
-    ctx.window_manager.melvil_picker_active = False
-    ctx.window_manager.melvil_selection_valid = False
+    ctx.window_manager.blammo_picker_active = False
+    ctx.window_manager.blammo_selection_valid = False
     return ctx
 
 
 def _make_wm_items(materials):
-    """Build a WM-like mock whose melvil_material_items behave like a real collection."""
+    """Build a WM-like mock whose blammo_material_items behave like a real collection."""
     items_list = []
     for m in materials:
         item = MagicMock()
@@ -81,7 +81,7 @@ def _make_wm_items(materials):
     collection.__getitem__ = MagicMock(side_effect=lambda i: items_list[i])
 
     wm = MagicMock()
-    wm.melvil_material_items = collection
+    wm.blammo_material_items = collection
     return wm
 
 
@@ -99,21 +99,21 @@ def _make_object():
 
 class TestMetadata:
     def test_bl_idname(self):
-        from melvil.ops.load_material import MELVIL_OT_load_material_to_slot
-        assert MELVIL_OT_load_material_to_slot.bl_idname == "melvil.load_material_to_slot"
+        from blammo.ops.load_material import BLAMMO_OT_load_material_to_slot
+        assert BLAMMO_OT_load_material_to_slot.bl_idname == "blammo.load_material_to_slot"
 
     def test_bl_label(self):
-        from melvil.ops.load_material import MELVIL_OT_load_material_to_slot
-        assert MELVIL_OT_load_material_to_slot.bl_label == "Load Material"
+        from blammo.ops.load_material import BLAMMO_OT_load_material_to_slot
+        assert BLAMMO_OT_load_material_to_slot.bl_label == "Load Material"
 
     def test_has_undo_in_bl_options(self):
-        from melvil.ops.load_material import MELVIL_OT_load_material_to_slot
-        assert "UNDO" in MELVIL_OT_load_material_to_slot.bl_options
+        from blammo.ops.load_material import BLAMMO_OT_load_material_to_slot
+        assert "UNDO" in BLAMMO_OT_load_material_to_slot.bl_options
 
     def test_inherits_operator(self):
         import bpy
-        from melvil.ops.load_material import MELVIL_OT_load_material_to_slot
-        assert issubclass(MELVIL_OT_load_material_to_slot, bpy.types.Operator)
+        from blammo.ops.load_material import BLAMMO_OT_load_material_to_slot
+        assert issubclass(BLAMMO_OT_load_material_to_slot, bpy.types.Operator)
 
     def test_draw_shows_material_label(self):
         op = _make_op()
@@ -129,13 +129,13 @@ class TestMetadata:
         op.layout = MagicMock()
 
         ctx = MagicMock()
-        ctx.window_manager.melvil_material_items.__len__ = MagicMock(return_value=2)
+        ctx.window_manager.blammo_material_items.__len__ = MagicMock(return_value=2)
 
         op.draw(ctx)
 
         op.layout.template_list.assert_called_once()
         call_args = op.layout.template_list.call_args
-        assert call_args[0][0] == "MELVIL_UL_material_list"
+        assert call_args[0][0] == "BLAMMO_UL_material_list"
 
     def test_draw_template_list_uses_op_for_active_index(self):
         op = _make_op()
@@ -143,13 +143,13 @@ class TestMetadata:
 
         ctx = MagicMock()
         wm = ctx.window_manager
-        wm.melvil_material_items.__len__ = MagicMock(return_value=1)
+        wm.blammo_material_items.__len__ = MagicMock(return_value=1)
 
         op.draw(ctx)
 
         call_args = op.layout.template_list.call_args[0]
         assert call_args[2] is wm                      # dataptr = wm
-        assert call_args[3] == "melvil_material_items"
+        assert call_args[3] == "blammo_material_items"
         assert call_args[4] is op                      # active_dataptr = operator
         assert call_args[5] == "material_index"
 
@@ -181,32 +181,32 @@ class TestMetadata:
 
 class TestPoll:
     def test_returns_true_when_active_object_exists(self):
-        from melvil.ops.load_material import MELVIL_OT_load_material_to_slot
+        from blammo.ops.load_material import BLAMMO_OT_load_material_to_slot
 
         ctx = _make_context(obj=_make_object())
-        assert MELVIL_OT_load_material_to_slot.poll(ctx) is True
+        assert BLAMMO_OT_load_material_to_slot.poll(ctx) is True
 
     def test_returns_false_when_no_active_object(self):
-        from melvil.ops.load_material import MELVIL_OT_load_material_to_slot
+        from blammo.ops.load_material import BLAMMO_OT_load_material_to_slot
 
         ctx = _make_context(obj=None)
-        assert MELVIL_OT_load_material_to_slot.poll(ctx) is False
+        assert BLAMMO_OT_load_material_to_slot.poll(ctx) is False
 
     def test_returns_false_in_dialog_when_nothing_selected(self):
-        from melvil.ops.load_material import MELVIL_OT_load_material_to_slot
+        from blammo.ops.load_material import BLAMMO_OT_load_material_to_slot
 
         ctx = _make_context(obj=_make_object())
-        ctx.window_manager.melvil_picker_active = True
-        ctx.window_manager.melvil_selection_valid = False
-        assert MELVIL_OT_load_material_to_slot.poll(ctx) is False
+        ctx.window_manager.blammo_picker_active = True
+        ctx.window_manager.blammo_selection_valid = False
+        assert BLAMMO_OT_load_material_to_slot.poll(ctx) is False
 
     def test_returns_true_in_dialog_when_item_selected(self):
-        from melvil.ops.load_material import MELVIL_OT_load_material_to_slot
+        from blammo.ops.load_material import BLAMMO_OT_load_material_to_slot
 
         ctx = _make_context(obj=_make_object())
-        ctx.window_manager.melvil_picker_active = True
-        ctx.window_manager.melvil_selection_valid = True
-        assert MELVIL_OT_load_material_to_slot.poll(ctx) is True
+        ctx.window_manager.blammo_picker_active = True
+        ctx.window_manager.blammo_selection_valid = True
+        assert BLAMMO_OT_load_material_to_slot.poll(ctx) is True
 
 
 # ---------------------------------------------------------------------------
@@ -218,40 +218,40 @@ class TestCheck:
     def test_check_returns_true(self):
         op = _make_op(material_index=-1)
         ctx = MagicMock()
-        ctx.window_manager.melvil_material_items.__len__ = MagicMock(return_value=0)
+        ctx.window_manager.blammo_material_items.__len__ = MagicMock(return_value=0)
         assert op.check(ctx) is True
 
     def test_check_sets_selection_valid_false_when_no_selection(self):
         op = _make_op(material_index=-1)
         ctx = MagicMock()
-        ctx.window_manager.melvil_material_items.__len__ = MagicMock(return_value=2)
+        ctx.window_manager.blammo_material_items.__len__ = MagicMock(return_value=2)
         op.check(ctx)
-        assert ctx.window_manager.melvil_selection_valid is False
+        assert ctx.window_manager.blammo_selection_valid is False
 
     def test_check_sets_selection_valid_true_when_item_selected(self):
         op = _make_op(material_index=0)
         item = MagicMock()
         item.asset_id = SAMPLE_MATERIAL_A["id"]
         ctx = MagicMock()
-        ctx.window_manager.melvil_material_items.__len__ = MagicMock(return_value=1)
-        ctx.window_manager.melvil_material_items.__getitem__ = MagicMock(return_value=item)
+        ctx.window_manager.blammo_material_items.__len__ = MagicMock(return_value=1)
+        ctx.window_manager.blammo_material_items.__getitem__ = MagicMock(return_value=item)
         op.check(ctx)
-        assert ctx.window_manager.melvil_selection_valid is True
+        assert ctx.window_manager.blammo_selection_valid is True
 
     def test_check_syncs_asset_id_when_item_selected(self):
         op = _make_op(material_index=0)
         item = MagicMock()
         item.asset_id = SAMPLE_MATERIAL_A["id"]
         ctx = MagicMock()
-        ctx.window_manager.melvil_material_items.__len__ = MagicMock(return_value=1)
-        ctx.window_manager.melvil_material_items.__getitem__ = MagicMock(return_value=item)
+        ctx.window_manager.blammo_material_items.__len__ = MagicMock(return_value=1)
+        ctx.window_manager.blammo_material_items.__getitem__ = MagicMock(return_value=item)
         op.check(ctx)
         assert op.asset_id == SAMPLE_MATERIAL_A["id"]
 
     def test_check_clears_asset_id_when_no_selection(self):
         op = _make_op(material_index=-1, asset_id=SAMPLE_MATERIAL_A["id"])
         ctx = MagicMock()
-        ctx.window_manager.melvil_material_items.__len__ = MagicMock(return_value=0)
+        ctx.window_manager.blammo_material_items.__len__ = MagicMock(return_value=0)
         op.check(ctx)
         assert op.asset_id == ""
 
@@ -266,7 +266,7 @@ class TestInvoke:
         op = _make_op()
         ctx = _make_context(obj=_make_object())
 
-        with patch("melvil.ops.load_material.load_assets", return_value=[]):
+        with patch("blammo.ops.load_material.load_assets", return_value=[]):
             op.invoke(ctx, MagicMock())
 
         ctx.window_manager.invoke_props_dialog.assert_called_once_with(
@@ -278,7 +278,7 @@ class TestInvoke:
         ctx = _make_context(obj=_make_object())
         ctx.window_manager.invoke_props_dialog.return_value = {"RUNNING_MODAL"}
 
-        with patch("melvil.ops.load_material.load_assets", return_value=[]):
+        with patch("blammo.ops.load_material.load_assets", return_value=[]):
             result = op.invoke(ctx, MagicMock())
 
         assert result == {"RUNNING_MODAL"}
@@ -287,25 +287,25 @@ class TestInvoke:
         op = _make_op()
         ctx = _make_context(obj=_make_object())
 
-        with patch("melvil.ops.load_material.load_assets", return_value=[]):
+        with patch("blammo.ops.load_material.load_assets", return_value=[]):
             op.invoke(ctx, MagicMock())
 
-        assert ctx.window_manager.melvil_picker_active is True
+        assert ctx.window_manager.blammo_picker_active is True
 
     def test_invoke_sets_selection_valid_false(self):
         op = _make_op()
         ctx = _make_context(obj=_make_object())
 
-        with patch("melvil.ops.load_material.load_assets", return_value=[]):
+        with patch("blammo.ops.load_material.load_assets", return_value=[]):
             op.invoke(ctx, MagicMock())
 
-        assert ctx.window_manager.melvil_selection_valid is False
+        assert ctx.window_manager.blammo_selection_valid is False
 
     def test_invoke_resets_operator_material_index(self):
         op = _make_op(material_index=3)
         ctx = _make_context(obj=_make_object())
 
-        with patch("melvil.ops.load_material.load_assets", return_value=[]):
+        with patch("blammo.ops.load_material.load_assets", return_value=[]):
             op.invoke(ctx, MagicMock())
 
         assert op.material_index == -1
@@ -317,20 +317,20 @@ class TestInvoke:
             {"id": SAMPLE_MATERIAL_A["id"], "name": "Red Metal"},
             {"id": SAMPLE_MATERIAL_B["id"], "name": "Blue Gloss"},
         ]
-        with patch("melvil.ops.load_material.load_assets", return_value=rows):
+        with patch("blammo.ops.load_material.load_assets", return_value=rows):
             op.invoke(ctx, MagicMock())
 
-        assert ctx.window_manager.melvil_material_items.add.call_count == 2
+        assert ctx.window_manager.blammo_material_items.add.call_count == 2
 
     def test_invoke_wm_item_names_match_db_rows(self):
         op = _make_op()
         ctx = _make_context(obj=_make_object())
         rows = [{"id": SAMPLE_MATERIAL_A["id"], "name": "Red Metal"}]
 
-        with patch("melvil.ops.load_material.load_assets", return_value=rows):
+        with patch("blammo.ops.load_material.load_assets", return_value=rows):
             op.invoke(ctx, MagicMock())
 
-        item_mock = ctx.window_manager.melvil_material_items.add.return_value
+        item_mock = ctx.window_manager.blammo_material_items.add.return_value
         assert item_mock.name == "Red Metal"
         assert item_mock.asset_id == SAMPLE_MATERIAL_A["id"]
 
@@ -338,7 +338,7 @@ class TestInvoke:
         op = _make_op()
         ctx = _make_context(obj=_make_object())
 
-        with patch("melvil.ops.load_material.load_assets", side_effect=Exception("boom")):
+        with patch("blammo.ops.load_material.load_assets", side_effect=Exception("boom")):
             op.invoke(ctx, MagicMock())
 
         assert op._load_error is not None
@@ -346,7 +346,7 @@ class TestInvoke:
     def _context_with_kit(self, active_kit_id: str = "ALL_KITS") -> MagicMock:
         ctx = _make_context(obj=_make_object())
         scene = MagicMock()
-        scene.melvil_active_kit_id = active_kit_id
+        scene.blammo_active_kit_id = active_kit_id
         ctx.scene = scene
         return ctx
 
@@ -355,7 +355,7 @@ class TestInvoke:
         kit_id = "00000000-0000-4000-8000-000000000001"
         ctx = self._context_with_kit(active_kit_id=kit_id)
 
-        with patch("melvil.ops.load_material.load_assets", return_value=[]) as mock_load:
+        with patch("blammo.ops.load_material.load_assets", return_value=[]) as mock_load:
             op.invoke(ctx, MagicMock())
 
         _, kwargs = mock_load.call_args
@@ -365,7 +365,7 @@ class TestInvoke:
         op = _make_op()
         ctx = self._context_with_kit(active_kit_id="ALL_KITS")
 
-        with patch("melvil.ops.load_material.load_assets", return_value=[]) as mock_load:
+        with patch("blammo.ops.load_material.load_assets", return_value=[]) as mock_load:
             op.invoke(ctx, MagicMock())
 
         _, kwargs = mock_load.call_args
@@ -376,7 +376,7 @@ class TestInvoke:
         ctx = _make_context(obj=_make_object())
         ctx.scene = None
 
-        with patch("melvil.ops.load_material.load_assets", return_value=[]) as mock_load:
+        with patch("blammo.ops.load_material.load_assets", return_value=[]) as mock_load:
             op.invoke(ctx, MagicMock())
 
         _, kwargs = mock_load.call_args
@@ -401,19 +401,19 @@ class TestExecuteGuards:
         op = _make_op(asset_id=SAMPLE_MATERIAL_A["id"])
         ctx = _make_context(obj=None)
 
-        with patch("melvil.ops.load_material.resolve_library_root", return_value="/lib"):
+        with patch("blammo.ops.load_material.resolve_library_root", return_value="/lib"):
             result = op.execute(ctx)
 
         assert result == {"CANCELLED"}
 
     def test_library_not_configured_returns_cancelled(self):
-        from melvil.core.library import LibraryNotConfiguredError
+        from blammo.core.library import LibraryNotConfiguredError
 
         op = _make_op(asset_id=SAMPLE_MATERIAL_A["id"])
         ctx = _make_context(obj=_make_object())
 
         with patch(
-            "melvil.ops.load_material.resolve_library_root",
+            "blammo.ops.load_material.resolve_library_root",
             side_effect=LibraryNotConfiguredError("not set"),
         ):
             result = op.execute(ctx)
@@ -421,15 +421,15 @@ class TestExecuteGuards:
         assert result == {"CANCELLED"}
 
     def test_asset_not_found_returns_cancelled(self, conn):
-        from melvil.core.asset_reader import AssetNotFoundError
+        from blammo.core.asset_reader import AssetNotFoundError
 
         op = _make_op(asset_id="does-not-exist")
         ctx = _make_context(obj=_make_object())
 
-        with patch("melvil.ops.load_material.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.load_material.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.load_material.open_db", _mock_open_db(conn)), \
-             patch("melvil.ops.load_material.AssetReader") as MockReader:
+        with patch("blammo.ops.load_material.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.load_material.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.load_material.open_db", _mock_open_db(conn)), \
+             patch("blammo.ops.load_material.AssetReader") as MockReader:
             MockReader.return_value.read.side_effect = AssetNotFoundError("not found")
             result = op.execute(ctx)
 
@@ -439,10 +439,10 @@ class TestExecuteGuards:
         op = _make_op(asset_id=SAMPLE_MATERIAL_A["id"])
         ctx = _make_context(obj=_make_object())
 
-        with patch("melvil.ops.load_material.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.load_material.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.load_material.open_db", _mock_open_db(conn)), \
-             patch("melvil.ops.load_material.AssetReader") as MockReader:
+        with patch("blammo.ops.load_material.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.load_material.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.load_material.open_db", _mock_open_db(conn)), \
+             patch("blammo.ops.load_material.AssetReader") as MockReader:
             MockReader.return_value.read.return_value = None
             result = op.execute(ctx)
 
@@ -452,17 +452,17 @@ class TestExecuteGuards:
         assets_db.insert_asset(conn, **SAMPLE_MATERIAL_A)
         op = _make_op(asset_id=SAMPLE_MATERIAL_A["id"], slot_mode="NEW")
         ctx = _make_context(obj=_make_object())
-        ctx.window_manager.melvil_picker_active = True
+        ctx.window_manager.blammo_picker_active = True
 
-        with patch("melvil.ops.load_material.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.load_material.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.load_material.open_db", _mock_open_db(conn)), \
-             patch("melvil.ops.load_material.AssetReader") as MockReader:
+        with patch("blammo.ops.load_material.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.load_material.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.load_material.open_db", _mock_open_db(conn)), \
+             patch("blammo.ops.load_material.AssetReader") as MockReader:
             MockReader.return_value.read.return_value = MagicMock(name="Red Metal")
             op.execute(ctx)
 
-        assert ctx.window_manager.melvil_picker_active is False
-        assert ctx.window_manager.melvil_selection_valid is False
+        assert ctx.window_manager.blammo_picker_active is False
+        assert ctx.window_manager.blammo_selection_valid is False
 
 
 # ---------------------------------------------------------------------------
@@ -481,10 +481,10 @@ class TestSlotAssignment:
         op = _make_op(asset_id=SAMPLE_MATERIAL_A["id"], slot_mode=slot_mode)
         ctx = _make_context(obj=obj)
 
-        with patch("melvil.ops.load_material.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.load_material.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.load_material.open_db", _mock_open_db(conn)), \
-             patch("melvil.ops.load_material.AssetReader") as MockReader:
+        with patch("blammo.ops.load_material.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.load_material.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.load_material.open_db", _mock_open_db(conn)), \
+             patch("blammo.ops.load_material.AssetReader") as MockReader:
             MockReader.return_value.read.return_value = mock_mat
             result = op.execute(ctx)
 
@@ -525,26 +525,26 @@ class TestSlotAssignment:
 
 class TestCancel:
     def test_cancel_clears_wm_items(self):
-        from melvil.ops.load_material import MELVIL_OT_load_material_to_slot
+        from blammo.ops.load_material import BLAMMO_OT_load_material_to_slot
 
-        op = MELVIL_OT_load_material_to_slot()
+        op = BLAMMO_OT_load_material_to_slot()
         ctx = MagicMock()
 
         op.cancel(ctx)
 
-        ctx.window_manager.melvil_material_items.clear.assert_called_once()
+        ctx.window_manager.blammo_material_items.clear.assert_called_once()
 
     def test_cancel_clears_picker_active(self):
-        from melvil.ops.load_material import MELVIL_OT_load_material_to_slot
+        from blammo.ops.load_material import BLAMMO_OT_load_material_to_slot
 
-        op = MELVIL_OT_load_material_to_slot()
+        op = BLAMMO_OT_load_material_to_slot()
         ctx = MagicMock()
-        ctx.window_manager.melvil_picker_active = True
+        ctx.window_manager.blammo_picker_active = True
 
         op.cancel(ctx)
 
-        assert ctx.window_manager.melvil_picker_active is False
-        assert ctx.window_manager.melvil_selection_valid is False
+        assert ctx.window_manager.blammo_picker_active is False
+        assert ctx.window_manager.blammo_selection_valid is False
 
 
 # ---------------------------------------------------------------------------
@@ -555,17 +555,17 @@ class TestCancel:
 class TestSupportingClasses:
     def test_pg_material_item_inherits_property_group(self):
         import bpy
-        from melvil.ops.load_material import MELVIL_PG_MaterialItem
+        from blammo.ops.load_material import BLAMMO_PG_MaterialItem
 
-        assert issubclass(MELVIL_PG_MaterialItem, bpy.types.PropertyGroup)
+        assert issubclass(BLAMMO_PG_MaterialItem, bpy.types.PropertyGroup)
 
     def test_uilist_bl_idname(self):
-        from melvil.ops.load_material import MELVIL_UL_MaterialList
+        from blammo.ops.load_material import BLAMMO_UL_MaterialList
 
-        assert MELVIL_UL_MaterialList.bl_idname == "MELVIL_UL_material_list"
+        assert BLAMMO_UL_MaterialList.bl_idname == "BLAMMO_UL_material_list"
 
     def test_uilist_inherits_uilist(self):
         import bpy
-        from melvil.ops.load_material import MELVIL_UL_MaterialList
+        from blammo.ops.load_material import BLAMMO_UL_MaterialList
 
-        assert issubclass(MELVIL_UL_MaterialList, bpy.types.UIList)
+        assert issubclass(BLAMMO_UL_MaterialList, bpy.types.UIList)

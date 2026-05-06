@@ -1,9 +1,9 @@
 """
-Melvil asset browser — GPU-rendered UI.
+Blammo asset browser — GPU-rendered UI.
 
 Contains the rendering logic, list-item draw callbacks, and build function
 for the GPU-drawn asset browser.  The modal operator that opens and drives
-this UI lives in :mod:`melvil.ops.open_browser`.
+this UI lives in :mod:`blammo.ops.open_browser`.
 """
 
 from __future__ import annotations
@@ -147,7 +147,7 @@ def draw_asset_card(layout, item, index, is_active):
 
     # Action buttons.
     if show_load(item.asset_type):
-        load_op = box.operator("melvil.load_asset", text="Add to scene")
+        load_op = box.operator("blammo.load_asset", text="Add to scene")
         load_op.asset_id = item.asset_id
 
 
@@ -162,10 +162,10 @@ def handle_icon_button(hit) -> EventResult:
     idx = hit.kwargs.get("index")
     if button_id == "tag_rename" and idx is not None:
         wm = bpy.context.window_manager
-        tags = getattr(wm, "melvil_filter_tags", [])
+        tags = getattr(wm, "blammo_filter_tags", [])
         if 0 <= idx < len(tags):
             tag_item = tags[idx]
-            bpy.ops.melvil.tag_rename("INVOKE_DEFAULT", tag_id=tag_item.tag_id)
+            bpy.ops.blammo.tag_rename("INVOKE_DEFAULT", tag_id=tag_item.tag_id)
     return EventResult(consumed=True, redraw=True)
 
 
@@ -179,12 +179,12 @@ def build_browser(operator, ui_context, layout):
 
     Called every frame by the :class:`UiContext` draw handler.
 
-    *operator* is the ``MELVIL_OT_open_browser`` instance that owns the
+    *operator* is the ``BLAMMO_OT_open_browser`` instance that owns the
     filter properties (``type_filter``, ``kit_filter``, ``search_query``).
     *ui_context* is the :class:`UiContext` that manages previews and list
     selections.
     """
-    layout.label(text="Melvil Asset Library", icon="ASSET_MANAGER")
+    layout.label(text="Blammo! Asset Library", icon="ASSET_MANAGER")
     layout.separator()
 
     # Three-column split: left filters | asset list | asset details.
@@ -209,12 +209,12 @@ def build_browser(operator, ui_context, layout):
     kit_header.label(text="Kit")
     new_col = kit_header.column()
     new_col.scale_x = 0.15
-    new_col.operator("melvil.kit_create", text="", icon="ADD")
+    new_col.operator("blammo.kit_create", text="", icon="ADD")
     rename_col = kit_header.column()
     rename_col.scale_x = 0.15
     rename_col.enabled = operator.kit_filter != "ALL_KITS"
     rename_op = rename_col.operator(
-        "melvil.kit_rename", text="", icon="GREASEPENCIL",
+        "blammo.kit_rename", text="", icon="GREASEPENCIL",
     )
     rename_op.kit_id = (
         operator.kit_filter if operator.kit_filter != "ALL_KITS" else ""
@@ -238,13 +238,13 @@ def build_browser(operator, ui_context, layout):
         active_set = set(active_tag_ids)
         _scene_props._rebuilding_filter_tags = True
         try:
-            wm.melvil_filter_tags.clear()
+            wm.blammo_filter_tags.clear()
             for _ftag in visible_tags:
-                _item = wm.melvil_filter_tags.add()
+                _item = wm.blammo_filter_tags.add()
                 _item.name = _ftag["name"]
                 _item.tag_id = _ftag["id"]
                 _item.is_active = _ftag["id"] in active_set
-            wm.melvil_filter_tags_index = -1
+            wm.blammo_filter_tags_index = -1
         finally:
             _scene_props._rebuilding_filter_tags = False
 
@@ -252,9 +252,9 @@ def build_browser(operator, ui_context, layout):
         tag_list_col = tag_row.column()
         tag_list_col.scale_x = 0.9
         tag_list_col.template_list(
-            "MELVIL_UL_filter_tags", "gpu_tag_filter",
-            wm, "melvil_filter_tags",
-            wm, "melvil_filter_tags_index",
+            "BLAMMO_UL_filter_tags", "gpu_tag_filter",
+            wm, "blammo_filter_tags",
+            wm, "blammo_filter_tags_index",
             rows=min(len(visible_tags), 8),
             allow_deselect=True,
         )
@@ -262,7 +262,7 @@ def build_browser(operator, ui_context, layout):
         tag_btn_col = tag_row.column()
         tag_btn_col.scale_x = 0.1
         tag_btn_col.operator(
-            "melvil.tag_create", text="", icon="ADD",
+            "blammo.tag_create", text="", icon="ADD",
         )
         tag_btn_col.separator(factor=0.5)
         selected_idx = (
@@ -270,14 +270,14 @@ def build_browser(operator, ui_context, layout):
             if ui_context is not None else -1
         )
         selected_tag = (
-            wm.melvil_filter_tags[selected_idx]
-            if 0 <= selected_idx < len(wm.melvil_filter_tags)
+            wm.blammo_filter_tags[selected_idx]
+            if 0 <= selected_idx < len(wm.blammo_filter_tags)
             else None
         )
         delete_btn = tag_btn_col.column()
         delete_btn.enabled = selected_tag is not None
         delete_op = delete_btn.operator(
-            "melvil.tag_delete", text="", icon="REMOVE",
+            "blammo.tag_delete", text="", icon="REMOVE",
         )
         if selected_tag is not None:
             delete_op.tag_id = selected_tag.tag_id
@@ -290,13 +290,13 @@ def build_browser(operator, ui_context, layout):
         tag_btn_col = tag_row.column()
         tag_btn_col.scale_x = 0.1
         tag_btn_col.operator(
-            "melvil.tag_create", text="", icon="ADD",
+            "blammo.tag_create", text="", icon="ADD",
         )
         tag_btn_col.separator(factor=0.5)
         delete_btn = tag_btn_col.column()
         delete_btn.enabled = False
         delete_btn.operator(
-            "melvil.tag_delete", text="", icon="REMOVE",
+            "blammo.tag_delete", text="", icon="REMOVE",
         )
 
     left.separator()
@@ -369,9 +369,9 @@ def build_browser(operator, ui_context, layout):
         lib_root = resolve_library_root()
         _scene_props._rebuilding_browser_assets = True
         try:
-            wm.melvil_browser_assets.clear()
+            wm.blammo_browser_assets.clear()
             for asset in all_visible:
-                item = wm.melvil_browser_assets.add()
+                item = wm.blammo_browser_assets.add()
                 item.name = asset["name"]
                 item.asset_id = asset["id"]
                 item.asset_type = asset["type"]
@@ -402,9 +402,9 @@ def build_browser(operator, ui_context, layout):
             _scene_props._rebuilding_browser_assets = False
 
         middle.template_list(
-            "MELVIL_UL_asset_grid", "gpu_asset_list",
-            wm, "melvil_browser_assets",
-            wm, "melvil_browser_assets_index",
+            "BLAMMO_UL_asset_grid", "gpu_asset_list",
+            wm, "blammo_browser_assets",
+            wm, "blammo_browser_assets_index",
             rows=5,
             cols=2,
             cell_height=_ASSET_CARD_HEIGHT,
@@ -413,7 +413,7 @@ def build_browser(operator, ui_context, layout):
     middle.separator()
 
     # -- Right column: asset details -----------------------------------------
-    selected_id = getattr(wm, "melvil_selected_asset_id", "")
+    selected_id = getattr(wm, "blammo_selected_asset_id", "")
     selected_asset = None
     selected_tags: list = []
     selected_kit_name = "Default"
@@ -430,9 +430,9 @@ def build_browser(operator, ui_context, layout):
         except Exception:  # noqa: BLE001
             selected_asset = None
 
-    wm.melvil_asset_tags.clear()
+    wm.blammo_asset_tags.clear()
     for _tag in selected_tags:
-        item = wm.melvil_asset_tags.add()
+        item = wm.blammo_asset_tags.add()
         item.name = _tag["name"]
         item.tag_id = _tag["id"]
 

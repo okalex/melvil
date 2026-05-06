@@ -87,14 +87,14 @@ class AssetReader:
         row = get_asset(self.conn, asset_id)
         if row is None:
             raise AssetNotFoundError(
-                f"Melvil: asset '{asset_id}' was not found in the database."
+                f"Blammo!: asset '{asset_id}' was not found in the database."
             )
 
         asset_type = row["type"]
         collection = _TYPE_TO_COLLECTION.get(asset_type)
         if collection is None:
             raise ValueError(
-                f"Melvil: unsupported asset type '{asset_type}'."
+                f"Blammo!: unsupported asset type '{asset_type}'."
             )
 
         blend_path = self.library_root / row["blend_path"]

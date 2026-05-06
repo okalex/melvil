@@ -1,4 +1,4 @@
-"""Tests for ui/menus_node_add.py — MELVIL_MT_node_add_submenu."""
+"""Tests for ui/menus_node_add.py — BLAMMO_MT_node_add_submenu."""
 
 from __future__ import annotations
 
@@ -16,12 +16,12 @@ def _make_asset(id: str, name: str) -> dict:
 
 def _fresh():
     import importlib
-    import melvil.ui.menus_node_add as m
+    import blammo.ui.menus_node_add as m
     importlib.reload(m)
     return m
 
 
-_PATCH_LOAD = "melvil.ui.menus_factory.load_assets"
+_PATCH_LOAD = "blammo.ui.menus_factory.load_assets"
 
 
 # ---------------------------------------------------------------------------
@@ -31,17 +31,17 @@ _PATCH_LOAD = "melvil.ui.menus_factory.load_assets"
 
 class TestMenuMetadata:
     def test_bl_idname(self):
-        from melvil.ui.menus_node_add import MELVIL_MT_node_add_submenu
-        assert MELVIL_MT_node_add_submenu.bl_idname == "MELVIL_MT_node_add_submenu"
+        from blammo.ui.menus_node_add import BLAMMO_MT_node_add_submenu
+        assert BLAMMO_MT_node_add_submenu.bl_idname == "BLAMMO_MT_node_add_submenu"
 
     def test_bl_label(self):
-        from melvil.ui.menus_node_add import MELVIL_MT_node_add_submenu
-        assert MELVIL_MT_node_add_submenu.bl_label == "Melvil"
+        from blammo.ui.menus_node_add import BLAMMO_MT_node_add_submenu
+        assert BLAMMO_MT_node_add_submenu.bl_label == "Blammo!"
 
     def test_inherits_menu(self):
         import bpy
-        from melvil.ui.menus_node_add import MELVIL_MT_node_add_submenu
-        assert issubclass(MELVIL_MT_node_add_submenu, bpy.types.Menu)
+        from blammo.ui.menus_node_add import BLAMMO_MT_node_add_submenu
+        assert issubclass(BLAMMO_MT_node_add_submenu, bpy.types.Menu)
 
 
 # ---------------------------------------------------------------------------
@@ -51,8 +51,8 @@ class TestMenuMetadata:
 
 class TestDraw:
     def _menu(self):
-        from melvil.ui.menus_node_add import MELVIL_MT_node_add_submenu
-        m = MELVIL_MT_node_add_submenu()
+        from blammo.ui.menus_node_add import BLAMMO_MT_node_add_submenu
+        m = BLAMMO_MT_node_add_submenu()
         m.layout = MagicMock()
         m.layout.operator.return_value = MagicMock()
         return m
@@ -74,7 +74,7 @@ class TestDraw:
             menu.draw(MagicMock())
 
         first_arg = menu.layout.operator.call_args[0][0]
-        assert first_arg == "melvil.add_node_group"
+        assert first_arg == "blammo.add_node_group"
 
     def test_operator_text_is_asset_name(self):
         assets = [_make_asset("id1", "Noise FX")]
@@ -123,7 +123,7 @@ class TestDraw:
     def _context(self, active_kit_id: str = "ALL_KITS") -> MagicMock:
         ctx = MagicMock()
         scene = MagicMock()
-        scene.melvil_active_kit_id = active_kit_id
+        scene.blammo_active_kit_id = active_kit_id
         ctx.scene = scene
         return ctx
 
@@ -152,11 +152,11 @@ class TestDraw:
 
 class TestNodeAddEntry:
     def test_entry_calls_layout_menu(self):
-        from melvil.ui.menus_node_add import MELVIL_MT_node_add_submenu, _draw_node_add_entry
+        from blammo.ui.menus_node_add import BLAMMO_MT_node_add_submenu, _draw_node_add_entry
 
         fake_self = MagicMock()
         _draw_node_add_entry(fake_self, MagicMock())
-        fake_self.layout.menu.assert_called_once_with(MELVIL_MT_node_add_submenu.bl_idname)
+        fake_self.layout.menu.assert_called_once_with(BLAMMO_MT_node_add_submenu.bl_idname)
 
 
 # ---------------------------------------------------------------------------
@@ -192,7 +192,7 @@ class TestHostMenuRegistration:
         m = _fresh()
         with patch.object(bpy.utils, "register_class") as mock_reg:
             m.register()
-        mock_reg.assert_called_once_with(m.MELVIL_MT_node_add_submenu)
+        mock_reg.assert_called_once_with(m.BLAMMO_MT_node_add_submenu)
 
     def test_unregister_calls_unregister_class(self):
         import bpy
@@ -201,4 +201,4 @@ class TestHostMenuRegistration:
              patch.object(bpy.utils, "unregister_class") as mock_unreg:
             m.register()
             m.unregister()
-        mock_unreg.assert_called_once_with(m.MELVIL_MT_node_add_submenu)
+        mock_unreg.assert_called_once_with(m.BLAMMO_MT_node_add_submenu)

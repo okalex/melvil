@@ -1,4 +1,4 @@
-"""MELVIL_OT_kit_create — create a new named kit."""
+"""BLAMMO_OT_kit_create — create a new named kit."""
 
 from __future__ import annotations
 
@@ -12,10 +12,10 @@ from ..db import open_db
 from ..db.kits import get_kit_by_name, insert_kit
 
 
-class MELVIL_OT_kit_create(bpy.types.Operator):
-    """Create a new kit in the Melvil library"""
+class BLAMMO_OT_kit_create(bpy.types.Operator):
+    """Create a new kit in the Blammo library"""
 
-    bl_idname = "melvil.kit_create"
+    bl_idname = "blammo.kit_create"
     bl_label = "New Kit"
     bl_options = {"REGISTER"}
 
@@ -69,7 +69,7 @@ class MELVIL_OT_kit_create(bpy.types.Operator):
             self.report({"ERROR"}, str(exc))
             return {"CANCELLED"}
         except Exception as exc:  # noqa: BLE001
-            self.report({"ERROR"}, f"Melvil: could not create kit — {exc}")
+            self.report({"ERROR"}, f"Blammo!: could not create kit — {exc}")
             return {"CANCELLED"}
 
         self.report({"INFO"}, f"Kit '{name}' created.")

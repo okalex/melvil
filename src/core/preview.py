@@ -1,5 +1,5 @@
 """
-Preview generation for Melvil assets.
+Preview generation for Blammo assets.
 
 Renders a 512×512 Workbench PNG preview image for mesh and material assets.
 All ``bpy`` and ``mathutils`` imports are deferred inside function bodies so
@@ -176,7 +176,7 @@ def _add_uv_sphere(scene):
     import bmesh as _bmesh  # noqa: PLC0415
     import bpy  # noqa: PLC0415
 
-    mesh = bpy.data.meshes.new("melvil_sphere_mesh")
+    mesh = bpy.data.meshes.new("blammo_sphere_mesh")
     bm = _bmesh.new()
     _bmesh.ops.create_uvsphere(bm, u_segments=64, v_segments=32, radius=1.0)
     bm.to_mesh(mesh)
@@ -186,7 +186,7 @@ def _add_uv_sphere(scene):
     for poly in mesh.polygons:
         poly.use_smooth = True
 
-    sphere_obj = bpy.data.objects.new("melvil_sphere", mesh)
+    sphere_obj = bpy.data.objects.new("blammo_sphere", mesh)
     scene.collection.objects.link(sphere_obj)
     return sphere_obj
 
@@ -199,7 +199,7 @@ def _add_builtin_cube(scene):
     import bmesh as _bmesh  # noqa: PLC0415
     import bpy  # noqa: PLC0415
 
-    mesh = bpy.data.meshes.new("melvil_cube_mesh")
+    mesh = bpy.data.meshes.new("blammo_cube_mesh")
     bm = _bmesh.new()
     _bmesh.ops.create_cube(bm, size=2.0)
     bm.to_mesh(mesh)
@@ -208,7 +208,7 @@ def _add_builtin_cube(scene):
     for poly in mesh.polygons:
         poly.use_smooth = True
 
-    cube_obj = bpy.data.objects.new("melvil_cube", mesh)
+    cube_obj = bpy.data.objects.new("blammo_cube", mesh)
     scene.collection.objects.link(cube_obj)
     return cube_obj
 
@@ -224,7 +224,7 @@ def _add_builtin_torus(scene):
     major_r, minor_r = 1.0, 0.3
     major_seg, minor_seg = 48, 12
 
-    mesh = bpy.data.meshes.new("melvil_torus_mesh")
+    mesh = bpy.data.meshes.new("blammo_torus_mesh")
 
     import bmesh as _bmesh  # noqa: PLC0415
     bm = _bmesh.new()
@@ -252,7 +252,7 @@ def _add_builtin_torus(scene):
     for poly in mesh.polygons:
         poly.use_smooth = True
 
-    torus_obj = bpy.data.objects.new("melvil_torus", mesh)
+    torus_obj = bpy.data.objects.new("blammo_torus", mesh)
     scene.collection.objects.link(torus_obj)
     return torus_obj
 
@@ -265,7 +265,7 @@ def _add_builtin_monkey(scene):
     import bmesh as _bmesh  # noqa: PLC0415
     import bpy  # noqa: PLC0415
 
-    mesh = bpy.data.meshes.new("melvil_monkey_mesh")
+    mesh = bpy.data.meshes.new("blammo_monkey_mesh")
     bm = _bmesh.new()
     _bmesh.ops.create_monkey(bm)
     bm.to_mesh(mesh)
@@ -274,7 +274,7 @@ def _add_builtin_monkey(scene):
     for poly in mesh.polygons:
         poly.use_smooth = True
 
-    monkey_obj = bpy.data.objects.new("melvil_monkey", mesh)
+    monkey_obj = bpy.data.objects.new("blammo_monkey", mesh)
     scene.collection.objects.link(monkey_obj)
     return monkey_obj
 
@@ -352,9 +352,9 @@ def _make_material_preview_lighting(scene):
     import bpy  # noqa: PLC0415
     import mathutils  # noqa: PLC0415
 
-    light_data = bpy.data.lights.new("melvil_preview_key", type="SUN")
+    light_data = bpy.data.lights.new("blammo_preview_key", type="SUN")
     light_data.energy = 3.0
-    light_obj = bpy.data.objects.new("melvil_preview_key", light_data)
+    light_obj = bpy.data.objects.new("blammo_preview_key", light_data)
     # Upper-right of the camera's view with a slight forward (-Y) lean so
     # the light grazes the front-facing side without being head-on.
     # X > 0 = right, Z > 0 = up, Y < 0 = toward camera.
@@ -363,7 +363,7 @@ def _make_material_preview_lighting(scene):
     scene.collection.objects.link(light_obj)
 
     # Dim ambient fill so shadowed areas are not pure black.
-    world = bpy.data.worlds.new("melvil_preview_world")
+    world = bpy.data.worlds.new("blammo_preview_world")
     world.use_nodes = False
     world.color = (0.05, 0.05, 0.05)
     scene.world = world
@@ -435,14 +435,14 @@ def generate_mesh_preview(
     cam_data = None
     cam_obj = None
     try:
-        scene = bpy.data.scenes.new("melvil_preview_temp")
+        scene = bpy.data.scenes.new("blammo_preview_temp")
         _configure_scene(scene, output_path)
 
-        cam_data = bpy.data.cameras.new("melvil_preview_cam")
+        cam_data = bpy.data.cameras.new("blammo_preview_cam")
         cam_data.type = "PERSP"
         cam_data.lens = 50
 
-        cam_obj = bpy.data.objects.new("melvil_preview_cam", cam_data)
+        cam_obj = bpy.data.objects.new("blammo_preview_cam", cam_data)
 
         center, radius = _bounding_sphere(obj)
         cam_data.clip_start = max(radius * 1e-3, 1e-6)
@@ -463,7 +463,7 @@ def generate_mesh_preview(
         return str(output_path)
 
     except Exception:  # noqa: BLE001
-        print("Melvil: mesh preview generation failed:")
+        print("Blammo!: mesh preview generation failed:")
         traceback.print_exc()
         return None
 
@@ -523,7 +523,7 @@ def generate_material_preview(
     light_data = None
     world = None
     try:
-        scene = bpy.data.scenes.new("melvil_preview_temp")
+        scene = bpy.data.scenes.new("blammo_preview_temp")
         _configure_scene(scene, output_path, engine="BLENDER_EEVEE")
 
         # --- Preview mesh with material applied ---
@@ -536,11 +536,11 @@ def generate_material_preview(
         light_obj, light_data, world = _make_material_preview_lighting(scene)
 
         # --- Camera zoomed to fit the preview mesh at the canonical 45°/30° angle ---
-        cam_data = bpy.data.cameras.new("melvil_preview_cam")
+        cam_data = bpy.data.cameras.new("blammo_preview_cam")
         cam_data.type = "PERSP"
         cam_data.lens = 50
 
-        cam_obj = bpy.data.objects.new("melvil_preview_cam", cam_data)
+        cam_obj = bpy.data.objects.new("blammo_preview_cam", cam_data)
 
         center, radius = _bounding_sphere(sphere_obj)
         cam_data.clip_start = max(radius * 1e-3, 1e-6)
@@ -555,7 +555,7 @@ def generate_material_preview(
         return str(output_path)
 
     except Exception:  # noqa: BLE001
-        print("Melvil: material preview generation failed:")
+        print("Blammo!: material preview generation failed:")
         traceback.print_exc()
         return None
 

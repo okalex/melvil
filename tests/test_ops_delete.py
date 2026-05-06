@@ -1,4 +1,4 @@
-"""Tests for ops/delete.py — MELVIL_OT_delete_asset."""
+"""Tests for ops/delete.py — BLAMMO_OT_delete_asset."""
 
 from __future__ import annotations
 
@@ -9,8 +9,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from melvil.db.connection import migrate
-from melvil.db import assets as assets_db
+from blammo.db.connection import migrate
+from blammo.db import assets as assets_db
 
 
 # ---------------------------------------------------------------------------
@@ -44,9 +44,9 @@ SAMPLE = dict(
 
 
 def _make_op(asset_id=""):
-    from melvil.ops.delete import MELVIL_OT_delete_asset
+    from blammo.ops.delete import BLAMMO_OT_delete_asset
 
-    op = MELVIL_OT_delete_asset()
+    op = BLAMMO_OT_delete_asset()
     op.asset_id = asset_id
     return op
 
@@ -58,9 +58,9 @@ def _make_op(asset_id=""):
 
 class TestPoll:
     def test_always_returns_true(self):
-        from melvil.ops.delete import MELVIL_OT_delete_asset
+        from blammo.ops.delete import BLAMMO_OT_delete_asset
 
-        assert MELVIL_OT_delete_asset.poll(MagicMock()) is True
+        assert BLAMMO_OT_delete_asset.poll(MagicMock()) is True
 
 
 # ---------------------------------------------------------------------------
@@ -71,30 +71,30 @@ class TestPoll:
 class TestExecute:
     def test_no_asset_id_returns_cancelled(self):
         op = _make_op(asset_id="")
-        with patch("melvil.ops.delete.resolve_library_root", return_value="/lib"):
+        with patch("blammo.ops.delete.resolve_library_root", return_value="/lib"):
             result = op.execute(MagicMock())
         assert result == {"CANCELLED"}
 
     def test_whitespace_id_returns_cancelled(self):
         op = _make_op(asset_id="   ")
-        with patch("melvil.ops.delete.resolve_library_root", return_value="/lib"):
+        with patch("blammo.ops.delete.resolve_library_root", return_value="/lib"):
             result = op.execute(MagicMock())
         assert result == {"CANCELLED"}
 
     def test_library_not_configured_returns_cancelled(self):
-        from melvil.core.library import LibraryNotConfiguredError
+        from blammo.core.library import LibraryNotConfiguredError
 
         op = _make_op(asset_id=SAMPLE["id"])
-        with patch("melvil.ops.delete.resolve_library_root", side_effect=LibraryNotConfiguredError("x")):
+        with patch("blammo.ops.delete.resolve_library_root", side_effect=LibraryNotConfiguredError("x")):
             result = op.execute(MagicMock())
         assert result == {"CANCELLED"}
 
     def test_asset_not_in_db_returns_cancelled(self, conn):
         op = _make_op(asset_id="does-not-exist")
 
-        with patch("melvil.ops.delete.resolve_library_root", return_value="/tmp/lib"), \
-             patch("melvil.ops.delete.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.delete.open_db", _mock_open_db(conn)):
+        with patch("blammo.ops.delete.resolve_library_root", return_value="/tmp/lib"), \
+             patch("blammo.ops.delete.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.delete.open_db", _mock_open_db(conn)):
             result = op.execute(MagicMock())
 
         assert result == {"CANCELLED"}
@@ -108,9 +108,9 @@ class TestExecute:
 
         op = _make_op(asset_id=SAMPLE["id"])
 
-        with patch("melvil.ops.delete.resolve_library_root", return_value=tmp_path), \
-             patch("melvil.ops.delete.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.delete.open_db", _mock_open_db(conn)):
+        with patch("blammo.ops.delete.resolve_library_root", return_value=tmp_path), \
+             patch("blammo.ops.delete.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.delete.open_db", _mock_open_db(conn)):
             result = op.execute(MagicMock())
 
         assert result == {"FINISHED"}
@@ -123,9 +123,9 @@ class TestExecute:
 
         op = _make_op(asset_id=SAMPLE["id"])
 
-        with patch("melvil.ops.delete.resolve_library_root", return_value=tmp_path), \
-             patch("melvil.ops.delete.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.delete.open_db", _mock_open_db(conn)):
+        with patch("blammo.ops.delete.resolve_library_root", return_value=tmp_path), \
+             patch("blammo.ops.delete.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.delete.open_db", _mock_open_db(conn)):
             result = op.execute(MagicMock())
 
         assert result == {"FINISHED"}
@@ -141,9 +141,9 @@ class TestExecute:
 
         op = _make_op(asset_id=SAMPLE["id"])
 
-        with patch("melvil.ops.delete.resolve_library_root", return_value=tmp_path), \
-             patch("melvil.ops.delete.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.delete.open_db", _mock_open_db(conn)):
+        with patch("blammo.ops.delete.resolve_library_root", return_value=tmp_path), \
+             patch("blammo.ops.delete.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.delete.open_db", _mock_open_db(conn)):
             op.execute(MagicMock())
 
         # Texture file must still be present.
@@ -157,9 +157,9 @@ class TestExecute:
 
         op = _make_op(asset_id=SAMPLE["id"])
 
-        with patch("melvil.ops.delete.resolve_library_root", return_value=tmp_path), \
-             patch("melvil.ops.delete.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.delete.open_db", _mock_open_db(conn)):
+        with patch("blammo.ops.delete.resolve_library_root", return_value=tmp_path), \
+             patch("blammo.ops.delete.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.delete.open_db", _mock_open_db(conn)):
             result = op.execute(MagicMock())
 
         assert result == {"FINISHED"}
@@ -171,9 +171,9 @@ class TestExecute:
 
         op = _make_op(asset_id=SAMPLE["id"])
 
-        with patch("melvil.ops.delete.resolve_library_root", return_value=tmp_path), \
-             patch("melvil.ops.delete.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.delete.open_db", _mock_open_db(conn)):
+        with patch("blammo.ops.delete.resolve_library_root", return_value=tmp_path), \
+             patch("blammo.ops.delete.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.delete.open_db", _mock_open_db(conn)):
             result = op.execute(MagicMock())
 
         assert result == {"FINISHED"}
@@ -185,9 +185,9 @@ class TestExecute:
 
         op = _make_op(asset_id=SAMPLE["id"])
 
-        with patch("melvil.ops.delete.resolve_library_root", return_value=tmp_path), \
-             patch("melvil.ops.delete.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.delete.open_db", _mock_open_db(conn)):
+        with patch("blammo.ops.delete.resolve_library_root", return_value=tmp_path), \
+             patch("blammo.ops.delete.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.delete.open_db", _mock_open_db(conn)):
             result = op.execute(MagicMock())
 
         assert result == {"FINISHED"}
@@ -197,9 +197,9 @@ class TestExecute:
 
         op = _make_op(asset_id=SAMPLE["id"])
 
-        with patch("melvil.ops.delete.resolve_library_root", return_value=tmp_path), \
-             patch("melvil.ops.delete.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.delete.open_db", _mock_open_db(conn)), \
+        with patch("blammo.ops.delete.resolve_library_root", return_value=tmp_path), \
+             patch("blammo.ops.delete.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.delete.open_db", _mock_open_db(conn)), \
              patch("pathlib.Path.unlink", side_effect=OSError("permission denied")):
             result = op.execute(MagicMock())
 

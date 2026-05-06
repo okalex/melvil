@@ -1,6 +1,6 @@
 BLENDER_VERSION ?= 5.0
 BLENDER_ADDONS_DIR ?= $(HOME)/Library/Application Support/Blender/$(BLENDER_VERSION)/extensions/user_default
-ADDON_NAME := melvil
+ADDON_NAME := blammo
 ADDON_SRC := src
 
 ADDON_VERSION := $(shell grep '^version' $(ADDON_SRC)/blender_manifest.toml | head -1 | sed 's/.*= *"\(.*\)"/\1/')

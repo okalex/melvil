@@ -1,4 +1,4 @@
-"""Tests for ops/kit_create.py — MELVIL_OT_kit_create."""
+"""Tests for ops/kit_create.py — BLAMMO_OT_kit_create."""
 
 from __future__ import annotations
 
@@ -7,9 +7,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from melvil.db.connection import migrate
-from melvil.db import kits as kits_db
-from melvil.db.kits import DEFAULT_KIT_ID
+from blammo.db.connection import migrate
+from blammo.db import kits as kits_db
+from blammo.db.kits import DEFAULT_KIT_ID
 
 
 @pytest.fixture
@@ -23,9 +23,9 @@ def conn():
 
 
 def _make_op():
-    from melvil.ops.kit_create import MELVIL_OT_kit_create
+    from blammo.ops.kit_create import BLAMMO_OT_kit_create
 
-    op = MELVIL_OT_kit_create()
+    op = BLAMMO_OT_kit_create()
     op.name = ""
     op.description = ""
     return op
@@ -41,15 +41,15 @@ def _make_ctx():
 
 
 def test_bl_idname():
-    from melvil.ops.kit_create import MELVIL_OT_kit_create
+    from blammo.ops.kit_create import BLAMMO_OT_kit_create
 
-    assert MELVIL_OT_kit_create.bl_idname == "melvil.kit_create"
+    assert BLAMMO_OT_kit_create.bl_idname == "blammo.kit_create"
 
 
 def test_bl_label():
-    from melvil.ops.kit_create import MELVIL_OT_kit_create
+    from blammo.ops.kit_create import BLAMMO_OT_kit_create
 
-    assert MELVIL_OT_kit_create.bl_label == "New Kit"
+    assert BLAMMO_OT_kit_create.bl_label == "New Kit"
 
 
 # ---------------------------------------------------------------------------
@@ -58,9 +58,9 @@ def test_bl_label():
 
 
 def test_poll_always_true():
-    from melvil.ops.kit_create import MELVIL_OT_kit_create
+    from blammo.ops.kit_create import BLAMMO_OT_kit_create
 
-    assert MELVIL_OT_kit_create.poll(MagicMock()) is True
+    assert BLAMMO_OT_kit_create.poll(MagicMock()) is True
 
 
 # ---------------------------------------------------------------------------
@@ -100,7 +100,7 @@ def test_execute_empty_name_returns_cancelled():
     op = _make_op()
     op.name = "   "
 
-    with patch("melvil.ops.kit_create.open_db"):
+    with patch("blammo.ops.kit_create.open_db"):
         result = op.execute(_make_ctx())
 
     assert result == {"CANCELLED"}
@@ -110,8 +110,8 @@ def test_execute_duplicate_name_returns_cancelled(conn):
     op = _make_op()
     op.name = "General"  # already exists after migration
 
-    with patch("melvil.ops.kit_create.open_db") as mock_open, \
-         patch("melvil.ops.kit_create.resolve_db_path"):
+    with patch("blammo.ops.kit_create.open_db") as mock_open, \
+         patch("blammo.ops.kit_create.resolve_db_path"):
         mock_open.return_value.__enter__ = lambda s: conn
         mock_open.return_value.__exit__ = MagicMock(return_value=False)
         result = op.execute(_make_ctx())
@@ -123,8 +123,8 @@ def test_execute_duplicate_name_case_insensitive(conn):
     op = _make_op()
     op.name = "general"  # "General" exists already
 
-    with patch("melvil.ops.kit_create.open_db") as mock_open, \
-         patch("melvil.ops.kit_create.resolve_db_path"):
+    with patch("blammo.ops.kit_create.open_db") as mock_open, \
+         patch("blammo.ops.kit_create.resolve_db_path"):
         mock_open.return_value.__enter__ = lambda s: conn
         mock_open.return_value.__exit__ = MagicMock(return_value=False)
         result = op.execute(_make_ctx())
@@ -142,8 +142,8 @@ def test_execute_creates_kit(conn):
     op.name = "Campaign Assets"
     op.description = "Assets for the summer campaign"
 
-    with patch("melvil.ops.kit_create.open_db") as mock_open, \
-         patch("melvil.ops.kit_create.resolve_db_path"):
+    with patch("blammo.ops.kit_create.open_db") as mock_open, \
+         patch("blammo.ops.kit_create.resolve_db_path"):
         mock_open.return_value.__enter__ = lambda s: conn
         mock_open.return_value.__exit__ = MagicMock(return_value=False)
         result = op.execute(_make_ctx())
@@ -158,8 +158,8 @@ def test_execute_strips_name_whitespace(conn):
     op = _make_op()
     op.name = "  Game Project  "
 
-    with patch("melvil.ops.kit_create.open_db") as mock_open, \
-         patch("melvil.ops.kit_create.resolve_db_path"):
+    with patch("blammo.ops.kit_create.open_db") as mock_open, \
+         patch("blammo.ops.kit_create.resolve_db_path"):
         mock_open.return_value.__enter__ = lambda s: conn
         mock_open.return_value.__exit__ = MagicMock(return_value=False)
         op.execute(_make_ctx())
@@ -172,8 +172,8 @@ def test_execute_empty_description_stored_as_none(conn):
     op.name = "New Kit"
     op.description = "   "  # whitespace-only → None
 
-    with patch("melvil.ops.kit_create.open_db") as mock_open, \
-         patch("melvil.ops.kit_create.resolve_db_path"):
+    with patch("blammo.ops.kit_create.open_db") as mock_open, \
+         patch("blammo.ops.kit_create.resolve_db_path"):
         mock_open.return_value.__enter__ = lambda s: conn
         mock_open.return_value.__exit__ = MagicMock(return_value=False)
         op.execute(_make_ctx())
@@ -183,12 +183,12 @@ def test_execute_empty_description_stored_as_none(conn):
 
 
 def test_execute_library_not_configured_returns_cancelled():
-    from melvil.core.library import LibraryNotConfiguredError
+    from blammo.core.library import LibraryNotConfiguredError
 
     op = _make_op()
     op.name = "Some Kit"
 
-    with patch("melvil.ops.kit_create.resolve_db_path", side_effect=LibraryNotConfiguredError("not configured")):
+    with patch("blammo.ops.kit_create.resolve_db_path", side_effect=LibraryNotConfiguredError("not configured")):
         result = op.execute(_make_ctx())
 
     assert result == {"CANCELLED"}

@@ -1,5 +1,5 @@
 """
-Shared UI drawing helpers for Melvil.
+Shared UI drawing helpers for Blammo.
 
 Any panel or popup that needs to render an asset list imports
 helpers from here rather than duplicating the layout code.
@@ -25,7 +25,7 @@ from ..db.tags import (
 from .asset_types import type_label
 
 
-class MELVIL_UL_asset_tags(bpy.types.UIList):
+class BLAMMO_UL_asset_tags(bpy.types.UIList):
     """UIList for displaying asset tags in the browser detail panel."""
 
     def draw_filter(self, context, layout):
@@ -167,29 +167,29 @@ def draw_asset_details(
 
     # Sync the draft name whenever the selected asset changes so that
     # switching assets always shows the current saved name.
-    if wm.melvil_pending_name_asset_id != asset["id"]:
-        wm.melvil_pending_name = asset["name"]
-        wm.melvil_pending_name_asset_id = asset["id"]
+    if wm.blammo_pending_name_asset_id != asset["id"]:
+        wm.blammo_pending_name = asset["name"]
+        wm.blammo_pending_name_asset_id = asset["id"]
 
     name_split = layout.split(factor=0.15)
     name_split.label(text="Name:")
     name_val = name_split.row()
-    name_val.prop(wm, "melvil_pending_name", text="", textedit_update=True)
+    name_val.prop(wm, "blammo_pending_name", text="", textedit_update=True)
     confirm_col = name_val.column()
     confirm_col.scale_x = 0.15
     confirm_col.enabled = (
-        wm.melvil_pending_name.strip() != asset["name"]
-        and bool(wm.melvil_pending_name.strip())
+        wm.blammo_pending_name.strip() != asset["name"]
+        and bool(wm.blammo_pending_name.strip())
     )
     confirm_op = confirm_col.operator(
-        "melvil.asset_name_confirm", text="", icon="CHECKMARK"
+        "blammo.asset_name_confirm", text="", icon="CHECKMARK"
     )
     confirm_op.asset_id = asset["id"]
 
     # Kit
     kit_split = layout.split(factor=0.15)
     kit_split.label(text="Kit:")
-    kit_op = kit_split.operator_menu_enum("melvil.asset_set_kit", "kit_id", text=kit_name)
+    kit_op = kit_split.operator_menu_enum("blammo.asset_set_kit", "kit_id", text=kit_name)
     kit_op.asset_id = asset["id"]
 
     # Type
@@ -209,13 +209,13 @@ def draw_asset_details(
     btn_col = source_val.column()
     btn_col.scale_x = 0.15
     open_op = btn_col.operator(
-        "melvil.open_blend_file", text="", icon="BLENDER"
+        "blammo.open_blend_file", text="", icon="BLENDER"
     )
     open_op.blend_path = abs_blend_path
     btn_col2 = source_val.column()
     btn_col2.scale_x = 0.15
     reveal_op = btn_col2.operator(
-        "melvil.reveal_blend_file", text="", icon="FILE_FOLDER"
+        "blammo.reveal_blend_file", text="", icon="FILE_FOLDER"
     )
     reveal_op.blend_path = abs_blend_path
 
@@ -240,24 +240,24 @@ def draw_asset_details(
         list_row = layout.row()
         list_col = list_row.column()
         list_col.template_list(
-            "MELVIL_UL_asset_tags", "",
-            wm, "melvil_asset_tags",
-            wm, "melvil_asset_tags_index",
+            "BLAMMO_UL_asset_tags", "",
+            wm, "blammo_asset_tags",
+            wm, "blammo_asset_tags_index",
             rows=5,
         )
         list_row.separator(factor=0.5)
         side_col = list_row.column()
         side_col.scale_x = 0.06
 
-        add_op = side_col.operator("melvil.tag_add", text="", icon="ADD")
+        add_op = side_col.operator("blammo.tag_add", text="", icon="ADD")
         add_op.asset_id = asset["id"]
 
         side_col.separator(factor=0.5)
-        idx = wm.melvil_asset_tags_index
-        tag_items = wm.melvil_asset_tags
+        idx = wm.blammo_asset_tags_index
+        tag_items = wm.blammo_asset_tags
         remove_col = side_col.column()
         remove_col.enabled = bool(tag_items) and 0 <= idx < len(tag_items)
-        remove_op = remove_col.operator("melvil.tag_remove", text="", icon="REMOVE")
+        remove_op = remove_col.operator("blammo.tag_remove", text="", icon="REMOVE")
         remove_op.asset_id = asset["id"]
         remove_op.tag_id = tag_items[idx].tag_id if remove_col.enabled else ""
     elif tags:
@@ -274,7 +274,7 @@ def draw_asset_details(
     del_row = layout.row()
     del_row.alignment = "LEFT"
     del_row.alert = True
-    del_op = del_row.operator("melvil.delete_asset", text="Delete Asset", icon="TRASH")
+    del_op = del_row.operator("blammo.delete_asset", text="Delete Asset", icon="TRASH")
     del_op.asset_id = asset["id"]
 
     layout.separator()

@@ -1,5 +1,5 @@
 """
-Migration discovery for the Melvil SQLite database.
+Migration discovery for the Blammo SQLite database.
 
 Migration files live alongside this package in db/migrations/ and follow the
 naming convention:

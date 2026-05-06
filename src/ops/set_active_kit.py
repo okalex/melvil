@@ -1,9 +1,9 @@
 """
-MELVIL_OT_set_active_kit — set the active kit on the current scene.
+BLAMMO_OT_set_active_kit — set the active kit on the current scene.
 
 The active kit is stored as a StringProperty on ``bpy.types.Scene`` so it
-persists with the .blend file.  Other Melvil features (add-menu items, save
-dialog default) read ``context.scene.melvil_active_kit_id`` to react.
+persists with the .blend file.  Other Blammo features (add-menu items, save
+dialog default) read ``context.scene.blammo_active_kit_id`` to react.
 
 This operator is surfaced in the N-panel as an ``operator_menu_enum`` button,
 giving the user a native Blender dropdown to pick the active kit.
@@ -43,10 +43,10 @@ def _get_kit_items(self, context):
     return _kit_enum_cache
 
 
-class MELVIL_OT_set_active_kit(bpy.types.Operator):
-    """Set the active kit used to filter Melvil items in the Add menus"""
+class BLAMMO_OT_set_active_kit(bpy.types.Operator):
+    """Set the active kit used to filter Blammo items in the Add menus"""
 
-    bl_idname = "melvil.set_active_kit"
+    bl_idname = "blammo.set_active_kit"
     bl_label = "Active Kit"
     bl_options = {"REGISTER", "UNDO"}
 
@@ -60,5 +60,5 @@ class MELVIL_OT_set_active_kit(bpy.types.Operator):
     def execute(self, context):
         scene = getattr(context, "scene", None)
         if scene is not None:
-            scene.melvil_active_kit_id = self.kit_id
+            scene.blammo_active_kit_id = self.kit_id
         return {"FINISHED"}

@@ -1,4 +1,4 @@
-"""MELVIL_OT_tag_filter_set — set a single exclusive tag filter in the browser.
+"""BLAMMO_OT_tag_filter_set — set a single exclusive tag filter in the browser.
 
 Unlike ``tag_filter_toggle`` (which supports multiple active tags), this
 operator provides single-select behaviour:
@@ -17,10 +17,10 @@ from bpy.props import StringProperty
 from .tag_filter_toggle import get_active_tag_filters, set_active_tag_filters
 
 
-class MELVIL_OT_tag_filter_set(bpy.types.Operator):
-    """Set a single tag as the exclusive active filter in the Melvil browser"""
+class BLAMMO_OT_tag_filter_set(bpy.types.Operator):
+    """Set a single tag as the exclusive active filter in the Blammo browser"""
 
-    bl_idname = "melvil.tag_filter_set"
+    bl_idname = "blammo.tag_filter_set"
     bl_label = "Set Tag Filter"
     bl_options = {"REGISTER"}
 
@@ -38,7 +38,7 @@ class MELVIL_OT_tag_filter_set(bpy.types.Operator):
     def execute(self, context):
         tag_id = self.tag_id.strip()
         if not tag_id:
-            self.report({"ERROR"}, "Melvil: no tag ID provided.")
+            self.report({"ERROR"}, "Blammo!: no tag ID provided.")
             return {"CANCELLED"}
 
         wm = context.window_manager
@@ -54,8 +54,8 @@ class MELVIL_OT_tag_filter_set(bpy.types.Operator):
 
 
 def register() -> None:
-    bpy.utils.register_class(MELVIL_OT_tag_filter_set)
+    bpy.utils.register_class(BLAMMO_OT_tag_filter_set)
 
 
 def unregister() -> None:
-    bpy.utils.unregister_class(MELVIL_OT_tag_filter_set)
+    bpy.utils.unregister_class(BLAMMO_OT_tag_filter_set)

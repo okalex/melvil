@@ -8,8 +8,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from melvil.db.connection import migrate
-from melvil.db import assets as assets_db
+from blammo.db.connection import migrate
+from blammo.db import assets as assets_db
 
 
 def _make_asset(id: str, name: str, type: str) -> dict:
@@ -55,52 +55,52 @@ SAMPLE_MESH = dict(
 
 class TestLoadAssets:
     def test_returns_all_assets_when_no_type_filter(self, conn):
-        from melvil.ui.draw_helpers import load_assets
+        from blammo.ui.draw_helpers import load_assets
 
         assets_db.insert_asset(conn, **SAMPLE_MATERIAL)
         assets_db.insert_asset(conn, **SAMPLE_MESH)
 
-        with patch("melvil.ui.draw_helpers.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ui.draw_helpers.open_db", _mock_open_db(conn)):
+        with patch("blammo.ui.draw_helpers.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ui.draw_helpers.open_db", _mock_open_db(conn)):
             rows = load_assets()
 
         assert len(rows) == 2
 
     def test_filters_by_type(self, conn):
-        from melvil.ui.draw_helpers import load_assets
+        from blammo.ui.draw_helpers import load_assets
 
         assets_db.insert_asset(conn, **SAMPLE_MATERIAL)
         assets_db.insert_asset(conn, **SAMPLE_MESH)
 
-        with patch("melvil.ui.draw_helpers.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ui.draw_helpers.open_db", _mock_open_db(conn)):
+        with patch("blammo.ui.draw_helpers.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ui.draw_helpers.open_db", _mock_open_db(conn)):
             rows = load_assets("MATERIAL")
 
         assert len(rows) == 1
         assert rows[0]["type"] == "MATERIAL"
 
     def test_returns_empty_list_for_empty_db(self, conn):
-        from melvil.ui.draw_helpers import load_assets
+        from blammo.ui.draw_helpers import load_assets
 
-        with patch("melvil.ui.draw_helpers.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ui.draw_helpers.open_db", _mock_open_db(conn)):
+        with patch("blammo.ui.draw_helpers.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ui.draw_helpers.open_db", _mock_open_db(conn)):
             rows = load_assets("MATERIAL")
 
         assert rows == []
 
     def test_raises_on_db_error(self):
-        from melvil.ui.draw_helpers import load_assets
-        from melvil.core.library import LibraryNotConfiguredError
+        from blammo.ui.draw_helpers import load_assets
+        from blammo.core.library import LibraryNotConfiguredError
 
-        with patch("melvil.ui.draw_helpers.resolve_db_path",
+        with patch("blammo.ui.draw_helpers.resolve_db_path",
                    side_effect=LibraryNotConfiguredError("not set")):
             with pytest.raises(LibraryNotConfiguredError):
                 load_assets("MATERIAL")
 
     def test_filters_by_kit_id(self, conn):
-        from melvil.ui.draw_helpers import load_assets
-        from melvil.db.kits import DEFAULT_KIT_ID
-        from melvil.db import kits as kits_db
+        from blammo.ui.draw_helpers import load_assets
+        from blammo.db.kits import DEFAULT_KIT_ID
+        from blammo.db import kits as kits_db
 
         kit_b_id = "bbbbbbbb-0000-4000-8000-000000000099"
         kits_db.insert_kit(conn, id=kit_b_id, name="Game Kit")
@@ -108,8 +108,8 @@ class TestLoadAssets:
         mesh_in_b = {**SAMPLE_MESH, "kit_id": kit_b_id}
         assets_db.insert_asset(conn, **mesh_in_b)
 
-        with patch("melvil.ui.draw_helpers.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ui.draw_helpers.open_db", _mock_open_db(conn)):
+        with patch("blammo.ui.draw_helpers.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ui.draw_helpers.open_db", _mock_open_db(conn)):
             rows = load_assets(kit_id=kit_b_id)
 
         assert len(rows) == 1
@@ -118,22 +118,22 @@ class TestLoadAssets:
 
 class TestLoadKits:
     def test_returns_all_kits(self, conn):
-        from melvil.ui.draw_helpers import load_kits
-        from melvil.db import kits as kits_db
+        from blammo.ui.draw_helpers import load_kits
+        from blammo.db import kits as kits_db
 
         kits_db.insert_kit(conn, id="cccccccc-0000-4000-8000-000000000001", name="Game Kit")
 
-        with patch("melvil.ui.draw_helpers.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ui.draw_helpers.open_db", _mock_open_db(conn)):
+        with patch("blammo.ui.draw_helpers.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ui.draw_helpers.open_db", _mock_open_db(conn)):
             rows = load_kits()
 
         assert len(rows) == 2  # General (from migration) + Game Kit
 
     def test_raises_on_db_error(self):
-        from melvil.ui.draw_helpers import load_kits
-        from melvil.core.library import LibraryNotConfiguredError
+        from blammo.ui.draw_helpers import load_kits
+        from blammo.core.library import LibraryNotConfiguredError
 
-        with patch("melvil.ui.draw_helpers.resolve_db_path",
+        with patch("blammo.ui.draw_helpers.resolve_db_path",
                    side_effect=LibraryNotConfiguredError("not set")):
             with pytest.raises(LibraryNotConfiguredError):
                 load_kits()
@@ -150,33 +150,33 @@ class TestFilterAssets:
         return [{"id": str(i), "name": n} for i, n in enumerate(names)]
 
     def test_empty_query_returns_all(self):
-        from melvil.ui.draw_helpers import filter_assets
+        from blammo.ui.draw_helpers import filter_assets
 
         assets = self._assets("Iron", "Plastic", "Glass")
         assert filter_assets(assets, "") == assets
 
     def test_blank_query_returns_all(self):
-        from melvil.ui.draw_helpers import filter_assets
+        from blammo.ui.draw_helpers import filter_assets
 
         assets = self._assets("Iron", "Plastic", "Glass")
         assert filter_assets(assets, "   ") == assets
 
     def test_exact_match_returns_asset(self):
-        from melvil.ui.draw_helpers import filter_assets
+        from blammo.ui.draw_helpers import filter_assets
 
         assets = self._assets("Iron", "Plastic")
         result = filter_assets(assets, "Iron")
         assert [a["name"] for a in result] == ["Iron"]
 
     def test_partial_match_returns_matching_assets(self):
-        from melvil.ui.draw_helpers import filter_assets
+        from blammo.ui.draw_helpers import filter_assets
 
         assets = self._assets("Plastic", "Plaster", "Glass")
         result = filter_assets(assets, "pla")
         assert [a["name"] for a in result] == ["Plastic", "Plaster"]
 
     def test_case_insensitive(self):
-        from melvil.ui.draw_helpers import filter_assets
+        from blammo.ui.draw_helpers import filter_assets
 
         assets = self._assets("Iron", "IRON OXIDE", "Rubber")
         result = filter_assets(assets, "iron")
@@ -184,21 +184,21 @@ class TestFilterAssets:
         assert {a["name"] for a in result} == {"Iron", "IRON OXIDE"}
 
     def test_ignores_whitespace_in_query(self):
-        from melvil.ui.draw_helpers import filter_assets
+        from blammo.ui.draw_helpers import filter_assets
 
         assets = self._assets("IronOxide", "Rubber")
         result = filter_assets(assets, "iron oxide")
         assert [a["name"] for a in result] == ["IronOxide"]
 
     def test_ignores_whitespace_in_asset_name(self):
-        from melvil.ui.draw_helpers import filter_assets
+        from blammo.ui.draw_helpers import filter_assets
 
         assets = self._assets("Iron Oxide", "Rubber")
         result = filter_assets(assets, "ironoxide")
         assert [a["name"] for a in result] == ["Iron Oxide"]
 
     def test_no_match_returns_empty(self):
-        from melvil.ui.draw_helpers import filter_assets
+        from blammo.ui.draw_helpers import filter_assets
 
         assets = self._assets("Iron", "Plastic", "Glass")
         result = filter_assets(assets, "zzz")
@@ -212,8 +212,8 @@ class TestFilterAssets:
 
 class TestLoadTagsForAssetIds:
     def test_returns_tags_for_given_assets(self, conn):
-        from melvil.db import assets as assets_db, tags as tags_db
-        from melvil.ui.draw_helpers import load_tags_for_asset_ids
+        from blammo.db import assets as assets_db, tags as tags_db
+        from blammo.ui.draw_helpers import load_tags_for_asset_ids
 
         asset_id = "aaaaaaaa-0000-4000-8000-000000000001"
         assets_db.insert_asset(
@@ -223,24 +223,24 @@ class TestLoadTagsForAssetIds:
         tags_db.add_asset_tag(conn, asset_id, "pbr")
         conn.commit()
 
-        with patch("melvil.ui.draw_helpers.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ui.draw_helpers.open_db", _mock_open_db(conn)):
+        with patch("blammo.ui.draw_helpers.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ui.draw_helpers.open_db", _mock_open_db(conn)):
             rows = load_tags_for_asset_ids([asset_id])
 
         assert {r["name"] for r in rows} == {"metal", "pbr"}
 
     def test_empty_asset_ids_returns_empty(self, conn):
-        from melvil.ui.draw_helpers import load_tags_for_asset_ids
+        from blammo.ui.draw_helpers import load_tags_for_asset_ids
 
         # Should short-circuit without a DB call
         rows = load_tags_for_asset_ids([])
         assert rows == []
 
     def test_raises_on_library_not_configured(self):
-        from melvil.core.library import LibraryNotConfiguredError
-        from melvil.ui.draw_helpers import load_tags_for_asset_ids
+        from blammo.core.library import LibraryNotConfiguredError
+        from blammo.ui.draw_helpers import load_tags_for_asset_ids
 
-        with patch("melvil.ui.draw_helpers.resolve_db_path",
+        with patch("blammo.ui.draw_helpers.resolve_db_path",
                    side_effect=LibraryNotConfiguredError("not set")):
             with pytest.raises(LibraryNotConfiguredError):
                 load_tags_for_asset_ids(["some-id"])
@@ -253,32 +253,32 @@ class TestLoadTagsForAssetIds:
 
 class TestLoadAssetTagNames:
     def test_returns_tag_names_per_asset(self, conn):
-        from melvil.ui.draw_helpers import load_asset_tag_names
+        from blammo.ui.draw_helpers import load_asset_tag_names
 
         assets_db.insert_asset(conn, **SAMPLE_MATERIAL)
-        from melvil.db import tags as tags_db
+        from blammo.db import tags as tags_db
         tags_db.add_asset_tag(conn, SAMPLE_MATERIAL["id"], "metal")
         tags_db.add_asset_tag(conn, SAMPLE_MATERIAL["id"], "pbr")
         conn.commit()
 
-        with patch("melvil.ui.draw_helpers.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ui.draw_helpers.open_db", _mock_open_db(conn)):
+        with patch("blammo.ui.draw_helpers.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ui.draw_helpers.open_db", _mock_open_db(conn)):
             result = load_asset_tag_names([SAMPLE_MATERIAL["id"]])
 
         assert SAMPLE_MATERIAL["id"] in result
         assert sorted(result[SAMPLE_MATERIAL["id"]]) == ["metal", "pbr"]
 
     def test_empty_asset_ids_returns_empty(self):
-        from melvil.ui.draw_helpers import load_asset_tag_names
+        from blammo.ui.draw_helpers import load_asset_tag_names
 
         result = load_asset_tag_names([])
         assert result == {}
 
     def test_raises_on_library_not_configured(self):
-        from melvil.ui.draw_helpers import load_asset_tag_names
-        from melvil.core.library import LibraryNotConfiguredError
+        from blammo.ui.draw_helpers import load_asset_tag_names
+        from blammo.core.library import LibraryNotConfiguredError
 
-        with patch("melvil.ui.draw_helpers.resolve_db_path",
+        with patch("blammo.ui.draw_helpers.resolve_db_path",
                    side_effect=LibraryNotConfiguredError("not set")):
             with pytest.raises(LibraryNotConfiguredError):
                 load_asset_tag_names(["some-id"])
@@ -294,7 +294,7 @@ class TestFilterAssetsTagNames:
         return [{"id": str(i), "name": n} for i, n in enumerate(names)]
 
     def test_matches_asset_by_tag_name(self):
-        from melvil.ui.draw_helpers import filter_assets
+        from blammo.ui.draw_helpers import filter_assets
 
         assets = self._assets("Iron", "Glass")
         tag_names = {"0": ["metal"], "1": ["transparent"]}
@@ -303,7 +303,7 @@ class TestFilterAssetsTagNames:
         assert [a["name"] for a in result] == ["Iron"]
 
     def test_name_match_still_works_with_tag_names_provided(self):
-        from melvil.ui.draw_helpers import filter_assets
+        from blammo.ui.draw_helpers import filter_assets
 
         assets = self._assets("Iron", "Glass")
         tag_names = {"0": ["metal"]}
@@ -312,7 +312,7 @@ class TestFilterAssetsTagNames:
         assert [a["name"] for a in result] == ["Glass"]
 
     def test_tag_search_case_insensitive(self):
-        from melvil.ui.draw_helpers import filter_assets
+        from blammo.ui.draw_helpers import filter_assets
 
         assets = self._assets("Rock")
         tag_names = {"0": ["Outdoor"]}
@@ -321,7 +321,7 @@ class TestFilterAssetsTagNames:
         assert len(result) == 1
 
     def test_tag_search_whitespace_collapsed(self):
-        from melvil.ui.draw_helpers import filter_assets
+        from blammo.ui.draw_helpers import filter_assets
 
         assets = self._assets("Rock")
         tag_names = {"0": ["pbr material"]}
@@ -331,7 +331,7 @@ class TestFilterAssetsTagNames:
         assert len(result) == 1
 
     def test_asset_not_duplicated_when_name_and_tag_both_match(self):
-        from melvil.ui.draw_helpers import filter_assets
+        from blammo.ui.draw_helpers import filter_assets
 
         assets = self._assets("Metal Rock")
         tag_names = {"0": ["metal"]}
@@ -341,7 +341,7 @@ class TestFilterAssetsTagNames:
         assert len(result) == 1
 
     def test_no_tag_names_provided_behaves_as_before(self):
-        from melvil.ui.draw_helpers import filter_assets
+        from blammo.ui.draw_helpers import filter_assets
 
         assets = self._assets("Iron", "Glass")
         # "metal" doesn't match any asset name → no results without tag_names
@@ -349,7 +349,7 @@ class TestFilterAssetsTagNames:
         assert result == []
 
     def test_empty_query_returns_all_regardless_of_tag_names(self):
-        from melvil.ui.draw_helpers import filter_assets
+        from blammo.ui.draw_helpers import filter_assets
 
         assets = self._assets("Iron", "Glass")
         tag_names = {"0": ["metal"]}
@@ -368,16 +368,16 @@ def _make_details_asset(id="asset-1", name="My Cube", type="MESH", blend_path="m
 
 def _make_wm(pending_name="", pending_name_asset_id=""):
     wm = MagicMock()
-    wm.melvil_pending_name = pending_name
-    wm.melvil_pending_name_asset_id = pending_name_asset_id
-    wm.melvil_asset_tags = []
-    wm.melvil_asset_tags_index = 0
+    wm.blammo_pending_name = pending_name
+    wm.blammo_pending_name_asset_id = pending_name_asset_id
+    wm.blammo_asset_tags = []
+    wm.blammo_asset_tags_index = 0
     return wm
 
 
 class TestDrawAssetDetailsNameRow:
     def _draw(self, asset, wm):
-        from melvil.ui.draw_helpers import draw_asset_details
+        from blammo.ui.draw_helpers import draw_asset_details
 
         layout = MagicMock()
         split = MagicMock()
@@ -390,7 +390,7 @@ class TestDrawAssetDetailsNameRow:
         return layout, name_val, split, col
 
     def test_shows_pending_name_prop(self):
-        from melvil.ui.draw_helpers import draw_asset_details
+        from blammo.ui.draw_helpers import draw_asset_details
 
         layout = MagicMock()
         split = MagicMock()
@@ -403,10 +403,10 @@ class TestDrawAssetDetailsNameRow:
 
         draw_asset_details(layout, _make_details_asset(id="asset-1", name="My Cube"), [], "General", wm=wm)
 
-        name_val.prop.assert_any_call(wm, "melvil_pending_name", text="", textedit_update=True)
+        name_val.prop.assert_any_call(wm, "blammo_pending_name", text="", textedit_update=True)
 
     def test_confirm_button_disabled_when_name_unchanged(self):
-        from melvil.ui.draw_helpers import draw_asset_details
+        from blammo.ui.draw_helpers import draw_asset_details
 
         layout = MagicMock()
         split = MagicMock()
@@ -422,7 +422,7 @@ class TestDrawAssetDetailsNameRow:
         assert col.enabled is False
 
     def test_confirm_button_enabled_when_name_changed(self):
-        from melvil.ui.draw_helpers import draw_asset_details
+        from blammo.ui.draw_helpers import draw_asset_details
 
         layout = MagicMock()
         split = MagicMock()
@@ -438,7 +438,7 @@ class TestDrawAssetDetailsNameRow:
         assert col.enabled is True
 
     def test_confirm_button_disabled_when_name_empty(self):
-        from melvil.ui.draw_helpers import draw_asset_details
+        from blammo.ui.draw_helpers import draw_asset_details
 
         layout = MagicMock()
         split = MagicMock()
@@ -454,7 +454,7 @@ class TestDrawAssetDetailsNameRow:
         assert col.enabled is False
 
     def test_confirm_button_uses_checkmark_icon(self):
-        from melvil.ui.draw_helpers import draw_asset_details
+        from blammo.ui.draw_helpers import draw_asset_details
 
         layout = MagicMock()
         split = MagicMock()
@@ -469,12 +469,12 @@ class TestDrawAssetDetailsNameRow:
 
         op_calls = col.operator.call_args_list
         assert any(
-            c[0][0] == "melvil.asset_name_confirm" and c[1].get("icon") == "CHECKMARK"
+            c[0][0] == "blammo.asset_name_confirm" and c[1].get("icon") == "CHECKMARK"
             for c in op_calls
         )
 
     def test_syncs_pending_name_when_asset_changes(self):
-        from melvil.ui.draw_helpers import draw_asset_details
+        from blammo.ui.draw_helpers import draw_asset_details
 
         layout = MagicMock()
         split = MagicMock()
@@ -488,8 +488,8 @@ class TestDrawAssetDetailsNameRow:
 
         draw_asset_details(layout, _make_details_asset(id="asset-1", name="My Cube"), [], "General", wm=wm)
 
-        assert wm.melvil_pending_name == "My Cube"
-        assert wm.melvil_pending_name_asset_id == "asset-1"
+        assert wm.blammo_pending_name == "My Cube"
+        assert wm.blammo_pending_name_asset_id == "asset-1"
 
 
 # ---------------------------------------------------------------------------
@@ -498,7 +498,7 @@ class TestDrawAssetDetailsNameRow:
 
 
 def _draw_for_kit(asset_id="asset-1", name="My Cube", kit_name="General"):
-    from melvil.ui.draw_helpers import draw_asset_details
+    from blammo.ui.draw_helpers import draw_asset_details
 
     layout = MagicMock()
     kit_split = MagicMock()
@@ -516,7 +516,7 @@ class TestDrawAssetDetailsKitRow:
         split, _kit_op = _draw_for_kit()
 
         calls = split.operator_menu_enum.call_args_list
-        assert any(c[0][0] == "melvil.asset_set_kit" for c in calls)
+        assert any(c[0][0] == "blammo.asset_set_kit" for c in calls)
 
     def test_passes_kit_id_property_name(self):
         split, _kit_op = _draw_for_kit()
@@ -542,7 +542,7 @@ class TestDrawAssetDetailsKitRow:
 
 
 def _draw_details_with_preview(asset, wm=None):
-    from melvil.ui.draw_helpers import draw_asset_details
+    from blammo.ui.draw_helpers import draw_asset_details
 
     layout = MagicMock()
     box = MagicMock()
@@ -554,49 +554,49 @@ def _draw_details_with_preview(asset, wm=None):
 
 class TestDrawAssetDetailsPreview:
     def test_preview_block_shown_when_icon_id_available(self):
-        from melvil.ui.draw_helpers import draw_asset_details
+        from blammo.ui.draw_helpers import draw_asset_details
 
         asset = {**_make_details_asset(), "preview_path": "previews/abc.png"}
         layout, box, _, wm = _draw_details_with_preview(asset)
 
-        with patch("melvil.ui.draw_helpers.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ui.draw_helpers.get_icon_id", return_value=99):
+        with patch("blammo.ui.draw_helpers.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ui.draw_helpers.get_icon_id", return_value=99):
             draw_asset_details(layout, asset, [], "General", wm=wm)
 
         layout.box.assert_called()
         box.template_icon.assert_called_once_with(icon_value=99, scale=8.0)
 
     def test_preview_block_omitted_when_no_preview_path(self):
-        from melvil.ui.draw_helpers import draw_asset_details
+        from blammo.ui.draw_helpers import draw_asset_details
 
         asset = _make_details_asset()  # no preview_path key
         layout, box, _, wm = _draw_details_with_preview(asset)
 
-        with patch("melvil.ui.draw_helpers.get_icon_id", return_value=None):
+        with patch("blammo.ui.draw_helpers.get_icon_id", return_value=None):
             draw_asset_details(layout, asset, [], "General", wm=wm)
 
         box.template_icon.assert_not_called()
 
     def test_preview_block_omitted_when_icon_id_none(self):
-        from melvil.ui.draw_helpers import draw_asset_details
+        from blammo.ui.draw_helpers import draw_asset_details
 
         asset = {**_make_details_asset(), "preview_path": "previews/abc.png"}
         layout, box, _, wm = _draw_details_with_preview(asset)
 
-        with patch("melvil.ui.draw_helpers.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ui.draw_helpers.get_icon_id", return_value=None):
+        with patch("blammo.ui.draw_helpers.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ui.draw_helpers.get_icon_id", return_value=None):
             draw_asset_details(layout, asset, [], "General", wm=wm)
 
         box.template_icon.assert_not_called()
 
     def test_get_icon_id_called_with_correct_args(self):
-        from melvil.ui.draw_helpers import draw_asset_details
+        from blammo.ui.draw_helpers import draw_asset_details
 
         asset = {**_make_details_asset(id="my-id"), "preview_path": "previews/my-id.png"}
         layout, _box, _, wm = _draw_details_with_preview(asset)
 
-        with patch("melvil.ui.draw_helpers.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ui.draw_helpers.get_icon_id", return_value=None) as mock_icon:
+        with patch("blammo.ui.draw_helpers.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ui.draw_helpers.get_icon_id", return_value=None) as mock_icon:
             draw_asset_details(layout, asset, [], "General", wm=wm)
 
         mock_icon.assert_called_once_with("my-id", "/lib/previews/my-id.png")
@@ -608,7 +608,7 @@ class TestDrawAssetDetailsPreview:
 
 
 def _draw_for_source(blend_path="cube_abc12345.blend"):
-    from melvil.ui.draw_helpers import draw_asset_details
+    from blammo.ui.draw_helpers import draw_asset_details
 
     asset = _make_details_asset(blend_path=blend_path)
     layout = MagicMock()
@@ -627,7 +627,7 @@ def _draw_for_source(blend_path="cube_abc12345.blend"):
     source_val.column.side_effect = _make_col
     layout.split.side_effect = [MagicMock() for _ in range(3)] + [source_split]
     wm = _make_wm(pending_name=asset["name"], pending_name_asset_id=asset["id"])
-    with patch("melvil.ui.draw_helpers.resolve_library_root", return_value="/lib"):
+    with patch("blammo.ui.draw_helpers.resolve_library_root", return_value="/lib"):
         draw_asset_details(layout, asset, [], "General", wm=wm)
 
     open_col = columns[0] if len(columns) > 0 else MagicMock()
@@ -651,12 +651,12 @@ class TestDrawAssetDetailsSourceRow:
     def test_open_blend_file_operator_added(self):
         _layout, _source_val, _split, open_col, _reveal = _draw_for_source()
         op_ids = [c[0][0] for c in open_col.operator.call_args_list]
-        assert "melvil.open_blend_file" in op_ids
+        assert "blammo.open_blend_file" in op_ids
 
     def test_reveal_blend_file_operator_added(self):
         _layout, _source_val, _split, _open, reveal_col = _draw_for_source()
         op_ids = [c[0][0] for c in reveal_col.operator.call_args_list]
-        assert "melvil.reveal_blend_file" in op_ids
+        assert "blammo.reveal_blend_file" in op_ids
 
     def test_open_operator_uses_blender_icon(self):
         _layout, _source_val, _split, open_col, _reveal = _draw_for_source()

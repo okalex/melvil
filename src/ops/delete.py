@@ -1,5 +1,5 @@
 """
-MELVIL_OT_delete_asset — permanently remove an asset from the library.
+BLAMMO_OT_delete_asset — permanently remove an asset from the library.
 
 The operator presents a confirmation dialog before proceeding.  On
 confirmation it:
@@ -23,11 +23,11 @@ from ..db import open_db
 from ..db.assets import delete_asset, get_asset
 
 
-class MELVIL_OT_delete_asset(bpy.types.Operator):
-    """Permanently remove an asset from the Melvil library"""
+class BLAMMO_OT_delete_asset(bpy.types.Operator):
+    """Permanently remove an asset from the Blammo library"""
 
-    bl_idname = "melvil.delete_asset"
-    bl_label = "Delete Melvil Asset"
+    bl_idname = "blammo.delete_asset"
+    bl_label = "Delete Blammo! Asset"
     bl_options = {"REGISTER"}
 
     asset_id: StringProperty(
@@ -49,7 +49,7 @@ class MELVIL_OT_delete_asset(bpy.types.Operator):
 
     def execute(self, context):
         if not self.asset_id.strip():
-            self.report({"ERROR"}, "Melvil: no asset ID provided.")
+            self.report({"ERROR"}, "Blammo!: no asset ID provided.")
             return {"CANCELLED"}
 
         try:
@@ -64,7 +64,7 @@ class MELVIL_OT_delete_asset(bpy.types.Operator):
                 if row is None:
                     self.report(
                         {"ERROR"},
-                        f"Melvil: asset '{self.asset_id}' not found in the database.",
+                        f"Blammo!: asset '{self.asset_id}' not found in the database.",
                     )
                     return {"CANCELLED"}
 
@@ -89,8 +89,8 @@ class MELVIL_OT_delete_asset(bpy.types.Operator):
                         pass  # non-fatal; orphaned preview files are harmless
 
         except Exception as exc:  # noqa: BLE001
-            self.report({"ERROR"}, f"Melvil: delete failed — {exc}")
+            self.report({"ERROR"}, f"Blammo!: delete failed — {exc}")
             return {"CANCELLED"}
 
-        self.report({"INFO"}, f"Melvil: asset '{asset_name}' deleted.")
+        self.report({"INFO"}, f"Blammo!: asset '{asset_name}' deleted.")
         return {"FINISHED"}

@@ -1,12 +1,12 @@
-"""Tests for melvil.db.connection — open_db and migration runner."""
+"""Tests for blammo.db.connection — open_db and migration runner."""
 
 from __future__ import annotations
 
 import sqlite3
 import pytest
 
-from melvil.db.connection import migrate, open_db, _get_version
-from melvil.db.migrations import LATEST_VERSION
+from blammo.db.connection import migrate, open_db, _get_version
+from blammo.db.migrations import LATEST_VERSION
 
 
 @pytest.fixture

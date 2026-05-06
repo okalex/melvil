@@ -2,9 +2,9 @@
 Database connection and migration runner.
 
 Usage:
-    from melvil.db.connection import open_db
+    from blammo.db.connection import open_db
 
-    with open_db("/path/to/melvil.db") as conn:
+    with open_db("/path/to/blammo.db") as conn:
         ...
 """
 

@@ -1,8 +1,8 @@
 """
-Keymap registration for Melvil.
+Keymap registration for Blammo.
 
 Registers ``Ctrl+Shift+A`` in the 3D View to invoke
-``melvil.open_browser``, which opens the Melvil asset browser.
+``blammo.open_browser``, which opens the Blammo asset browser.
 
 The ``_keymaps`` list holds ``(KeyMap, KeyMapItem)`` pairs so that
 ``unregister()`` can cleanly remove only the items we added, without
@@ -30,7 +30,7 @@ def register() -> None:
 
     km = kc.keymaps.new(name="3D View", space_type="VIEW_3D")
     kmi = km.keymap_items.new(
-        "melvil.open_browser",
+        "blammo.open_browser",
         type="A",
         value="PRESS",
         ctrl=True,

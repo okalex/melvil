@@ -1,4 +1,4 @@
-"""Tests for ops/save.py — MELVIL_OT_save_asset."""
+"""Tests for ops/save.py — BLAMMO_OT_save_asset."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from melvil.db.connection import migrate
+from blammo.db.connection import migrate
 
 
 # ---------------------------------------------------------------------------
@@ -64,16 +64,16 @@ def _make_context(obj=None, area_type="VIEW_3D"):
 
 class TestPoll:
     def test_returns_true_with_active_object(self):
-        from melvil.ops.save import MELVIL_OT_save_asset
+        from blammo.ops.save import BLAMMO_OT_save_asset
 
         ctx = _make_context(obj=_make_mesh_object())
-        assert MELVIL_OT_save_asset.poll(ctx) is True
+        assert BLAMMO_OT_save_asset.poll(ctx) is True
 
     def test_returns_false_without_active_object(self):
-        from melvil.ops.save import MELVIL_OT_save_asset
+        from blammo.ops.save import BLAMMO_OT_save_asset
 
         ctx = _make_context(obj=None)
-        assert MELVIL_OT_save_asset.poll(ctx) is False
+        assert BLAMMO_OT_save_asset.poll(ctx) is False
 
 
 # ---------------------------------------------------------------------------
@@ -83,81 +83,81 @@ class TestPoll:
 
 class TestExecuteMesh:
     def _make_op(self, mesh_name="Cube"):
-        from melvil.ops.save import MELVIL_OT_save_asset
+        from blammo.ops.save import BLAMMO_OT_save_asset
 
-        op = MELVIL_OT_save_asset()
+        op = BLAMMO_OT_save_asset()
         op.save_type = "MESH"
         op.mesh_name = mesh_name
         op.material_name = ""
         return op
 
     def test_save_mesh_returns_finished(self, conn):
-        from melvil.ops.save import MELVIL_OT_save_asset
+        from blammo.ops.save import BLAMMO_OT_save_asset
 
         op = self._make_op()
         ctx = _make_context(obj=_make_mesh_object())
 
-        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
-             patch("melvil.ops.save.AssetWriter") as MockWriter:
+        with patch("blammo.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.save.open_db", _mock_open_db(conn)), \
+             patch("blammo.ops.save.AssetWriter") as MockWriter:
             MockWriter.return_value.write.return_value = "aaaaaaaa-0000-4000-8000-000000000001"
             result = op.execute(ctx)
 
         assert result == {"FINISHED"}
 
     def test_save_mesh_calls_writer_with_correct_args(self, conn):
-        from melvil.ops.save import MELVIL_OT_save_asset
+        from blammo.ops.save import BLAMMO_OT_save_asset
 
         obj = _make_mesh_object(name="Suzanne")
         op = self._make_op(mesh_name="Suzanne")
         ctx = _make_context(obj=obj)
 
-        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
-             patch("melvil.ops.save.AssetWriter") as MockWriter:
+        with patch("blammo.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.save.open_db", _mock_open_db(conn)), \
+             patch("blammo.ops.save.AssetWriter") as MockWriter:
             mock_instance = MockWriter.return_value
             mock_instance.write.return_value = "aaaaaaaa-0000-4000-8000-000000000001"
             op.execute(ctx)
 
-        from melvil.db.kits import DEFAULT_KIT_ID
+        from blammo.db.kits import DEFAULT_KIT_ID
         mock_instance.write.assert_called_once_with(obj, "Suzanne", "MESH", kit_id=DEFAULT_KIT_ID)
 
     def test_error_when_no_mesh_object(self, conn):
-        from melvil.ops.save import MELVIL_OT_save_asset
+        from blammo.ops.save import BLAMMO_OT_save_asset
 
         obj = MagicMock()
         obj.type = "CURVE"
         op = self._make_op()
         ctx = _make_context(obj=obj)
 
-        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"):
+        with patch("blammo.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.save.resolve_db_path", return_value=":memory:"):
             result = op.execute(ctx)
 
         assert result == {"CANCELLED"}
 
     def test_error_when_empty_mesh_name(self, conn):
-        from melvil.ops.save import MELVIL_OT_save_asset
+        from blammo.ops.save import BLAMMO_OT_save_asset
 
         op = self._make_op(mesh_name="   ")
         ctx = _make_context(obj=_make_mesh_object())
 
-        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"):
+        with patch("blammo.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.save.resolve_db_path", return_value=":memory:"):
             result = op.execute(ctx)
 
         assert result == {"CANCELLED"}
 
     def test_error_when_library_not_configured(self, conn):
-        from melvil.ops.save import MELVIL_OT_save_asset
-        from melvil.core.library import LibraryNotConfiguredError
+        from blammo.ops.save import BLAMMO_OT_save_asset
+        from blammo.core.library import LibraryNotConfiguredError
 
         op = self._make_op()
         ctx = _make_context(obj=_make_mesh_object())
 
-        with patch("melvil.ops.save.resolve_library_root", side_effect=LibraryNotConfiguredError("not set")):
+        with patch("blammo.ops.save.resolve_library_root", side_effect=LibraryNotConfiguredError("not set")):
             result = op.execute(ctx)
 
         assert result == {"CANCELLED"}
@@ -170,9 +170,9 @@ class TestExecuteMesh:
 
 class TestExecuteMaterial:
     def _make_op(self, material_name="Red Metal"):
-        from melvil.ops.save import MELVIL_OT_save_asset
+        from blammo.ops.save import BLAMMO_OT_save_asset
 
-        op = MELVIL_OT_save_asset()
+        op = BLAMMO_OT_save_asset()
         op.save_type = "MATERIAL"
         op.mesh_name = ""
         op.material_name = material_name
@@ -184,10 +184,10 @@ class TestExecuteMaterial:
         op = self._make_op()
         ctx = _make_context(obj=obj)
 
-        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
-             patch("melvil.ops.save.AssetWriter") as MockWriter:
+        with patch("blammo.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.save.open_db", _mock_open_db(conn)), \
+             patch("blammo.ops.save.AssetWriter") as MockWriter:
             MockWriter.return_value.write.return_value = "bbbbbbbb-0000-4000-8000-000000000002"
             result = op.execute(ctx)
 
@@ -199,40 +199,40 @@ class TestExecuteMaterial:
         op = self._make_op(material_name="Blue Glass")
         ctx = _make_context(obj=obj)
 
-        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
-             patch("melvil.ops.save.AssetWriter") as MockWriter:
+        with patch("blammo.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.save.open_db", _mock_open_db(conn)), \
+             patch("blammo.ops.save.AssetWriter") as MockWriter:
             mock_instance = MockWriter.return_value
             mock_instance.write.return_value = "bbbbbbbb-0000-4000-8000-000000000002"
             op.execute(ctx)
 
-        from melvil.db.kits import DEFAULT_KIT_ID
+        from blammo.db.kits import DEFAULT_KIT_ID
         mock_instance.write.assert_called_once_with(mat, "Blue Glass", "MATERIAL", kit_id=DEFAULT_KIT_ID)
 
     def test_error_when_no_active_material(self):
-        from melvil.ops.save import MELVIL_OT_save_asset
+        from blammo.ops.save import BLAMMO_OT_save_asset
 
         obj = _make_mesh_object(material=None)
         op = self._make_op()
         ctx = _make_context(obj=obj)
 
-        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"):
+        with patch("blammo.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.save.resolve_db_path", return_value=":memory:"):
             result = op.execute(ctx)
 
         assert result == {"CANCELLED"}
 
     def test_error_when_empty_material_name(self):
-        from melvil.ops.save import MELVIL_OT_save_asset
+        from blammo.ops.save import BLAMMO_OT_save_asset
 
         mat = _make_material()
         obj = _make_mesh_object(material=mat)
         op = self._make_op(material_name="")
         ctx = _make_context(obj=obj)
 
-        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"):
+        with patch("blammo.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.save.resolve_db_path", return_value=":memory:"):
             result = op.execute(ctx)
 
         assert result == {"CANCELLED"}
@@ -245,9 +245,9 @@ class TestExecuteMaterial:
 
 class TestInvokeContextDetection:
     def _invoke(self, area_type="VIEW_3D", obj=None):
-        from melvil.ops.save import MELVIL_OT_save_asset
+        from blammo.ops.save import BLAMMO_OT_save_asset
 
-        op = MELVIL_OT_save_asset()
+        op = BLAMMO_OT_save_asset()
         op.save_type = "MESH"   # default before invoke
         op.mesh_name = ""
         op.material_name = ""
@@ -282,7 +282,7 @@ class TestInvokeContextDetection:
 
     def test_node_editor_with_group_node_selects_node_group(self):
         """Active GROUP node in node editor → save_type must be NODE_GROUP."""
-        from melvil.ops.save import MELVIL_OT_save_asset
+        from blammo.ops.save import BLAMMO_OT_save_asset
 
         ng = MagicMock()
         ng.name = "Noise Setup"
@@ -291,7 +291,7 @@ class TestInvokeContextDetection:
         active_node.node_tree = ng
         active_node.label = ""  # no custom label → falls back to node_tree.name
 
-        op = MELVIL_OT_save_asset()
+        op = BLAMMO_OT_save_asset()
         op.save_type = "MESH"
         op.mesh_name = ""
         op.material_name = ""
@@ -308,7 +308,7 @@ class TestInvokeContextDetection:
 
     def test_node_group_name_uses_label_when_set(self):
         """When the node has a custom label, it should be used over node_tree.name."""
-        from melvil.ops.save import MELVIL_OT_save_asset
+        from blammo.ops.save import BLAMMO_OT_save_asset
 
         ng = MagicMock()
         ng.name = "Color Ramp"  # internal datablock name
@@ -317,7 +317,7 @@ class TestInvokeContextDetection:
         active_node.node_tree = ng
         active_node.label = "Color Stuff"  # user-visible label
 
-        op = MELVIL_OT_save_asset()
+        op = BLAMMO_OT_save_asset()
         op.save_type = "MESH"
         op.mesh_name = ""
         op.material_name = ""
@@ -340,7 +340,7 @@ class TestInvokeContextDetection:
 
     def test_node_editor_group_node_takes_priority_over_material(self):
         """A GROUP node active in node editor beats the material context."""
-        from melvil.ops.save import MELVIL_OT_save_asset
+        from blammo.ops.save import BLAMMO_OT_save_asset
 
         ng = MagicMock()
         ng.name = "Fancy Group"
@@ -351,7 +351,7 @@ class TestInvokeContextDetection:
 
         mat = _make_material()
         obj = _make_mesh_object(material=mat)
-        op = MELVIL_OT_save_asset()
+        op = BLAMMO_OT_save_asset()
         op.save_type = "MESH"
         op.mesh_name = ""
         op.material_name = ""
@@ -374,7 +374,7 @@ class TestInvokeContextDetection:
 class TestPollNodeGroup:
     def test_poll_true_with_group_node_and_no_active_object(self):
         """poll() returns True when active_node is a GROUP even without active_object."""
-        from melvil.ops.save import MELVIL_OT_save_asset
+        from blammo.ops.save import BLAMMO_OT_save_asset
 
         ng = MagicMock()
         active_node = MagicMock()
@@ -385,10 +385,10 @@ class TestPollNodeGroup:
         ctx.active_object = None
         ctx.active_node = active_node
 
-        assert MELVIL_OT_save_asset.poll(ctx) is True
+        assert BLAMMO_OT_save_asset.poll(ctx) is True
 
     def test_poll_false_without_active_object_or_group_node(self):
-        from melvil.ops.save import MELVIL_OT_save_asset
+        from blammo.ops.save import BLAMMO_OT_save_asset
 
         ctx = MagicMock()
         ctx.active_object = None
@@ -397,7 +397,7 @@ class TestPollNodeGroup:
         active_node.node_tree = None
         ctx.active_node = active_node
 
-        assert MELVIL_OT_save_asset.poll(ctx) is False
+        assert BLAMMO_OT_save_asset.poll(ctx) is False
 
 
 # ---------------------------------------------------------------------------
@@ -407,9 +407,9 @@ class TestPollNodeGroup:
 
 class TestExecuteNodeGroup:
     def _make_op(self, node_group_name="Noise FX"):
-        from melvil.ops.save import MELVIL_OT_save_asset
+        from blammo.ops.save import BLAMMO_OT_save_asset
 
-        op = MELVIL_OT_save_asset()
+        op = BLAMMO_OT_save_asset()
         op.save_type = "NODE_GROUP"
         op.mesh_name = ""
         op.material_name = ""
@@ -430,10 +430,10 @@ class TestExecuteNodeGroup:
         op = self._make_op()
         ctx, _ = self._make_ng_context()
 
-        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
-             patch("melvil.ops.save.AssetWriter") as MockWriter:
+        with patch("blammo.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.save.open_db", _mock_open_db(conn)), \
+             patch("blammo.ops.save.AssetWriter") as MockWriter:
             MockWriter.return_value.write.return_value = "dddddddd-0000-4000-8000-000000000004"
             result = op.execute(ctx)
 
@@ -443,15 +443,15 @@ class TestExecuteNodeGroup:
         op = self._make_op(node_group_name="Noise FX")
         ctx, ng = self._make_ng_context(ng_name="Noise FX")
 
-        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
-             patch("melvil.ops.save.AssetWriter") as MockWriter:
+        with patch("blammo.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.save.open_db", _mock_open_db(conn)), \
+             patch("blammo.ops.save.AssetWriter") as MockWriter:
             mock_instance = MockWriter.return_value
             mock_instance.write.return_value = "dddddddd-0000-4000-8000-000000000004"
             op.execute(ctx)
 
-        from melvil.db.kits import DEFAULT_KIT_ID
+        from blammo.db.kits import DEFAULT_KIT_ID
         mock_instance.write.assert_called_once_with(ng, "Noise FX", "NODE_GROUP", kit_id=DEFAULT_KIT_ID)
 
     def test_error_when_no_active_node(self, conn):
@@ -459,8 +459,8 @@ class TestExecuteNodeGroup:
         ctx = _make_context(obj=_make_mesh_object(), area_type="NODE_EDITOR")
         ctx.active_node = None
 
-        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"):
+        with patch("blammo.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.save.resolve_db_path", return_value=":memory:"):
             result = op.execute(ctx)
 
         assert result == {"CANCELLED"}
@@ -473,8 +473,8 @@ class TestExecuteNodeGroup:
         active_node.node_tree = None
         ctx.active_node = active_node
 
-        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"):
+        with patch("blammo.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.save.resolve_db_path", return_value=":memory:"):
             result = op.execute(ctx)
 
         assert result == {"CANCELLED"}
@@ -483,15 +483,15 @@ class TestExecuteNodeGroup:
         op = self._make_op(node_group_name="   ")
         ctx, _ = self._make_ng_context()
 
-        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"):
+        with patch("blammo.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.save.resolve_db_path", return_value=":memory:"):
             result = op.execute(ctx)
 
         assert result == {"CANCELLED"}
 
 
 # ---------------------------------------------------------------------------
-# MELVIL_OT_save_nodes_as_asset — poll
+# BLAMMO_OT_save_nodes_as_asset — poll
 # ---------------------------------------------------------------------------
 
 
@@ -519,22 +519,22 @@ def _make_selectable_node(select: bool = True, node_type: str = "SHADER", ng=Non
 
 class TestSaveNodesAsAssetPoll:
     def test_poll_true_for_single_selected_group_node(self):
-        from melvil.ops.save import MELVIL_OT_save_nodes_as_asset
+        from blammo.ops.save import BLAMMO_OT_save_nodes_as_asset
 
         ng = MagicMock()
         node = _make_selectable_node(select=True, node_type="GROUP", ng=ng)
         ctx = _make_node_editor_context(nodes=[node])
-        assert MELVIL_OT_save_nodes_as_asset.poll(ctx) is True
+        assert BLAMMO_OT_save_nodes_as_asset.poll(ctx) is True
 
     def test_poll_false_when_no_selected_nodes(self):
-        from melvil.ops.save import MELVIL_OT_save_nodes_as_asset
+        from blammo.ops.save import BLAMMO_OT_save_nodes_as_asset
 
         ctx = _make_node_editor_context(nodes=[_make_selectable_node(select=False)])
-        assert MELVIL_OT_save_nodes_as_asset.poll(ctx) is False
+        assert BLAMMO_OT_save_nodes_as_asset.poll(ctx) is False
 
     def test_poll_false_for_multiple_selected_nodes(self):
         """Multiple selected nodes should disable the operator."""
-        from melvil.ops.save import MELVIL_OT_save_nodes_as_asset
+        from blammo.ops.save import BLAMMO_OT_save_nodes_as_asset
 
         ng = MagicMock()
         nodes = [
@@ -542,60 +542,60 @@ class TestSaveNodesAsAssetPoll:
             _make_selectable_node(select=True, node_type="GROUP", ng=ng),
         ]
         ctx = _make_node_editor_context(nodes=nodes)
-        assert MELVIL_OT_save_nodes_as_asset.poll(ctx) is False
+        assert BLAMMO_OT_save_nodes_as_asset.poll(ctx) is False
 
     def test_poll_false_for_single_non_group_node(self):
         """A single selected non-GROUP node should disable the operator."""
-        from melvil.ops.save import MELVIL_OT_save_nodes_as_asset
+        from blammo.ops.save import BLAMMO_OT_save_nodes_as_asset
 
         ctx = _make_node_editor_context(nodes=[_make_selectable_node(select=True, node_type="MATH")])
-        assert MELVIL_OT_save_nodes_as_asset.poll(ctx) is False
+        assert BLAMMO_OT_save_nodes_as_asset.poll(ctx) is False
 
     def test_poll_false_outside_node_editor(self):
-        from melvil.ops.save import MELVIL_OT_save_nodes_as_asset
+        from blammo.ops.save import BLAMMO_OT_save_nodes_as_asset
 
         ng = MagicMock()
         ctx = _make_node_editor_context(
             nodes=[_make_selectable_node(select=True, node_type="GROUP", ng=ng)],
             area_type="VIEW_3D",
         )
-        assert MELVIL_OT_save_nodes_as_asset.poll(ctx) is False
+        assert BLAMMO_OT_save_nodes_as_asset.poll(ctx) is False
 
     def test_poll_false_when_no_node_tree(self):
-        from melvil.ops.save import MELVIL_OT_save_nodes_as_asset
+        from blammo.ops.save import BLAMMO_OT_save_nodes_as_asset
 
         ctx = _make_node_editor_context(has_space=False)
         ctx.area.type = "NODE_EDITOR"
-        assert MELVIL_OT_save_nodes_as_asset.poll(ctx) is False
+        assert BLAMMO_OT_save_nodes_as_asset.poll(ctx) is False
 
     def test_poll_false_when_empty_node_list(self):
-        from melvil.ops.save import MELVIL_OT_save_nodes_as_asset
+        from blammo.ops.save import BLAMMO_OT_save_nodes_as_asset
 
         ctx = _make_node_editor_context(nodes=[])
-        assert MELVIL_OT_save_nodes_as_asset.poll(ctx) is False
+        assert BLAMMO_OT_save_nodes_as_asset.poll(ctx) is False
 
 
 # ---------------------------------------------------------------------------
-# MELVIL_OT_save_nodes_as_asset — invoke
+# BLAMMO_OT_save_nodes_as_asset — invoke
 # ---------------------------------------------------------------------------
 
 
 class TestSaveNodesAsAssetInvoke:
     def test_invoke_delegates_to_save_asset(self):
-        """invoke() must call melvil.save_asset(INVOKE_DEFAULT) unconditionally."""
+        """invoke() must call blammo.save_asset(INVOKE_DEFAULT) unconditionally."""
         import bpy
-        from melvil.ops.save import MELVIL_OT_save_nodes_as_asset
+        from blammo.ops.save import BLAMMO_OT_save_nodes_as_asset
 
         ng = MagicMock()
         node = _make_selectable_node(select=True, node_type="GROUP", ng=ng)
         ctx = _make_node_editor_context(nodes=[node])
 
-        with patch.object(bpy.ops, "melvil", create=True) as mock_melvil_ops:
-            mock_melvil_ops.save_asset.return_value = {"RUNNING_MODAL"}
-            op = MELVIL_OT_save_nodes_as_asset()
+        with patch.object(bpy.ops, "blammo", create=True) as mock_blammo_ops:
+            mock_blammo_ops.save_asset.return_value = {"RUNNING_MODAL"}
+            op = BLAMMO_OT_save_nodes_as_asset()
             result = op.invoke(ctx, MagicMock())
 
-        mock_melvil_ops.save_asset.assert_called_once_with("INVOKE_DEFAULT")
+        mock_blammo_ops.save_asset.assert_called_once_with("INVOKE_DEFAULT")
         assert result == {"RUNNING_MODAL"}
 
 
@@ -605,12 +605,12 @@ class TestSaveNodesAsAssetInvoke:
 
 
 class TestExecuteTags:
-    """MELVIL_OT_save_asset should apply tags via add_asset_tag after save."""
+    """BLAMMO_OT_save_asset should apply tags via add_asset_tag after save."""
 
     def _make_op(self, tags=""):
-        from melvil.ops.save import MELVIL_OT_save_asset
+        from blammo.ops.save import BLAMMO_OT_save_asset
 
-        op = MELVIL_OT_save_asset()
+        op = BLAMMO_OT_save_asset()
         op.save_type = "MESH"
         op.mesh_name = "Cube"
         op.material_name = ""
@@ -619,8 +619,8 @@ class TestExecuteTags:
 
     def test_tags_committed_to_db(self, conn):
         """Tags must be committed so they are visible on a new connection."""
-        from melvil.db import assets as assets_db
-        from melvil.db import tags as tags_db
+        from blammo.db import assets as assets_db
+        from blammo.db import tags as tags_db
 
         asset_id = "dddddddd-0000-4000-8000-000000000001"
         assets_db.insert_asset(conn, id=asset_id, name="Cube", type="MESH", blend_path="cube3.blend")
@@ -628,10 +628,10 @@ class TestExecuteTags:
         op = self._make_op(tags="metal")
         ctx = _make_context(obj=_make_mesh_object())
 
-        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
-             patch("melvil.ops.save.AssetWriter") as MockWriter:
+        with patch("blammo.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.save.open_db", _mock_open_db(conn)), \
+             patch("blammo.ops.save.AssetWriter") as MockWriter:
             MockWriter.return_value.write.return_value = asset_id
             op.execute(ctx)
 
@@ -642,8 +642,8 @@ class TestExecuteTags:
         assert "metal" in applied
 
     def test_tags_applied_on_save(self, conn):
-        from melvil.db import assets as assets_db
-        from melvil.db import tags as tags_db
+        from blammo.db import assets as assets_db
+        from blammo.db import tags as tags_db
 
         asset_id = "eeeeeeee-0000-4000-8000-000000000001"
         # Pre-insert the asset so FK constraints on asset_tags pass.
@@ -651,10 +651,10 @@ class TestExecuteTags:
         op = self._make_op(tags="metal, shiny")
         ctx = _make_context(obj=_make_mesh_object())
 
-        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
-             patch("melvil.ops.save.AssetWriter") as MockWriter:
+        with patch("blammo.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.save.open_db", _mock_open_db(conn)), \
+             patch("blammo.ops.save.AssetWriter") as MockWriter:
             MockWriter.return_value.write.return_value = asset_id
             result = op.execute(ctx)
 
@@ -668,18 +668,18 @@ class TestExecuteTags:
         op = self._make_op(tags="")
         ctx = _make_context(obj=_make_mesh_object())
 
-        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
-             patch("melvil.ops.save.AssetWriter") as MockWriter:
+        with patch("blammo.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.save.open_db", _mock_open_db(conn)), \
+             patch("blammo.ops.save.AssetWriter") as MockWriter:
             MockWriter.return_value.write.return_value = asset_id
             result = op.execute(ctx)
 
         assert result == {"FINISHED"}
 
     def test_tags_normalized_on_save(self, conn):
-        from melvil.db import assets as assets_db
-        from melvil.db import tags as tags_db
+        from blammo.db import assets as assets_db
+        from blammo.db import tags as tags_db
 
         asset_id = "11111111-0000-4000-8000-000000000001"
         # Pre-insert the asset so FK constraints on asset_tags pass.
@@ -687,10 +687,10 @@ class TestExecuteTags:
         op = self._make_op(tags="  Metal  , PBR Material")
         ctx = _make_context(obj=_make_mesh_object())
 
-        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
-             patch("melvil.ops.save.AssetWriter") as MockWriter:
+        with patch("blammo.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.save.open_db", _mock_open_db(conn)), \
+             patch("blammo.ops.save.AssetWriter") as MockWriter:
             MockWriter.return_value.write.return_value = asset_id
             op.execute(ctx)
 
@@ -708,9 +708,9 @@ class TestDrawSaveDialog:
     """Verify the save dialog renders a Tags field below the Kit selector."""
 
     def _make_op(self, save_type="MESH"):
-        from melvil.ops.save import MELVIL_OT_save_asset
+        from blammo.ops.save import BLAMMO_OT_save_asset
 
-        op = MELVIL_OT_save_asset()
+        op = BLAMMO_OT_save_asset()
         op.save_type = save_type
         op.mesh_name = "Cube"
         op.material_name = "Iron"
@@ -766,17 +766,17 @@ _PREVIEW_ASSET_ID = "cccccccc-0000-4000-8000-000000000001"
 def _base_mesh_patches(conn):
     """Return the common patch stack for mesh save tests that involve previews."""
     return [
-        patch("melvil.ops.save.resolve_library_root", return_value="/lib"),
-        patch("melvil.ops.save.resolve_db_path", return_value=":memory:"),
-        patch("melvil.ops.save.open_db", _mock_open_db(conn)),
+        patch("blammo.ops.save.resolve_library_root", return_value="/lib"),
+        patch("blammo.ops.save.resolve_db_path", return_value=":memory:"),
+        patch("blammo.ops.save.open_db", _mock_open_db(conn)),
     ]
 
 
 class TestExecuteMeshPreview:
     def _make_op(self):
-        from melvil.ops.save import MELVIL_OT_save_asset
+        from blammo.ops.save import BLAMMO_OT_save_asset
 
-        op = MELVIL_OT_save_asset()
+        op = BLAMMO_OT_save_asset()
         op.save_type = "MESH"
         op.mesh_name = "Cube"
         op.material_name = ""
@@ -785,7 +785,7 @@ class TestExecuteMeshPreview:
 
     def test_mesh_preview_generated_and_stored(self, conn):
         """generate_mesh_preview is called and the path is written to the DB."""
-        from melvil.db import assets as assets_db
+        from blammo.db import assets as assets_db
 
         # Pre-insert the asset so update_asset has a real row to update.
         assets_db.insert_asset(conn, id=_PREVIEW_ASSET_ID, name="Cube", type="MESH", blend_path="cube.blend")
@@ -794,12 +794,12 @@ class TestExecuteMeshPreview:
         ctx = _make_context(obj=_make_mesh_object())
         abs_preview = f"/lib/previews/{_PREVIEW_ASSET_ID}.png"
 
-        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
-             patch("melvil.ops.save.AssetWriter") as MockWriter, \
-             patch("melvil.ops.save.generate_mesh_preview", return_value=abs_preview) as mock_gen, \
-             patch("melvil.ops.save.generate_material_preview") as mock_mat_gen:
+        with patch("blammo.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.save.open_db", _mock_open_db(conn)), \
+             patch("blammo.ops.save.AssetWriter") as MockWriter, \
+             patch("blammo.ops.save.generate_mesh_preview", return_value=abs_preview) as mock_gen, \
+             patch("blammo.ops.save.generate_material_preview") as mock_mat_gen:
             MockWriter.return_value.write.return_value = _PREVIEW_ASSET_ID
             result = op.execute(ctx)
 
@@ -817,11 +817,11 @@ class TestExecuteMeshPreview:
         obj = _make_mesh_object()
         ctx = _make_context(obj=obj)
 
-        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
-             patch("melvil.ops.save.AssetWriter") as MockWriter, \
-             patch("melvil.ops.save.generate_mesh_preview", return_value=None) as mock_gen:
+        with patch("blammo.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.save.open_db", _mock_open_db(conn)), \
+             patch("blammo.ops.save.AssetWriter") as MockWriter, \
+             patch("blammo.ops.save.generate_mesh_preview", return_value=None) as mock_gen:
             MockWriter.return_value.write.return_value = _PREVIEW_ASSET_ID
             op.execute(ctx)
 
@@ -836,11 +836,11 @@ class TestExecuteMeshPreview:
         op = self._make_op()
         ctx = _make_context(obj=_make_mesh_object())
 
-        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
-             patch("melvil.ops.save.AssetWriter") as MockWriter, \
-             patch("melvil.ops.save.generate_mesh_preview", return_value=None):
+        with patch("blammo.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.save.open_db", _mock_open_db(conn)), \
+             patch("blammo.ops.save.AssetWriter") as MockWriter, \
+             patch("blammo.ops.save.generate_mesh_preview", return_value=None):
             MockWriter.return_value.write.return_value = _PREVIEW_ASSET_ID
             result = op.execute(ctx)
 
@@ -848,7 +848,7 @@ class TestExecuteMeshPreview:
 
     def test_mesh_preview_path_absent_from_db_when_preview_fails(self, conn):
         """preview_path must remain NULL when the generator returns None."""
-        from melvil.db import assets as assets_db
+        from blammo.db import assets as assets_db
 
         # Pre-insert the asset so get_asset can find a real row.
         assets_db.insert_asset(conn, id=_PREVIEW_ASSET_ID, name="Cube", type="MESH", blend_path="cube.blend")
@@ -856,11 +856,11 @@ class TestExecuteMeshPreview:
         op = self._make_op()
         ctx = _make_context(obj=_make_mesh_object())
 
-        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
-             patch("melvil.ops.save.AssetWriter") as MockWriter, \
-             patch("melvil.ops.save.generate_mesh_preview", return_value=None):
+        with patch("blammo.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.save.open_db", _mock_open_db(conn)), \
+             patch("blammo.ops.save.AssetWriter") as MockWriter, \
+             patch("blammo.ops.save.generate_mesh_preview", return_value=None):
             MockWriter.return_value.write.return_value = _PREVIEW_ASSET_ID
             op.execute(ctx)
 
@@ -874,11 +874,11 @@ class TestExecuteMeshPreview:
         reports: list[tuple] = []
         op.report = lambda tp, msg: reports.append((tp, msg))
 
-        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
-             patch("melvil.ops.save.AssetWriter") as MockWriter, \
-             patch("melvil.ops.save.generate_mesh_preview", return_value=None):
+        with patch("blammo.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.save.open_db", _mock_open_db(conn)), \
+             patch("blammo.ops.save.AssetWriter") as MockWriter, \
+             patch("blammo.ops.save.generate_mesh_preview", return_value=None):
             MockWriter.return_value.write.return_value = _PREVIEW_ASSET_ID
             op.execute(ctx)
 
@@ -894,11 +894,11 @@ class TestExecuteMeshPreview:
         op.report = lambda tp, msg: reports.append((tp, msg))
         abs_preview = f"/lib/previews/{_PREVIEW_ASSET_ID}.png"
 
-        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
-             patch("melvil.ops.save.AssetWriter") as MockWriter, \
-             patch("melvil.ops.save.generate_mesh_preview", return_value=abs_preview):
+        with patch("blammo.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.save.open_db", _mock_open_db(conn)), \
+             patch("blammo.ops.save.AssetWriter") as MockWriter, \
+             patch("blammo.ops.save.generate_mesh_preview", return_value=abs_preview):
             MockWriter.return_value.write.return_value = _PREVIEW_ASSET_ID
             op.execute(ctx)
 
@@ -908,9 +908,9 @@ class TestExecuteMeshPreview:
 
 class TestExecuteMaterialPreview:
     def _make_op(self):
-        from melvil.ops.save import MELVIL_OT_save_asset
+        from blammo.ops.save import BLAMMO_OT_save_asset
 
-        op = MELVIL_OT_save_asset()
+        op = BLAMMO_OT_save_asset()
         op.save_type = "MATERIAL"
         op.mesh_name = ""
         op.material_name = "Red Metal"
@@ -919,7 +919,7 @@ class TestExecuteMaterialPreview:
 
     def test_material_preview_generated_and_stored(self, conn):
         """generate_material_preview is called and the path is written to the DB."""
-        from melvil.db import assets as assets_db
+        from blammo.db import assets as assets_db
 
         # Pre-insert the asset so update_asset has a real row to update.
         assets_db.insert_asset(conn, id=_PREVIEW_ASSET_ID, name="Red Metal", type="MATERIAL", blend_path="mat.blend")
@@ -930,12 +930,12 @@ class TestExecuteMaterialPreview:
         ctx = _make_context(obj=obj)
         abs_preview = f"/lib/previews/{_PREVIEW_ASSET_ID}.png"
 
-        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
-             patch("melvil.ops.save.AssetWriter") as MockWriter, \
-             patch("melvil.ops.save.generate_material_preview", return_value=abs_preview) as mock_gen, \
-             patch("melvil.ops.save.generate_mesh_preview") as mock_mesh_gen:
+        with patch("blammo.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.save.open_db", _mock_open_db(conn)), \
+             patch("blammo.ops.save.AssetWriter") as MockWriter, \
+             patch("blammo.ops.save.generate_material_preview", return_value=abs_preview) as mock_gen, \
+             patch("blammo.ops.save.generate_mesh_preview") as mock_mesh_gen:
             MockWriter.return_value.write.return_value = _PREVIEW_ASSET_ID
             result = op.execute(ctx)
 
@@ -954,11 +954,11 @@ class TestExecuteMaterialPreview:
         op = self._make_op()
         ctx = _make_context(obj=obj)
 
-        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
-             patch("melvil.ops.save.AssetWriter") as MockWriter, \
-             patch("melvil.ops.save.generate_material_preview", return_value=None) as mock_gen:
+        with patch("blammo.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.save.open_db", _mock_open_db(conn)), \
+             patch("blammo.ops.save.AssetWriter") as MockWriter, \
+             patch("blammo.ops.save.generate_material_preview", return_value=None) as mock_gen:
             MockWriter.return_value.write.return_value = _PREVIEW_ASSET_ID
             op.execute(ctx)
 
@@ -982,11 +982,11 @@ class TestExecuteMaterialPreview:
         mock_prefs.preferences.material_preview_object = "BUILTIN_UV_SPHERE"
         ctx.preferences.addons.get.return_value = mock_prefs
 
-        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
-             patch("melvil.ops.save.AssetWriter") as MockWriter, \
-             patch("melvil.ops.save.generate_material_preview", return_value=None) as mock_gen:
+        with patch("blammo.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.save.open_db", _mock_open_db(conn)), \
+             patch("blammo.ops.save.AssetWriter") as MockWriter, \
+             patch("blammo.ops.save.generate_material_preview", return_value=None) as mock_gen:
             MockWriter.return_value.write.return_value = _PREVIEW_ASSET_ID
             op.execute(ctx)
 
@@ -1002,11 +1002,11 @@ class TestExecuteMaterialPreview:
         op = self._make_op()
         ctx = _make_context(obj=obj)
 
-        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
-             patch("melvil.ops.save.AssetWriter") as MockWriter, \
-             patch("melvil.ops.save.generate_material_preview", return_value=None):
+        with patch("blammo.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.save.open_db", _mock_open_db(conn)), \
+             patch("blammo.ops.save.AssetWriter") as MockWriter, \
+             patch("blammo.ops.save.generate_material_preview", return_value=None):
             MockWriter.return_value.write.return_value = _PREVIEW_ASSET_ID
             result = op.execute(ctx)
 
@@ -1016,7 +1016,7 @@ class TestExecuteMaterialPreview:
 class TestExecuteNodeGroupPreview:
     def test_node_group_save_does_not_call_preview_generators(self, conn):
         """Preview generation must be skipped entirely for NODE_GROUP assets."""
-        from melvil.ops.save import MELVIL_OT_save_asset
+        from blammo.ops.save import BLAMMO_OT_save_asset
 
         ng = MagicMock()
         ng.name = "Noise Setup"
@@ -1024,7 +1024,7 @@ class TestExecuteNodeGroupPreview:
         active_node.type = "GROUP"
         active_node.node_tree = ng
 
-        op = MELVIL_OT_save_asset()
+        op = BLAMMO_OT_save_asset()
         op.save_type = "NODE_GROUP"
         op.mesh_name = ""
         op.material_name = ""
@@ -1034,12 +1034,12 @@ class TestExecuteNodeGroupPreview:
         ctx = _make_context(obj=_make_mesh_object(), area_type="NODE_EDITOR")
         ctx.active_node = active_node
 
-        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
-             patch("melvil.ops.save.AssetWriter") as MockWriter, \
-             patch("melvil.ops.save.generate_mesh_preview") as mock_mesh, \
-             patch("melvil.ops.save.generate_material_preview") as mock_mat:
+        with patch("blammo.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.save.open_db", _mock_open_db(conn)), \
+             patch("blammo.ops.save.AssetWriter") as MockWriter, \
+             patch("blammo.ops.save.generate_mesh_preview") as mock_mesh, \
+             patch("blammo.ops.save.generate_material_preview") as mock_mat:
             MockWriter.return_value.write.return_value = _PREVIEW_ASSET_ID
             result = op.execute(ctx)
 
@@ -1053,9 +1053,9 @@ class TestAutoGeneratePreviewsPreference:
 
     def test_preview_skipped_when_auto_generate_disabled(self, conn):
         """generate_mesh_preview must not be called when auto_generate_previews=False."""
-        from melvil.ops.save import MELVIL_OT_save_asset
+        from blammo.ops.save import BLAMMO_OT_save_asset
 
-        op = MELVIL_OT_save_asset()
+        op = BLAMMO_OT_save_asset()
         op.save_type = "MESH"
         op.mesh_name = "Cube"
         op.material_name = ""
@@ -1066,11 +1066,11 @@ class TestAutoGeneratePreviewsPreference:
         mock_prefs.preferences.auto_generate_previews = False
         ctx.preferences.addons.get.return_value = mock_prefs
 
-        with patch("melvil.ops.save.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.save.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.save.open_db", _mock_open_db(conn)), \
-             patch("melvil.ops.save.AssetWriter") as MockWriter, \
-             patch("melvil.ops.save.generate_mesh_preview") as mock_gen:
+        with patch("blammo.ops.save.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.save.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.save.open_db", _mock_open_db(conn)), \
+             patch("blammo.ops.save.AssetWriter") as MockWriter, \
+             patch("blammo.ops.save.generate_mesh_preview") as mock_gen:
             MockWriter.return_value.write.return_value = _PREVIEW_ASSET_ID
             result = op.execute(ctx)
 

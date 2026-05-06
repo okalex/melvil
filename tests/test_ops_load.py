@@ -1,4 +1,4 @@
-"""Tests for ops/load.py — MELVIL_OT_load_asset."""
+"""Tests for ops/load.py — BLAMMO_OT_load_asset."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from melvil.db.connection import migrate
-from melvil.db import assets as assets_db
+from blammo.db.connection import migrate
+from blammo.db import assets as assets_db
 
 
 # ---------------------------------------------------------------------------
@@ -50,9 +50,9 @@ SAMPLE_MESH = dict(
 
 
 def _make_op(asset_id=""):
-    from melvil.ops.load import MELVIL_OT_load_asset
+    from blammo.ops.load import BLAMMO_OT_load_asset
 
-    op = MELVIL_OT_load_asset()
+    op = BLAMMO_OT_load_asset()
     op.asset_id = asset_id
     return op
 
@@ -71,17 +71,17 @@ def _make_context(mode="OBJECT"):
 
 class TestPoll:
     def test_returns_true_when_scene_exists(self):
-        from melvil.ops.load import MELVIL_OT_load_asset
+        from blammo.ops.load import BLAMMO_OT_load_asset
 
         ctx = _make_context()
-        assert MELVIL_OT_load_asset.poll(ctx) is True
+        assert BLAMMO_OT_load_asset.poll(ctx) is True
 
     def test_returns_false_when_no_scene(self):
-        from melvil.ops.load import MELVIL_OT_load_asset
+        from blammo.ops.load import BLAMMO_OT_load_asset
 
         ctx = MagicMock()
         ctx.scene = None
-        assert MELVIL_OT_load_asset.poll(ctx) is False
+        assert BLAMMO_OT_load_asset.poll(ctx) is False
 
 
 # ---------------------------------------------------------------------------
@@ -94,32 +94,32 @@ class TestExecute:
         op = _make_op(asset_id="")
         ctx = _make_context()
 
-        with patch("melvil.ops.load.resolve_library_root", return_value="/lib"):
+        with patch("blammo.ops.load.resolve_library_root", return_value="/lib"):
             result = op.execute(ctx)
 
         assert result == {"CANCELLED"}
 
     def test_library_not_configured_returns_cancelled(self):
-        from melvil.core.library import LibraryNotConfiguredError
+        from blammo.core.library import LibraryNotConfiguredError
 
         op = _make_op(asset_id="aaaaaaaa-0000-4000-8000-000000000001")
         ctx = _make_context()
 
-        with patch("melvil.ops.load.resolve_library_root", side_effect=LibraryNotConfiguredError("not set")):
+        with patch("blammo.ops.load.resolve_library_root", side_effect=LibraryNotConfiguredError("not set")):
             result = op.execute(ctx)
 
         assert result == {"CANCELLED"}
 
     def test_asset_not_found_returns_cancelled(self, conn):
-        from melvil.core.asset_reader import AssetNotFoundError
+        from blammo.core.asset_reader import AssetNotFoundError
 
         op = _make_op(asset_id="does-not-exist")
         ctx = _make_context()
 
-        with patch("melvil.ops.load.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.load.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.load.open_db", _mock_open_db(conn)), \
-             patch("melvil.ops.load.AssetReader") as MockReader:
+        with patch("blammo.ops.load.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.load.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.load.open_db", _mock_open_db(conn)), \
+             patch("blammo.ops.load.AssetReader") as MockReader:
             MockReader.return_value.read.side_effect = AssetNotFoundError("not found")
             result = op.execute(ctx)
 
@@ -133,10 +133,10 @@ class TestExecute:
         op = _make_op(asset_id=SAMPLE_MATERIAL["id"])
         ctx = _make_context()
 
-        with patch("melvil.ops.load.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.load.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.load.open_db", _mock_open_db(conn)), \
-             patch("melvil.ops.load.AssetReader") as MockReader:
+        with patch("blammo.ops.load.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.load.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.load.open_db", _mock_open_db(conn)), \
+             patch("blammo.ops.load.AssetReader") as MockReader:
             MockReader.return_value.read.return_value = mock_material
             result = op.execute(ctx)
 
@@ -151,11 +151,11 @@ class TestExecute:
         op = _make_op(asset_id=SAMPLE_MESH["id"])
         ctx = _make_context()
 
-        with patch("melvil.ops.load.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.load.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.load.open_db", _mock_open_db(conn)), \
-             patch("melvil.ops.load.AssetReader") as MockReader, \
-             patch("melvil.ops.load.bpy") as mock_bpy:
+        with patch("blammo.ops.load.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.load.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.load.open_db", _mock_open_db(conn)), \
+             patch("blammo.ops.load.AssetReader") as MockReader, \
+             patch("blammo.ops.load.bpy") as mock_bpy:
             MockReader.return_value.read.return_value = mock_obj
             result = op.execute(ctx)
 
@@ -173,11 +173,11 @@ class TestExecute:
         ctx = _make_context()
         ctx.scene.cursor.location = cursor_loc
 
-        with patch("melvil.ops.load.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.load.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.load.open_db", _mock_open_db(conn)), \
-             patch("melvil.ops.load.AssetReader") as MockReader, \
-             patch("melvil.ops.load.bpy"):
+        with patch("blammo.ops.load.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.load.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.load.open_db", _mock_open_db(conn)), \
+             patch("blammo.ops.load.AssetReader") as MockReader, \
+             patch("blammo.ops.load.bpy"):
             MockReader.return_value.read.return_value = mock_obj
             op.execute(ctx)
 
@@ -187,10 +187,10 @@ class TestExecute:
         op = _make_op(asset_id="aaaaaaaa-0000-4000-8000-000000000001")
         ctx = _make_context()
 
-        with patch("melvil.ops.load.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.load.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.load.open_db", _mock_open_db(conn)), \
-             patch("melvil.ops.load.AssetReader") as MockReader:
+        with patch("blammo.ops.load.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.load.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.load.open_db", _mock_open_db(conn)), \
+             patch("blammo.ops.load.AssetReader") as MockReader:
             MockReader.return_value.read.return_value = None
             result = op.execute(ctx)
 
@@ -200,7 +200,7 @@ class TestExecute:
         op = _make_op(asset_id="   ")
         ctx = _make_context()
 
-        with patch("melvil.ops.load.resolve_library_root", return_value="/lib"):
+        with patch("blammo.ops.load.resolve_library_root", return_value="/lib"):
             result = op.execute(ctx)
 
         assert result == {"CANCELLED"}

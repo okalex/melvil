@@ -1,17 +1,17 @@
 """
-Central registry for all Melvil panels and UI classes.
+Central registry for all Blammo panels and UI classes.
 """
 
 import bpy
 
 from ..utils import register_class as _safe_register
 from . import keymaps, menu_items, menus, menus_add, menus_material, menus_node_add, menus_node_editor, previews_collection, scene_props
-from .draw_helpers import MELVIL_UL_asset_tags
-from .npanel import MELVIL_PT_main
+from .draw_helpers import BLAMMO_UL_asset_tags
+from .npanel import BLAMMO_PT_main
 
 _classes = (
-    MELVIL_UL_asset_tags,
-    MELVIL_PT_main,
+    BLAMMO_UL_asset_tags,
+    BLAMMO_PT_main,
 )
 
 

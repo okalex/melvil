@@ -1,4 +1,4 @@
-"""Tests for ui/panel.py — MELVIL_PT_main."""
+"""Tests for ui/panel.py — BLAMMO_PT_main."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ def _make_layout():
 def _make_context(active_kit_id: str = "ALL_KITS") -> MagicMock:
     ctx = MagicMock()
     scene = MagicMock()
-    scene.melvil_active_kit_id = active_kit_id
+    scene.blammo_active_kit_id = active_kit_id
     ctx.scene = scene
     return ctx
 
@@ -35,27 +35,27 @@ def _find_menu_enum_call(layout: MagicMock, operator_id: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# MELVIL_PT_main.poll()
+# BLAMMO_PT_main.poll()
 # ---------------------------------------------------------------------------
 
 
 class TestPoll:
     def test_always_true(self):
-        from melvil.ui.npanel import MELVIL_PT_main
+        from blammo.ui.npanel import BLAMMO_PT_main
 
-        assert MELVIL_PT_main.poll(MagicMock()) is True
+        assert BLAMMO_PT_main.poll(MagicMock()) is True
 
 
 # ---------------------------------------------------------------------------
-# MELVIL_PT_main.draw() — top-level behaviour
+# BLAMMO_PT_main.draw() — top-level behaviour
 # ---------------------------------------------------------------------------
 
 
 class TestDraw:
     def _panel(self):
-        from melvil.ui.npanel import MELVIL_PT_main
+        from blammo.ui.npanel import BLAMMO_PT_main
 
-        return MELVIL_PT_main()
+        return BLAMMO_PT_main()
 
     def test_browse_button_always_drawn(self):
         panel = self._panel()
@@ -65,7 +65,7 @@ class TestDraw:
         panel.draw(_make_context())
 
         layout.operator.assert_any_call(
-            "melvil.open_browser", text="Browse Library", icon="ASSET_MANAGER"
+            "blammo.open_browser", text="Browse Library", icon="ASSET_MANAGER"
         )
 
     def test_active_kit_label_drawn(self):
@@ -85,7 +85,7 @@ class TestDraw:
         panel.draw(_make_context())
 
         layout.operator_menu_enum.assert_any_call(
-            "melvil.set_active_kit",
+            "blammo.set_active_kit",
             "kit_id",
             text="All Kits",
             icon="BOOKMARKS",
@@ -98,7 +98,7 @@ class TestDraw:
 
         panel.draw(_make_context(active_kit_id="ALL_KITS"))
 
-        call_kwargs = _find_menu_enum_call(layout, "melvil.set_active_kit")
+        call_kwargs = _find_menu_enum_call(layout, "blammo.set_active_kit")
         text = call_kwargs.get("text")
         assert text == "All Kits"
 
@@ -111,14 +111,14 @@ class TestDraw:
         ctx = _make_context(active_kit_id=kit_id)
 
         fake_row = {"name": "General"}
-        with patch("melvil.ui.npanel.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ui.npanel.open_db") as mock_open, \
-             patch("melvil.ui.npanel.get_kit", return_value=fake_row):
+        with patch("blammo.ui.npanel.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ui.npanel.open_db") as mock_open, \
+             patch("blammo.ui.npanel.get_kit", return_value=fake_row):
             mock_open.return_value.__enter__ = lambda s: MagicMock()
             mock_open.return_value.__exit__ = MagicMock(return_value=False)
             panel.draw(ctx)
 
-        call_kwargs = _find_menu_enum_call(layout, "melvil.set_active_kit")
+        call_kwargs = _find_menu_enum_call(layout, "blammo.set_active_kit")
         text = call_kwargs.get("text")
         assert text == "General"
 
@@ -130,10 +130,10 @@ class TestDraw:
         kit_id = "some-kit-uuid"
         ctx = _make_context(active_kit_id=kit_id)
 
-        with patch("melvil.ui.npanel.resolve_db_path", side_effect=Exception("no db")):
+        with patch("blammo.ui.npanel.resolve_db_path", side_effect=Exception("no db")):
             panel.draw(ctx)
 
-        call_kwargs = _find_menu_enum_call(layout, "melvil.set_active_kit")
+        call_kwargs = _find_menu_enum_call(layout, "blammo.set_active_kit")
         text = call_kwargs.get("text")
         assert text == "All Kits"
 
@@ -175,12 +175,12 @@ class TestDraw:
         mock_prefs.preferences.material_preview_object = "BUILTIN_UV_SPHERE"
         ctx.preferences.addons.get.return_value = mock_prefs
 
-        with patch("melvil.ui.npanel.resolve_db_path"), \
-             patch("melvil.ui.npanel.open_db"):
+        with patch("blammo.ui.npanel.resolve_db_path"), \
+             patch("blammo.ui.npanel.open_db"):
             panel.draw(ctx)
 
         layout.operator_menu_enum.assert_any_call(
-            "melvil.set_preview_object",
+            "blammo.set_preview_object",
             "object_id",
             text="UV Sphere",
         )
@@ -197,12 +197,12 @@ class TestDraw:
         mock_prefs.preferences.material_preview_object = "BUILTIN_MONKEY"
         ctx.preferences.addons.get.return_value = mock_prefs
 
-        with patch("melvil.ui.npanel.resolve_db_path"), \
-             patch("melvil.ui.npanel.open_db"):
+        with patch("blammo.ui.npanel.resolve_db_path"), \
+             patch("blammo.ui.npanel.open_db"):
             panel.draw(ctx)
 
         layout.operator_menu_enum.assert_any_call(
-            "melvil.set_preview_object",
+            "blammo.set_preview_object",
             "object_id",
             text="Monkey",
         )
@@ -219,6 +219,6 @@ class TestDraw:
 
         calls = [
             c for c in layout.operator_menu_enum.call_args_list
-            if c[0] and c[0][0] == "melvil.set_preview_object"
+            if c[0] and c[0][0] == "blammo.set_preview_object"
         ]
         assert len(calls) == 0

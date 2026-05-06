@@ -1,4 +1,4 @@
-"""MELVIL_OT_kit_rename — rename an existing kit."""
+"""BLAMMO_OT_kit_rename — rename an existing kit."""
 
 from __future__ import annotations
 
@@ -10,10 +10,10 @@ from ..db import open_db
 from ..db.kits import get_kit, get_kit_by_name, update_kit
 
 
-class MELVIL_OT_kit_rename(bpy.types.Operator):
+class BLAMMO_OT_kit_rename(bpy.types.Operator):
     """Rename the specified kit"""
 
-    bl_idname = "melvil.kit_rename"
+    bl_idname = "blammo.kit_rename"
     bl_label = "Rename Kit"
     bl_options = {"REGISTER"}
 
@@ -47,7 +47,7 @@ class MELVIL_OT_kit_rename(bpy.types.Operator):
             self.report({"ERROR"}, str(exc))
             return {"CANCELLED"}
         except Exception as exc:  # noqa: BLE001
-            self.report({"ERROR"}, f"Melvil: could not load kit — {exc}")
+            self.report({"ERROR"}, f"Blammo!: could not load kit — {exc}")
             return {"CANCELLED"}
 
         if row is None:
@@ -80,7 +80,7 @@ class MELVIL_OT_kit_rename(bpy.types.Operator):
             self.report({"ERROR"}, str(exc))
             return {"CANCELLED"}
         except Exception as exc:  # noqa: BLE001
-            self.report({"ERROR"}, f"Melvil: could not rename kit — {exc}")
+            self.report({"ERROR"}, f"Blammo!: could not rename kit — {exc}")
             return {"CANCELLED"}
 
         self.report({"INFO"}, f"Kit renamed to '{name}'.")

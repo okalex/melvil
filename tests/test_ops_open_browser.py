@@ -1,4 +1,4 @@
-"""Tests for ops/open_browser.py — MELVIL_OT_open_browser viewport browser."""
+"""Tests for ops/open_browser.py — BLAMMO_OT_open_browser viewport browser."""
 
 from __future__ import annotations
 
@@ -10,42 +10,42 @@ import pytest
 
 class TestMetadata:
     def test_bl_idname(self):
-        from melvil.ops.open_browser import MELVIL_OT_open_browser
+        from blammo.ops.open_browser import BLAMMO_OT_open_browser
 
-        assert MELVIL_OT_open_browser.bl_idname == "melvil.open_browser"
+        assert BLAMMO_OT_open_browser.bl_idname == "blammo.open_browser"
 
     def test_bl_label(self):
-        from melvil.ops.open_browser import MELVIL_OT_open_browser
+        from blammo.ops.open_browser import BLAMMO_OT_open_browser
 
-        assert MELVIL_OT_open_browser.bl_label == "Melvil Browser (GPU)"
+        assert BLAMMO_OT_open_browser.bl_label == "Blammo! Browser (GPU)"
 
     def test_bl_options_contains_internal(self):
-        from melvil.ops.open_browser import MELVIL_OT_open_browser
+        from blammo.ops.open_browser import BLAMMO_OT_open_browser
 
-        assert "INTERNAL" in MELVIL_OT_open_browser.bl_options
+        assert "INTERNAL" in BLAMMO_OT_open_browser.bl_options
 
 
 class TestPoll:
     def test_returns_true_in_view3d(self):
-        from melvil.ops.open_browser import MELVIL_OT_open_browser
+        from blammo.ops.open_browser import BLAMMO_OT_open_browser
 
         ctx = MagicMock()
         ctx.area.type = "VIEW_3D"
-        assert MELVIL_OT_open_browser.poll(ctx) is True
+        assert BLAMMO_OT_open_browser.poll(ctx) is True
 
     def test_returns_false_outside_view3d(self):
-        from melvil.ops.open_browser import MELVIL_OT_open_browser
+        from blammo.ops.open_browser import BLAMMO_OT_open_browser
 
         ctx = MagicMock()
         ctx.area.type = "NODE_EDITOR"
-        assert MELVIL_OT_open_browser.poll(ctx) is False
+        assert BLAMMO_OT_open_browser.poll(ctx) is False
 
     def test_returns_false_when_no_area(self):
-        from melvil.ops.open_browser import MELVIL_OT_open_browser
+        from blammo.ops.open_browser import BLAMMO_OT_open_browser
 
         ctx = MagicMock()
         ctx.area = None
-        assert MELVIL_OT_open_browser.poll(ctx) is False
+        assert BLAMMO_OT_open_browser.poll(ctx) is False
 
 
 class TestInvoke:
@@ -54,9 +54,9 @@ class TestInvoke:
         bpy.types.SpaceView3D.draw_handler_remove.reset_mock()
 
     def test_invoke_creates_panel_and_attaches(self):
-        from melvil.ops.open_browser import MELVIL_OT_open_browser
+        from blammo.ops.open_browser import BLAMMO_OT_open_browser
 
-        op = MELVIL_OT_open_browser()
+        op = BLAMMO_OT_open_browser()
         ctx = MagicMock()
         ctx.area.type = "VIEW_3D"
         event = MagicMock()
@@ -69,9 +69,9 @@ class TestInvoke:
         ctx.window_manager.modal_handler_add.assert_called_once_with(op)
 
     def test_invoke_tags_redraw(self):
-        from melvil.ops.open_browser import MELVIL_OT_open_browser
+        from blammo.ops.open_browser import BLAMMO_OT_open_browser
 
-        op = MELVIL_OT_open_browser()
+        op = BLAMMO_OT_open_browser()
         ctx = MagicMock()
         event = MagicMock()
 
@@ -81,9 +81,9 @@ class TestInvoke:
 
 class TestModal:
     def _make_op(self):
-        from melvil.ops.open_browser import MELVIL_OT_open_browser
+        from blammo.ops.open_browser import BLAMMO_OT_open_browser
 
-        op = MELVIL_OT_open_browser()
+        op = BLAMMO_OT_open_browser()
         ctx = MagicMock()
         ctx.area.type = "VIEW_3D"
         op.invoke(ctx, MagicMock())
@@ -136,9 +136,9 @@ class TestCancel:
         bpy.types.SpaceView3D.draw_handler_remove.reset_mock()
 
     def test_cancel_detaches_ui_context(self):
-        from melvil.ops.open_browser import MELVIL_OT_open_browser
+        from blammo.ops.open_browser import BLAMMO_OT_open_browser
 
-        op = MELVIL_OT_open_browser()
+        op = BLAMMO_OT_open_browser()
         ctx = MagicMock()
         op.invoke(ctx, MagicMock())
 
@@ -147,8 +147,8 @@ class TestCancel:
         bpy.types.SpaceView3D.draw_handler_remove.assert_called_once()
 
     def test_cancel_without_invoke_is_safe(self):
-        from melvil.ops.open_browser import MELVIL_OT_open_browser
+        from blammo.ops.open_browser import BLAMMO_OT_open_browser
 
-        op = MELVIL_OT_open_browser()
+        op = BLAMMO_OT_open_browser()
         ctx = MagicMock()
         op.cancel(ctx)  # should not raise

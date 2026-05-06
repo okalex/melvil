@@ -1,4 +1,4 @@
-"""MELVIL_OT_asset_edit_tags — edit the tags assigned to an asset."""
+"""BLAMMO_OT_asset_edit_tags — edit the tags assigned to an asset."""
 
 from __future__ import annotations
 
@@ -10,10 +10,10 @@ from ..db import open_db
 from ..db.tags import add_asset_tag, clear_asset_tags, get_asset_tags, normalize_tag
 
 
-class MELVIL_OT_asset_edit_tags(bpy.types.Operator):
-    """Edit the tags assigned to a Melvil asset"""
+class BLAMMO_OT_asset_edit_tags(bpy.types.Operator):
+    """Edit the tags assigned to a Blammo asset"""
 
-    bl_idname = "melvil.asset_edit_tags"
+    bl_idname = "blammo.asset_edit_tags"
     bl_label = "Edit Tags"
     bl_options = {"REGISTER", "INTERNAL"}
 
@@ -44,7 +44,7 @@ class MELVIL_OT_asset_edit_tags(bpy.types.Operator):
     def invoke(self, context, event):
         asset_id = self.asset_id.strip()
         if not asset_id:
-            self.report({"ERROR"}, "Melvil: no asset ID provided.")
+            self.report({"ERROR"}, "Blammo!: no asset ID provided.")
             return {"CANCELLED"}
 
         try:
@@ -55,7 +55,7 @@ class MELVIL_OT_asset_edit_tags(bpy.types.Operator):
             self.report({"ERROR"}, str(exc))
             return {"CANCELLED"}
         except Exception as exc:  # noqa: BLE001
-            self.report({"ERROR"}, f"Melvil: could not load tags — {exc}")
+            self.report({"ERROR"}, f"Blammo!: could not load tags — {exc}")
             return {"CANCELLED"}
 
         return context.window_manager.invoke_props_dialog(self)
@@ -69,7 +69,7 @@ class MELVIL_OT_asset_edit_tags(bpy.types.Operator):
     def execute(self, context):
         asset_id = self.asset_id.strip()
         if not asset_id:
-            self.report({"ERROR"}, "Melvil: no asset ID provided.")
+            self.report({"ERROR"}, "Blammo!: no asset ID provided.")
             return {"CANCELLED"}
 
         raw_names = [n.strip() for n in self.tags.split(",")]
@@ -86,7 +86,7 @@ class MELVIL_OT_asset_edit_tags(bpy.types.Operator):
             self.report({"ERROR"}, str(exc))
             return {"CANCELLED"}
         except Exception as exc:  # noqa: BLE001
-            self.report({"ERROR"}, f"Melvil: could not save tags — {exc}")
+            self.report({"ERROR"}, f"Blammo!: could not save tags — {exc}")
             return {"CANCELLED"}
 
         return {"FINISHED"}

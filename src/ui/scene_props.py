@@ -1,32 +1,32 @@
 """
-Scene-level properties for Melvil.
+Scene-level properties for Blammo.
 
 Registered on ``bpy.types.Scene`` so values persist with the .blend file.
 WindowManager properties are registered for transient (non-persistent) state.
 
 Properties on Scene
 -------------------
-melvil_active_kit_id : str
+blammo_active_kit_id : str
     The kit currently active for filtering add-menu items.  ``"ALL_KITS"``
     means no kit filter is applied.
 
-melvil_mru_kit_id : str
+blammo_mru_kit_id : str
     The kit most recently used when saving an asset.  Empty string means no
     MRU kit has been recorded yet.  Used as a fallback default in the save
     dialog when the active kit is "All Kits".
 
 Properties on WindowManager
 ---------------------------
-melvil_active_tag_filters : str
+blammo_active_tag_filters : str
     Comma-separated list of tag UUIDs currently active as browser filters.
     Non-persistent — reset each Blender session.
 
-melvil_pending_name : str
+blammo_pending_name : str
     Draft name value shown in the inline name editor in the asset detail panel.
     Reset to the saved asset name when the selected asset changes.
 
-melvil_pending_name_asset_id : str
-    UUID of the asset whose name is currently loaded into ``melvil_pending_name``.
+blammo_pending_name_asset_id : str
+    UUID of the asset whose name is currently loaded into ``blammo_pending_name``.
     When this differs from the selected asset's ID, ``draw_asset_details`` re-syncs
     the draft name from the database.
 """
@@ -38,11 +38,11 @@ from bpy.props import BoolProperty, CollectionProperty, IntProperty, PointerProp
 from bpy.types import PropertyGroup
 
 
-# Guard flag: set True while draw() rebuilds melvil_filter_tags so that the
+# Guard flag: set True while draw() rebuilds blammo_filter_tags so that the
 # is_active update callback does not fire during that reconstruction.
 _rebuilding_filter_tags: bool = False
 
-# Guard flag: set True while draw() rebuilds melvil_browser_assets so that the
+# Guard flag: set True while draw() rebuilds blammo_browser_assets so that the
 # index update callback does not fire during that reconstruction.
 _rebuilding_browser_assets: bool = False
 
@@ -66,17 +66,17 @@ def _update_filter_tags_index(self, context) -> None:
     """
     if _rebuilding_filter_tags:
         return
-    idx = self.melvil_filter_tags_index
-    if idx < 0 or idx >= len(self.melvil_filter_tags):
+    idx = self.blammo_filter_tags_index
+    if idx < 0 or idx >= len(self.blammo_filter_tags):
         return
-    tag_id = self.melvil_filter_tags[idx].tag_id
-    active = [t for t in self.melvil_active_tag_filters.split(",") if t]
+    tag_id = self.blammo_filter_tags[idx].tag_id
+    active = [t for t in self.blammo_active_tag_filters.split(",") if t]
     if active == [tag_id]:
-        self.melvil_active_tag_filters = ""
+        self.blammo_active_tag_filters = ""
     else:
-        self.melvil_active_tag_filters = tag_id
+        self.blammo_active_tag_filters = tag_id
     # Reset so clicking the same row again fires this callback.
-    self.melvil_filter_tags_index = -1
+    self.blammo_filter_tags_index = -1
 
 
 def _update_browser_assets_index(self, context) -> None:
@@ -86,13 +86,13 @@ def _update_browser_assets_index(self, context) -> None:
     """
     if _rebuilding_browser_assets:
         return
-    idx = self.melvil_browser_assets_index
-    if idx < 0 or idx >= len(self.melvil_browser_assets):
+    idx = self.blammo_browser_assets_index
+    if idx < 0 or idx >= len(self.blammo_browser_assets):
         return
-    self.melvil_selected_asset_id = self.melvil_browser_assets[idx].asset_id
+    self.blammo_selected_asset_id = self.blammo_browser_assets[idx].asset_id
 
 
-class MelvilFilterTagItem(PropertyGroup):
+class BlammoFilterTagItem(PropertyGroup):
     """A single filter-tag entry for the browser left-column tag list."""
     tag_id: StringProperty(
         name="Tag ID",
@@ -108,7 +108,7 @@ class MelvilFilterTagItem(PropertyGroup):
     )
 
 
-class MelvilTagItem(PropertyGroup):
+class BlammoTagItem(PropertyGroup):
     """A single tag name, used to populate the asset detail tag list."""
     # ``name`` is inherited from PropertyGroup — no extra annotations needed.
     tag_id: StringProperty(
@@ -119,7 +119,7 @@ class MelvilTagItem(PropertyGroup):
     )
 
 
-class MelvilBrowserAssetItem(PropertyGroup):
+class BlammoBrowserAssetItem(PropertyGroup):
     """A single asset entry backing the browser card-grid UIList."""
     asset_id: StringProperty(
         name="Asset ID",
@@ -148,76 +148,76 @@ class MelvilBrowserAssetItem(PropertyGroup):
 
 
 def register() -> None:
-    bpy.utils.register_class(MelvilFilterTagItem)
-    bpy.utils.register_class(MelvilTagItem)
-    bpy.utils.register_class(MelvilBrowserAssetItem)
-    bpy.types.Scene.melvil_active_kit_id = StringProperty(
+    bpy.utils.register_class(BlammoFilterTagItem)
+    bpy.utils.register_class(BlammoTagItem)
+    bpy.utils.register_class(BlammoBrowserAssetItem)
+    bpy.types.Scene.blammo_active_kit_id = StringProperty(
         name="Active Kit",
-        description="Kit used to filter Melvil items in the Add menus",
+        description="Kit used to filter Blammo items in the Add menus",
         default="ALL_KITS",
     )
-    bpy.types.Scene.melvil_mru_kit_id = StringProperty(
+    bpy.types.Scene.blammo_mru_kit_id = StringProperty(
         name="Most Recently Used Kit",
         description="Kit most recently used when saving an asset",
         default="",
         options={"HIDDEN"},
     )
-    bpy.types.WindowManager.melvil_active_tag_filters = StringProperty(
+    bpy.types.WindowManager.blammo_active_tag_filters = StringProperty(
         name="Active Tag Filters",
         description="Comma-separated tag UUIDs active as browser filters",
         default="",
         options={"HIDDEN", "SKIP_SAVE"},
     )
-    bpy.types.WindowManager.melvil_selected_asset_id = StringProperty(
+    bpy.types.WindowManager.blammo_selected_asset_id = StringProperty(
         name="Selected Asset",
         description="UUID of the asset currently selected for detail view in the browser",
         default="",
         options={"HIDDEN", "SKIP_SAVE"},
     )
-    bpy.types.WindowManager.melvil_asset_tags = CollectionProperty(
+    bpy.types.WindowManager.blammo_asset_tags = CollectionProperty(
         name="Asset Tags",
         description="Tags for the currently selected asset in the browser detail panel",
-        type=MelvilTagItem,
+        type=BlammoTagItem,
         options={"HIDDEN", "SKIP_SAVE"},
     )
-    bpy.types.WindowManager.melvil_asset_tags_index = IntProperty(
+    bpy.types.WindowManager.blammo_asset_tags_index = IntProperty(
         name="Asset Tags Index",
         default=0,
         options={"HIDDEN", "SKIP_SAVE"},
     )
-    bpy.types.WindowManager.melvil_filter_tags = CollectionProperty(
+    bpy.types.WindowManager.blammo_filter_tags = CollectionProperty(
         name="Filter Tags",
         description="Visible tags shown in the browser left-column filter list",
-        type=MelvilFilterTagItem,
+        type=BlammoFilterTagItem,
         options={"HIDDEN", "SKIP_SAVE"},
     )
-    bpy.types.WindowManager.melvil_filter_tags_index = IntProperty(
+    bpy.types.WindowManager.blammo_filter_tags_index = IntProperty(
         name="Filter Tags Index",
         default=-1,
         min=-1,
         options={"HIDDEN", "SKIP_SAVE"},
         update=_update_filter_tags_index,
     )
-    bpy.types.WindowManager.melvil_pending_name = StringProperty(
+    bpy.types.WindowManager.blammo_pending_name = StringProperty(
         name="Pending Name",
         description="Draft asset name in the inline name editor",
         default="",
         options={"HIDDEN", "SKIP_SAVE", "TEXTEDIT_UPDATE"},
         update=_update_pending_name,
     )
-    bpy.types.WindowManager.melvil_pending_name_asset_id = StringProperty(
+    bpy.types.WindowManager.blammo_pending_name_asset_id = StringProperty(
         name="Pending Name Asset ID",
-        description="UUID of the asset whose name is loaded into melvil_pending_name",
+        description="UUID of the asset whose name is loaded into blammo_pending_name",
         default="",
         options={"HIDDEN", "SKIP_SAVE"},
     )
-    bpy.types.WindowManager.melvil_browser_assets = CollectionProperty(
+    bpy.types.WindowManager.blammo_browser_assets = CollectionProperty(
         name="Browser Assets",
         description="Assets currently shown in the browser card grid",
-        type=MelvilBrowserAssetItem,
+        type=BlammoBrowserAssetItem,
         options={"HIDDEN", "SKIP_SAVE"},
     )
-    bpy.types.WindowManager.melvil_browser_assets_index = IntProperty(
+    bpy.types.WindowManager.blammo_browser_assets_index = IntProperty(
         name="Browser Assets Index",
         default=0,
         options={"HIDDEN", "SKIP_SAVE"},
@@ -225,18 +225,18 @@ def register() -> None:
     )
 
 def unregister() -> None:
-    del bpy.types.Scene.melvil_active_kit_id
-    del bpy.types.Scene.melvil_mru_kit_id
-    del bpy.types.WindowManager.melvil_active_tag_filters
-    del bpy.types.WindowManager.melvil_selected_asset_id
-    del bpy.types.WindowManager.melvil_asset_tags
-    del bpy.types.WindowManager.melvil_asset_tags_index
-    del bpy.types.WindowManager.melvil_filter_tags
-    del bpy.types.WindowManager.melvil_filter_tags_index
-    del bpy.types.WindowManager.melvil_pending_name
-    del bpy.types.WindowManager.melvil_pending_name_asset_id
-    del bpy.types.WindowManager.melvil_browser_assets
-    del bpy.types.WindowManager.melvil_browser_assets_index
-    bpy.utils.unregister_class(MelvilBrowserAssetItem)
-    bpy.utils.unregister_class(MelvilTagItem)
-    bpy.utils.unregister_class(MelvilFilterTagItem)
+    del bpy.types.Scene.blammo_active_kit_id
+    del bpy.types.Scene.blammo_mru_kit_id
+    del bpy.types.WindowManager.blammo_active_tag_filters
+    del bpy.types.WindowManager.blammo_selected_asset_id
+    del bpy.types.WindowManager.blammo_asset_tags
+    del bpy.types.WindowManager.blammo_asset_tags_index
+    del bpy.types.WindowManager.blammo_filter_tags
+    del bpy.types.WindowManager.blammo_filter_tags_index
+    del bpy.types.WindowManager.blammo_pending_name
+    del bpy.types.WindowManager.blammo_pending_name_asset_id
+    del bpy.types.WindowManager.blammo_browser_assets
+    del bpy.types.WindowManager.blammo_browser_assets_index
+    bpy.utils.unregister_class(BlammoBrowserAssetItem)
+    bpy.utils.unregister_class(BlammoTagItem)
+    bpy.utils.unregister_class(BlammoFilterTagItem)

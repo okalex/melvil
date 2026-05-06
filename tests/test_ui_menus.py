@@ -1,4 +1,4 @@
-"""Tests for ui/menus.py — MELVIL_MT_context_submenu and item registry."""
+"""Tests for ui/menus.py — BLAMMO_MT_context_submenu and item registry."""
 
 from __future__ import annotations
 
@@ -15,33 +15,33 @@ import pytest
 def _fresh_menus():
     """Re-import menus with a clean _items list each time."""
     import importlib
-    import melvil.ui.menus as m
+    import blammo.ui.menus as m
 
     importlib.reload(m)
     return m
 
 
 # ---------------------------------------------------------------------------
-# MELVIL_MT_context_submenu metadata
+# BLAMMO_MT_context_submenu metadata
 # ---------------------------------------------------------------------------
 
 
 class TestMenuMetadata:
     def test_bl_idname(self):
-        from melvil.ui.menus import MELVIL_MT_context_submenu
+        from blammo.ui.menus import BLAMMO_MT_context_submenu
 
-        assert MELVIL_MT_context_submenu.bl_idname == "MELVIL_MT_context_submenu"
+        assert BLAMMO_MT_context_submenu.bl_idname == "BLAMMO_MT_context_submenu"
 
     def test_bl_label(self):
-        from melvil.ui.menus import MELVIL_MT_context_submenu
+        from blammo.ui.menus import BLAMMO_MT_context_submenu
 
-        assert MELVIL_MT_context_submenu.bl_label == "Melvil"
+        assert BLAMMO_MT_context_submenu.bl_label == "Blammo!"
 
     def test_inherits_menu(self):
         import bpy
-        from melvil.ui.menus import MELVIL_MT_context_submenu
+        from blammo.ui.menus import BLAMMO_MT_context_submenu
 
-        assert issubclass(MELVIL_MT_context_submenu, bpy.types.Menu)
+        assert issubclass(BLAMMO_MT_context_submenu, bpy.types.Menu)
 
 
 # ---------------------------------------------------------------------------
@@ -89,7 +89,7 @@ class TestSubmenuDraw:
         m.register_item(fn1)
         m.register_item(fn2)
 
-        menu_instance = m.MELVIL_MT_context_submenu()
+        menu_instance = m.BLAMMO_MT_context_submenu()
         menu_instance.layout = MagicMock()
         ctx = MagicMock()
 
@@ -100,7 +100,7 @@ class TestSubmenuDraw:
 
     def test_draw_is_empty_when_no_items_registered(self):
         m = _fresh_menus()
-        menu_instance = m.MELVIL_MT_context_submenu()
+        menu_instance = m.BLAMMO_MT_context_submenu()
         menu_instance.layout = MagicMock()
         # Should not raise and layout should not be touched.
         menu_instance.draw(MagicMock())
@@ -122,7 +122,7 @@ class TestHostMenuIntegration:
         with patch.object(bpy.utils, "register_class"):
             m.register()
 
-        assert m._draw_melvil_submenu_entry in bpy.types.VIEW3D_MT_object_context_menu._handlers
+        assert m._draw_blammo_submenu_entry in bpy.types.VIEW3D_MT_object_context_menu._handlers
 
     def test_unregister_removes_entry_from_object_context_menu(self):
         import bpy
@@ -134,7 +134,7 @@ class TestHostMenuIntegration:
             m.register()
             m.unregister()
 
-        assert m._draw_melvil_submenu_entry not in bpy.types.VIEW3D_MT_object_context_menu._handlers
+        assert m._draw_blammo_submenu_entry not in bpy.types.VIEW3D_MT_object_context_menu._handlers
 
     def test_register_calls_register_class_for_submenu(self):
         import bpy
@@ -143,7 +143,7 @@ class TestHostMenuIntegration:
         with patch.object(bpy.utils, "register_class") as mock_reg:
             m.register()
 
-        mock_reg.assert_called_once_with(m.MELVIL_MT_context_submenu)
+        mock_reg.assert_called_once_with(m.BLAMMO_MT_context_submenu)
 
     def test_unregister_calls_unregister_class_for_submenu(self):
         import bpy
@@ -153,32 +153,32 @@ class TestHostMenuIntegration:
             m.register()
             m.unregister()
 
-        mock_unreg.assert_called_once_with(m.MELVIL_MT_context_submenu)
+        mock_unreg.assert_called_once_with(m.BLAMMO_MT_context_submenu)
 
 
 # ---------------------------------------------------------------------------
-# _draw_melvil_submenu_entry — calls layout.menu with correct bl_idname
+# _draw_blammo_submenu_entry — calls layout.menu with correct bl_idname
 # ---------------------------------------------------------------------------
 
 
 class TestSubmenuEntry:
     def test_entry_calls_layout_menu_with_correct_idname(self):
-        from melvil.ui.menus import MELVIL_MT_context_submenu, _draw_melvil_submenu_entry
+        from blammo.ui.menus import BLAMMO_MT_context_submenu, _draw_blammo_submenu_entry
 
         fake_self = MagicMock()
         ctx = MagicMock()
         ctx.selected_objects = [MagicMock()]
-        _draw_melvil_submenu_entry(fake_self, ctx)
+        _draw_blammo_submenu_entry(fake_self, ctx)
 
-        fake_self.layout.menu.assert_called_once_with(MELVIL_MT_context_submenu.bl_idname)
+        fake_self.layout.menu.assert_called_once_with(BLAMMO_MT_context_submenu.bl_idname)
 
     def test_entry_hidden_when_nothing_selected(self):
-        from melvil.ui.menus import _draw_melvil_submenu_entry
+        from blammo.ui.menus import _draw_blammo_submenu_entry
 
         fake_self = MagicMock()
         ctx = MagicMock()
         ctx.selected_objects = []
-        _draw_melvil_submenu_entry(fake_self, ctx)
+        _draw_blammo_submenu_entry(fake_self, ctx)
 
         fake_self.layout.menu.assert_not_called()
 
@@ -192,8 +192,8 @@ class TestMenuItems:
     def test_save_asset_item_registered_after_register(self):
         import importlib
 
-        import melvil.ui.menu_items as mi
-        import melvil.ui.menus as m
+        import blammo.ui.menu_items as mi
+        import blammo.ui.menus as m
 
         importlib.reload(m)
         importlib.reload(mi)
@@ -204,8 +204,8 @@ class TestMenuItems:
     def test_save_asset_item_unregistered_after_unregister(self):
         import importlib
 
-        import melvil.ui.menu_items as mi
-        import melvil.ui.menus as m
+        import blammo.ui.menu_items as mi
+        import blammo.ui.menus as m
 
         importlib.reload(m)
         importlib.reload(mi)
@@ -215,9 +215,9 @@ class TestMenuItems:
         assert mi._draw_save_asset not in m._items
 
     def test_draw_save_asset_calls_operator(self):
-        from melvil.ui.menu_items import _draw_save_asset
+        from blammo.ui.menu_items import _draw_save_asset
 
         fake_self = MagicMock()
         _draw_save_asset(fake_self, MagicMock())
 
-        fake_self.layout.operator.assert_called_once_with("melvil.save_asset", icon="EXPORT")
+        fake_self.layout.operator.assert_called_once_with("blammo.save_asset", icon="EXPORT")

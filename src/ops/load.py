@@ -1,10 +1,10 @@
 """
-MELVIL_OT_load_asset — append an asset from the library into the current scene.
+BLAMMO_OT_load_asset — append an asset from the library into the current scene.
 
 Typical usage — the operator is invoked from the UI list with ``asset_id``
 already set as a property::
 
-    bpy.ops.melvil.load_asset(asset_id="<uuid>")
+    bpy.ops.blammo.load_asset(asset_id="<uuid>")
 
 Post-load behaviour
 -------------------
@@ -27,11 +27,11 @@ from ..core.library import LibraryNotConfiguredError, resolve_db_path, resolve_l
 from ..db import open_db
 
 
-class MELVIL_OT_load_asset(bpy.types.Operator):
-    """Append a Melvil asset into the current scene"""
+class BLAMMO_OT_load_asset(bpy.types.Operator):
+    """Append a Blammo asset into the current scene"""
 
-    bl_idname = "melvil.load_asset"
-    bl_label = "Load Melvil Asset"
+    bl_idname = "blammo.load_asset"
+    bl_label = "Load Blammo! Asset"
     bl_options = {"REGISTER", "UNDO"}
 
     asset_id: StringProperty(
@@ -50,7 +50,7 @@ class MELVIL_OT_load_asset(bpy.types.Operator):
 
     def execute(self, context):
         if not self.asset_id.strip():
-            self.report({"ERROR"}, "Melvil: no asset ID provided.")
+            self.report({"ERROR"}, "Blammo!: no asset ID provided.")
             return {"CANCELLED"}
 
         try:
@@ -67,11 +67,11 @@ class MELVIL_OT_load_asset(bpy.types.Operator):
             self.report({"ERROR"}, str(exc))
             return {"CANCELLED"}
         except Exception as exc:  # noqa: BLE001
-            self.report({"ERROR"}, f"Melvil: load failed — {exc}")
+            self.report({"ERROR"}, f"Blammo!: load failed — {exc}")
             return {"CANCELLED"}
 
         if datablock is None:
-            self.report({"ERROR"}, "Melvil: datablock not found inside managed .blend file.")
+            self.report({"ERROR"}, "Blammo!: datablock not found inside managed .blend file.")
             return {"CANCELLED"}
 
         # Link object-type datablocks into the active collection.
@@ -83,5 +83,5 @@ class MELVIL_OT_load_asset(bpy.types.Operator):
                 datablock.select_set(True)
                 context.view_layer.objects.active = datablock
 
-        self.report({"INFO"}, f"Melvil: '{datablock.name}' loaded.")
+        self.report({"INFO"}, f"Blammo!: '{datablock.name}' loaded.")
         return {"FINISHED"}

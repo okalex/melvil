@@ -1,4 +1,4 @@
-"""MELVIL_OT_tag_rename — rename a tag globally."""
+"""BLAMMO_OT_tag_rename — rename a tag globally."""
 
 from __future__ import annotations
 
@@ -10,10 +10,10 @@ from ..db import open_db
 from ..db.tags import get_tag_by_id, rename_tag
 
 
-class MELVIL_OT_tag_rename(bpy.types.Operator):
+class BLAMMO_OT_tag_rename(bpy.types.Operator):
     """Rename a tag globally across all assets"""
 
-    bl_idname = "melvil.tag_rename"
+    bl_idname = "blammo.tag_rename"
     bl_label = "Rename Tag"
     bl_options = {"REGISTER"}
 
@@ -38,7 +38,7 @@ class MELVIL_OT_tag_rename(bpy.types.Operator):
     def invoke(self, context, event):
         tag_id = self.tag_id.strip()
         if not tag_id:
-            self.report({"ERROR"}, "Melvil: no tag ID provided.")
+            self.report({"ERROR"}, "Blammo!: no tag ID provided.")
             return {"CANCELLED"}
 
         try:
@@ -48,11 +48,11 @@ class MELVIL_OT_tag_rename(bpy.types.Operator):
             self.report({"ERROR"}, str(exc))
             return {"CANCELLED"}
         except Exception as exc:  # noqa: BLE001
-            self.report({"ERROR"}, f"Melvil: could not load tag — {exc}")
+            self.report({"ERROR"}, f"Blammo!: could not load tag — {exc}")
             return {"CANCELLED"}
 
         if row is None:
-            self.report({"ERROR"}, "Melvil: tag not found.")
+            self.report({"ERROR"}, "Blammo!: tag not found.")
             return {"CANCELLED"}
 
         self.name = row["name"]
@@ -64,7 +64,7 @@ class MELVIL_OT_tag_rename(bpy.types.Operator):
     def execute(self, context):
         tag_id = self.tag_id.strip()
         if not tag_id:
-            self.report({"ERROR"}, "Melvil: no tag ID provided.")
+            self.report({"ERROR"}, "Blammo!: no tag ID provided.")
             return {"CANCELLED"}
 
         try:
@@ -75,11 +75,11 @@ class MELVIL_OT_tag_rename(bpy.types.Operator):
             self.report({"ERROR"}, str(exc))
             return {"CANCELLED"}
         except ValueError as exc:
-            self.report({"ERROR"}, f"Melvil: {exc}")
+            self.report({"ERROR"}, f"Blammo!: {exc}")
             return {"CANCELLED"}
         except Exception as exc:  # noqa: BLE001
-            self.report({"ERROR"}, f"Melvil: could not rename tag — {exc}")
+            self.report({"ERROR"}, f"Blammo!: could not rename tag — {exc}")
             return {"CANCELLED"}
 
-        self.report({"INFO"}, f"Melvil: tag renamed to '{self.name.strip()}'.")
+        self.report({"INFO"}, f"Blammo!: tag renamed to '{self.name.strip()}'.")
         return {"FINISHED"}

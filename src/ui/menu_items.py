@@ -1,5 +1,5 @@
 """
-Default items registered into ``MELVIL_MT_context_submenu``.
+Default items registered into ``BLAMMO_MT_context_submenu``.
 
 Each public ``_draw_*`` function is registered/unregistered by this module's
 ``register()`` / ``unregister()`` hooks, which are called from
@@ -16,8 +16,8 @@ from . import menus
 
 
 def _draw_save_asset(self, context):
-    """'Save as Asset' entry in the Melvil submenu."""
-    self.layout.operator("melvil.save_asset", icon="EXPORT")
+    """'Save as Asset' entry in the Blammo submenu."""
+    self.layout.operator("blammo.save_asset", icon="EXPORT")
 
 
 def register() -> None:

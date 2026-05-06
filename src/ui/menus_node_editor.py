@@ -1,11 +1,11 @@
 """
-Melvil submenu for the Node Editor context menu (right-click).
+Blammo submenu for the Node Editor context menu (right-click).
 
-``MELVIL_MT_node_editor_submenu`` appears as a "Melvil ▶" entry in
+``BLAMMO_MT_node_editor_submenu`` appears as a "Blammo! ▶" entry in
 ``NODE_MT_context_menu`` whenever at least one node is selected.  It exposes:
 
 - **Save as Asset** — saves the selected GROUP node as a ``"NODE_GROUP"``
-  asset in the Melvil library.  The entry is grayed out unless exactly one
+  asset in the Blammo library.  The entry is grayed out unless exactly one
   GROUP-type node is selected.
 """
 
@@ -16,15 +16,15 @@ import bpy
 from .menus_factory import register_submenu, unregister_submenu
 
 
-class MELVIL_MT_node_editor_submenu(bpy.types.Menu):
-    """Melvil node group actions — shown as a sub-menu in the node editor context menu."""
+class BLAMMO_MT_node_editor_submenu(bpy.types.Menu):
+    """Blammo node group actions — shown as a sub-menu in the node editor context menu."""
 
-    bl_idname = "MELVIL_MT_node_editor_submenu"
-    bl_label = "Melvil"
+    bl_idname = "BLAMMO_MT_node_editor_submenu"
+    bl_label = "Blammo!"
 
     def draw(self, context):
         self.layout.operator(
-            "melvil.save_nodes_as_asset",
+            "blammo.save_nodes_as_asset",
             text="Save as Asset",
             icon="EXPORT",
         )
@@ -36,7 +36,7 @@ class MELVIL_MT_node_editor_submenu(bpy.types.Menu):
 
 
 def _draw_node_editor_entry(self, context):
-    """Appended to NODE_MT_context_menu to insert the Melvil sub-menu.
+    """Appended to NODE_MT_context_menu to insert the Blammo sub-menu.
 
     Shown only when at least one node is selected so the entry does not
     appear on an empty right-click.
@@ -47,7 +47,7 @@ def _draw_node_editor_entry(self, context):
         return
     if not any(getattr(n, "select", False) for n in node_tree.nodes):
         return
-    self.layout.menu(MELVIL_MT_node_editor_submenu.bl_idname)
+    self.layout.menu(BLAMMO_MT_node_editor_submenu.bl_idname)
 
 
 # ---------------------------------------------------------------------------
@@ -56,8 +56,8 @@ def _draw_node_editor_entry(self, context):
 
 
 def register() -> None:
-    register_submenu(MELVIL_MT_node_editor_submenu, "NODE_MT_context_menu", _draw_node_editor_entry)
+    register_submenu(BLAMMO_MT_node_editor_submenu, "NODE_MT_context_menu", _draw_node_editor_entry)
 
 
 def unregister() -> None:
-    unregister_submenu(MELVIL_MT_node_editor_submenu, "NODE_MT_context_menu", _draw_node_editor_entry)
+    unregister_submenu(BLAMMO_MT_node_editor_submenu, "NODE_MT_context_menu", _draw_node_editor_entry)

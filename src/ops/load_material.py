@@ -1,5 +1,5 @@
 """
-MELVIL_OT_load_material_to_slot — pick a saved material from the library
+BLAMMO_OT_load_material_to_slot — pick a saved material from the library
 and assign it to the active object, either in a new slot or replacing the
 currently active slot.
 
@@ -10,15 +10,15 @@ currently active slot.
 
 The picker uses an ``invoke_popup`` with a ``UIList`` for scrollable
 single-selection.  The material list is stored on ``WindowManager``
-(``melvil_material_items``) populated at invoke time.  The active index
+(``blammo_material_items``) populated at invoke time.  The active index
 (``material_index``) is an operator property so that clicking a row triggers
 ``check()``, which redraws the dialog and immediately reflects the enabled
 state of the Load button.
 
 Typical usage from the material context menu::
 
-    bpy.ops.melvil.load_material_to_slot("INVOKE_DEFAULT", slot_mode="NEW")
-    bpy.ops.melvil.load_material_to_slot("INVOKE_DEFAULT", slot_mode="REPLACE")
+    bpy.ops.blammo.load_material_to_slot("INVOKE_DEFAULT", slot_mode="NEW")
+    bpy.ops.blammo.load_material_to_slot("INVOKE_DEFAULT", slot_mode="REPLACE")
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ from ..ui.draw_helpers import load_assets
 # ---------------------------------------------------------------------------
 
 
-class MELVIL_PG_MaterialItem(bpy.types.PropertyGroup):
+class BLAMMO_PG_MaterialItem(bpy.types.PropertyGroup):
     """A single material entry in the picker list."""
 
     asset_id: StringProperty(name="Asset ID")
@@ -48,10 +48,10 @@ class MELVIL_PG_MaterialItem(bpy.types.PropertyGroup):
 # ---------------------------------------------------------------------------
 
 
-class MELVIL_UL_MaterialList(bpy.types.UIList):
+class BLAMMO_UL_MaterialList(bpy.types.UIList):
     """Scrollable material picker list."""
 
-    bl_idname = "MELVIL_UL_material_list"
+    bl_idname = "BLAMMO_UL_material_list"
 
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         if self.layout_type in {"DEFAULT", "COMPACT"}:
@@ -66,10 +66,10 @@ class MELVIL_UL_MaterialList(bpy.types.UIList):
 # ---------------------------------------------------------------------------
 
 
-class MELVIL_OT_load_material_to_slot(bpy.types.Operator):
-    """Pick a saved Melvil material and assign it to the active object"""
+class BLAMMO_OT_load_material_to_slot(bpy.types.Operator):
+    """Pick a saved Blammo material and assign it to the active object"""
 
-    bl_idname = "melvil.load_material_to_slot"
+    bl_idname = "blammo.load_material_to_slot"
     bl_label = "Load Material"
     bl_options = {"REGISTER", "UNDO"}
 
@@ -110,8 +110,8 @@ class MELVIL_OT_load_material_to_slot(bpy.types.Operator):
             return True
         # While the picker dialog is open, gate the OK button on having a
         # valid selection (kept in sync by check()).
-        if getattr(wm, "melvil_picker_active", False):
-            return getattr(wm, "melvil_selection_valid", False)
+        if getattr(wm, "blammo_picker_active", False):
+            return getattr(wm, "blammo_selection_valid", False)
         return True
 
     def check(self, context):
@@ -120,10 +120,10 @@ class MELVIL_OT_load_material_to_slot(bpy.types.Operator):
         # onto WindowManager so that poll() — a classmethod — can read it
         # and Blender can re-evaluate the enabled state of the OK button.
         wm = context.window_manager
-        has_selection = 0 <= self.material_index < len(wm.melvil_material_items)
-        wm.melvil_selection_valid = has_selection
+        has_selection = 0 <= self.material_index < len(wm.blammo_material_items)
+        wm.blammo_selection_valid = has_selection
         self.asset_id = (
-            wm.melvil_material_items[self.material_index].asset_id
+            wm.blammo_material_items[self.material_index].asset_id
             if has_selection
             else ""
         )
@@ -138,13 +138,13 @@ class MELVIL_OT_load_material_to_slot(bpy.types.Operator):
 
         if getattr(self, "_load_error", None):
             layout.label(text="Could not open library database", icon="ERROR")
-        elif len(wm.melvil_material_items) == 0:
+        elif len(wm.blammo_material_items) == 0:
             layout.label(text="No materials saved yet")
         else:
             layout.template_list(
-                "MELVIL_UL_material_list",
+                "BLAMMO_UL_material_list",
                 "",
-                wm, "melvil_material_items",
+                wm, "blammo_material_items",
                 self, "material_index",
                 rows=5,
                 maxrows=8,
@@ -156,12 +156,12 @@ class MELVIL_OT_load_material_to_slot(bpy.types.Operator):
         self.material_index = -1
         self.asset_id = ""
         wm = context.window_manager
-        wm.melvil_material_items.clear()
-        wm.melvil_picker_active = True
-        wm.melvil_selection_valid = False
+        wm.blammo_material_items.clear()
+        wm.blammo_picker_active = True
+        wm.blammo_selection_valid = False
 
         scene = getattr(context, "scene", None)
-        active_kit_id = getattr(scene, "melvil_active_kit_id", None)
+        active_kit_id = getattr(scene, "blammo_active_kit_id", None)
         kit_id = None
         if isinstance(active_kit_id, str) and active_kit_id != "ALL_KITS":
             kit_id = active_kit_id
@@ -174,7 +174,7 @@ class MELVIL_OT_load_material_to_slot(bpy.types.Operator):
             materials = []
 
         for mat in materials:
-            item = wm.melvil_material_items.add()
+            item = wm.blammo_material_items.add()
             item.name = mat["name"]
             item.asset_id = mat["id"]
 
@@ -184,16 +184,16 @@ class MELVIL_OT_load_material_to_slot(bpy.types.Operator):
 
     def execute(self, context):
         wm = context.window_manager
-        wm.melvil_picker_active = False
-        wm.melvil_selection_valid = False
+        wm.blammo_picker_active = False
+        wm.blammo_selection_valid = False
 
         if not self.asset_id or self.asset_id.strip() == "":
-            self.report({"ERROR"}, "Melvil: no material selected.")
+            self.report({"ERROR"}, "Blammo!: no material selected.")
             return {"CANCELLED"}
 
         obj = context.active_object
         if obj is None:
-            self.report({"ERROR"}, "Melvil: no active object.")
+            self.report({"ERROR"}, "Blammo!: no active object.")
             return {"CANCELLED"}
 
         try:
@@ -210,11 +210,11 @@ class MELVIL_OT_load_material_to_slot(bpy.types.Operator):
             self.report({"ERROR"}, str(exc))
             return {"CANCELLED"}
         except Exception as exc:  # noqa: BLE001
-            self.report({"ERROR"}, f"Melvil: load failed — {exc}")
+            self.report({"ERROR"}, f"Blammo!: load failed — {exc}")
             return {"CANCELLED"}
 
         if material is None:
-            self.report({"ERROR"}, "Melvil: material not found inside managed .blend file.")
+            self.report({"ERROR"}, "Blammo!: material not found inside managed .blend file.")
             return {"CANCELLED"}
 
         if self.slot_mode == "REPLACE":
@@ -222,14 +222,14 @@ class MELVIL_OT_load_material_to_slot(bpy.types.Operator):
         else:
             obj.data.materials.append(material)
 
-        self.report({"INFO"}, f"Melvil: '{material.name}' assigned.")
+        self.report({"INFO"}, f"Blammo!: '{material.name}' assigned.")
         return {"FINISHED"}
 
     def cancel(self, context):
         wm = context.window_manager
-        wm.melvil_picker_active = False
-        wm.melvil_selection_valid = False
-        wm.melvil_material_items.clear()
+        wm.blammo_picker_active = False
+        wm.blammo_selection_valid = False
+        wm.blammo_material_items.clear()
 
 
 # ---------------------------------------------------------------------------
@@ -238,18 +238,18 @@ class MELVIL_OT_load_material_to_slot(bpy.types.Operator):
 
 
 def register() -> None:
-    bpy.utils.register_class(MELVIL_PG_MaterialItem)
-    bpy.utils.register_class(MELVIL_UL_MaterialList)
-    bpy.types.WindowManager.melvil_material_items = CollectionProperty(
-        type=MELVIL_PG_MaterialItem
+    bpy.utils.register_class(BLAMMO_PG_MaterialItem)
+    bpy.utils.register_class(BLAMMO_UL_MaterialList)
+    bpy.types.WindowManager.blammo_material_items = CollectionProperty(
+        type=BLAMMO_PG_MaterialItem
     )
-    bpy.types.WindowManager.melvil_picker_active = BoolProperty(default=False)
-    bpy.types.WindowManager.melvil_selection_valid = BoolProperty(default=False)
+    bpy.types.WindowManager.blammo_picker_active = BoolProperty(default=False)
+    bpy.types.WindowManager.blammo_selection_valid = BoolProperty(default=False)
 
 
 def unregister() -> None:
-    for attr in ("melvil_material_items", "melvil_picker_active", "melvil_selection_valid"):
+    for attr in ("blammo_material_items", "blammo_picker_active", "blammo_selection_valid"):
         if hasattr(bpy.types.WindowManager, attr):
             delattr(bpy.types.WindowManager, attr)
-    bpy.utils.unregister_class(MELVIL_UL_MaterialList)
-    bpy.utils.unregister_class(MELVIL_PG_MaterialItem)
+    bpy.utils.unregister_class(BLAMMO_UL_MaterialList)
+    bpy.utils.unregister_class(BLAMMO_PG_MaterialItem)

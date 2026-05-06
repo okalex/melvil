@@ -1,4 +1,4 @@
-"""MELVIL_OT_asset_set_kit — reassign an asset to a different kit."""
+"""BLAMMO_OT_asset_set_kit — reassign an asset to a different kit."""
 
 from __future__ import annotations
 
@@ -27,10 +27,10 @@ def _get_kit_items(self, context):
     return _kit_items_cache
 
 
-class MELVIL_OT_asset_set_kit(bpy.types.Operator):
+class BLAMMO_OT_asset_set_kit(bpy.types.Operator):
     """Move this asset to a different kit"""
 
-    bl_idname = "melvil.asset_set_kit"
+    bl_idname = "blammo.asset_set_kit"
     bl_label = "Move to Kit"
     bl_options = {"REGISTER"}
 
@@ -75,7 +75,7 @@ class MELVIL_OT_asset_set_kit(bpy.types.Operator):
             self.report({"ERROR"}, str(exc))
             return {"CANCELLED"}
         except Exception as exc:  # noqa: BLE001
-            self.report({"ERROR"}, f"Melvil: could not move asset — {exc}")
+            self.report({"ERROR"}, f"Blammo!: could not move asset — {exc}")
             return {"CANCELLED"}
 
         return {"FINISHED"}

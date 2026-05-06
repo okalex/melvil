@@ -1,6 +1,6 @@
 """
 AssetWriter: serialises a Blender datablock to a managed .blend file and
-registers the asset in the Melvil database.
+registers the asset in the Blammo database.
 
 Usage::
 

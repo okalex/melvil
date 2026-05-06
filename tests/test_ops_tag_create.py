@@ -1,4 +1,4 @@
-"""Tests for ops/tag_create.py — MELVIL_OT_tag_create."""
+"""Tests for ops/tag_create.py — BLAMMO_OT_tag_create."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from melvil.db.connection import migrate
-from melvil.db import tags as tags_db
+from blammo.db.connection import migrate
+from blammo.db import tags as tags_db
 
 
 @pytest.fixture
@@ -30,9 +30,9 @@ def _mock_open_db(conn):
 
 
 def _make_op(names=""):
-    from melvil.ops.tag_create import MELVIL_OT_tag_create
+    from blammo.ops.tag_create import BLAMMO_OT_tag_create
 
-    op = MELVIL_OT_tag_create()
+    op = BLAMMO_OT_tag_create()
     op.names = names
     return op
 
@@ -43,15 +43,15 @@ def _make_op(names=""):
 
 
 def test_bl_idname():
-    from melvil.ops.tag_create import MELVIL_OT_tag_create
+    from blammo.ops.tag_create import BLAMMO_OT_tag_create
 
-    assert MELVIL_OT_tag_create.bl_idname == "melvil.tag_create"
+    assert BLAMMO_OT_tag_create.bl_idname == "blammo.tag_create"
 
 
 def test_bl_label():
-    from melvil.ops.tag_create import MELVIL_OT_tag_create
+    from blammo.ops.tag_create import BLAMMO_OT_tag_create
 
-    assert "Tag" in MELVIL_OT_tag_create.bl_label
+    assert "Tag" in BLAMMO_OT_tag_create.bl_label
 
 
 # ---------------------------------------------------------------------------
@@ -60,9 +60,9 @@ def test_bl_label():
 
 
 def test_poll_always_returns_true():
-    from melvil.ops.tag_create import MELVIL_OT_tag_create
+    from blammo.ops.tag_create import BLAMMO_OT_tag_create
 
-    assert MELVIL_OT_tag_create.poll(MagicMock()) is True
+    assert BLAMMO_OT_tag_create.poll(MagicMock()) is True
 
 
 # ---------------------------------------------------------------------------
@@ -95,8 +95,8 @@ class TestExecute:
     def test_creates_new_tag(self, conn):
         op = _make_op(names="metal")
 
-        with patch("melvil.ops.tag_create.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.tag_create.open_db", _mock_open_db(conn)):
+        with patch("blammo.ops.tag_create.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.tag_create.open_db", _mock_open_db(conn)):
             result = op.execute(MagicMock())
 
         assert result == {"FINISHED"}
@@ -106,8 +106,8 @@ class TestExecute:
     def test_creates_multiple_tags_from_comma_separated_input(self, conn):
         op = _make_op(names="metal, plastic, wood")
 
-        with patch("melvil.ops.tag_create.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.tag_create.open_db", _mock_open_db(conn)):
+        with patch("blammo.ops.tag_create.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.tag_create.open_db", _mock_open_db(conn)):
             result = op.execute(MagicMock())
 
         assert result == {"FINISHED"}
@@ -119,8 +119,8 @@ class TestExecute:
     def test_normalizes_tag_name(self, conn):
         op = _make_op(names="  Hard Surface  ")
 
-        with patch("melvil.ops.tag_create.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.tag_create.open_db", _mock_open_db(conn)):
+        with patch("blammo.ops.tag_create.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.tag_create.open_db", _mock_open_db(conn)):
             op.execute(MagicMock())
 
         row = tags_db.get_tag_by_name(conn, "hard surface")
@@ -129,8 +129,8 @@ class TestExecute:
     def test_empty_name_returns_cancelled(self, conn):
         op = _make_op(names="   ")
 
-        with patch("melvil.ops.tag_create.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.tag_create.open_db", _mock_open_db(conn)):
+        with patch("blammo.ops.tag_create.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.tag_create.open_db", _mock_open_db(conn)):
             result = op.execute(MagicMock())
 
         assert result == {"CANCELLED"}
@@ -141,18 +141,18 @@ class TestExecute:
         conn.commit()
         op = _make_op(names="metal")
 
-        with patch("melvil.ops.tag_create.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.tag_create.open_db", _mock_open_db(conn)):
+        with patch("blammo.ops.tag_create.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.tag_create.open_db", _mock_open_db(conn)):
             result = op.execute(MagicMock())
 
         assert result == {"FINISHED"}
         assert len(tags_db.list_tags(conn)) == 1
 
     def test_returns_cancelled_on_library_not_configured(self):
-        from melvil.core.library import LibraryNotConfiguredError
+        from blammo.core.library import LibraryNotConfiguredError
 
         op = _make_op(names="metal")
-        with patch("melvil.ops.tag_create.resolve_db_path",
+        with patch("blammo.ops.tag_create.resolve_db_path",
                    side_effect=LibraryNotConfiguredError("not set")):
             result = op.execute(MagicMock())
 
@@ -160,8 +160,8 @@ class TestExecute:
 
     def test_returns_cancelled_on_db_error(self):
         op = _make_op(names="metal")
-        with patch("melvil.ops.tag_create.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.tag_create.open_db", side_effect=Exception("boom")):
+        with patch("blammo.ops.tag_create.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.tag_create.open_db", side_effect=Exception("boom")):
             result = op.execute(MagicMock())
 
         assert result == {"CANCELLED"}

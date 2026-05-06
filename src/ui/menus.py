@@ -1,13 +1,13 @@
 """
-Melvil context-menu submenu system.
+Blammo context-menu submenu system.
 
-Any part of the addon can register draw callables into the Melvil submenu
+Any part of the addon can register draw callables into the Blammo submenu
 without knowing about the others:
 
-    from melvil.ui.menus import register_item, unregister_item
+    from blammo.ui.menus import register_item, unregister_item
 
     def _draw_my_item(self, context):
-        self.layout.operator("melvil.my_operator")
+        self.layout.operator("blammo.my_operator")
 
     # called during your module's register():
     register_item(_draw_my_item)
@@ -15,9 +15,9 @@ without knowing about the others:
     # called during your module's unregister():
     unregister_item(_draw_my_item)
 
-``MELVIL_MT_context_submenu`` is the shared Menu class.  It is appended to
+``BLAMMO_MT_context_submenu`` is the shared Menu class.  It is appended to
 every host menu listed in ``_HOST_MENUS`` at register-time as a single
-"Melvil ▶" entry, keeping host-menu pollution to exactly one line regardless
+"Blammo! ▶" entry, keeping host-menu pollution to exactly one line regardless
 of how many items are registered in the submenu.
 """
 
@@ -26,7 +26,7 @@ from __future__ import annotations
 import bpy
 
 # ---------------------------------------------------------------------------
-# Host menus that should expose the "Melvil ▶" entry
+# Host menus that should expose the "Blammo! ▶" entry
 # ---------------------------------------------------------------------------
 
 # Each string is the bl_idname of a bpy.types.Menu to patch.
@@ -43,7 +43,7 @@ _items: list = []
 
 
 def register_item(draw_fn) -> None:
-    """Register *draw_fn* as an item in the Melvil submenu.
+    """Register *draw_fn* as an item in the Blammo submenu.
 
     *draw_fn* has the same signature as any ``bpy.types.Menu.draw`` method::
 
@@ -54,7 +54,7 @@ def register_item(draw_fn) -> None:
 
 
 def unregister_item(draw_fn) -> None:
-    """Remove *draw_fn* from the Melvil submenu.  No-op if not registered."""
+    """Remove *draw_fn* from the Blammo submenu.  No-op if not registered."""
     try:
         _items.remove(draw_fn)
     except ValueError:
@@ -66,11 +66,11 @@ def unregister_item(draw_fn) -> None:
 # ---------------------------------------------------------------------------
 
 
-class MELVIL_MT_context_submenu(bpy.types.Menu):
-    """Melvil actions — shown as a sub-menu inside host context menus."""
+class BLAMMO_MT_context_submenu(bpy.types.Menu):
+    """Blammo actions — shown as a sub-menu inside host context menus."""
 
-    bl_idname = "MELVIL_MT_context_submenu"
-    bl_label = "Melvil"
+    bl_idname = "BLAMMO_MT_context_submenu"
+    bl_label = "Blammo!"
 
     def draw(self, context):
         for item_fn in _items:
@@ -82,7 +82,7 @@ class MELVIL_MT_context_submenu(bpy.types.Menu):
 # ---------------------------------------------------------------------------
 
 
-def _draw_melvil_submenu_entry(self, context):
+def _draw_blammo_submenu_entry(self, context):
     """Single draw function appended to every host menu.
 
     Only shown when at least one object is selected so that the entry does
@@ -90,7 +90,7 @@ def _draw_melvil_submenu_entry(self, context):
     """
     if not getattr(context, "selected_objects", None):
         return
-    self.layout.menu(MELVIL_MT_context_submenu.bl_idname)
+    self.layout.menu(BLAMMO_MT_context_submenu.bl_idname)
 
 
 # ---------------------------------------------------------------------------
@@ -99,16 +99,16 @@ def _draw_melvil_submenu_entry(self, context):
 
 
 def register() -> None:
-    bpy.utils.register_class(MELVIL_MT_context_submenu)
+    bpy.utils.register_class(BLAMMO_MT_context_submenu)
     for menu_id in _HOST_MENUS:
         menu_type = getattr(bpy.types, menu_id, None)
         if menu_type is not None:
-            menu_type.append(_draw_melvil_submenu_entry)
+            menu_type.append(_draw_blammo_submenu_entry)
 
 
 def unregister() -> None:
     for menu_id in _HOST_MENUS:
         menu_type = getattr(bpy.types, menu_id, None)
         if menu_type is not None:
-            menu_type.remove(_draw_melvil_submenu_entry)
-    bpy.utils.unregister_class(MELVIL_MT_context_submenu)
+            menu_type.remove(_draw_blammo_submenu_entry)
+    bpy.utils.unregister_class(BLAMMO_MT_context_submenu)

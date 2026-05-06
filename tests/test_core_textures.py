@@ -60,7 +60,7 @@ def _make_object(materials: list | None = None) -> MagicMock:
 
 class TestCollectExternalImages:
     def test_material_with_tex_image_node(self):
-        from melvil.core.textures import collect_external_images
+        from blammo.core.textures import collect_external_images
 
         img = _make_image("/src/grid.png")
         mat = _make_material([img])
@@ -69,7 +69,7 @@ class TestCollectExternalImages:
         assert img in result
 
     def test_packed_image_excluded(self):
-        from melvil.core.textures import collect_external_images
+        from blammo.core.textures import collect_external_images
 
         img = _make_image("/src/grid.png", packed=True)
         mat = _make_material([img])
@@ -78,7 +78,7 @@ class TestCollectExternalImages:
         assert result == []
 
     def test_non_file_source_excluded(self):
-        from melvil.core.textures import collect_external_images
+        from blammo.core.textures import collect_external_images
 
         img = _make_image("/src/grid.png", source="GENERATED")
         mat = _make_material([img])
@@ -87,7 +87,7 @@ class TestCollectExternalImages:
         assert result == []
 
     def test_object_recurses_into_material_slots(self):
-        from melvil.core.textures import collect_external_images
+        from blammo.core.textures import collect_external_images
 
         img = _make_image("/src/rust.png")
         mat = _make_material([img])
@@ -97,7 +97,7 @@ class TestCollectExternalImages:
         assert img in result
 
     def test_deduplicates_same_image_in_multiple_materials(self):
-        from melvil.core.textures import collect_external_images
+        from blammo.core.textures import collect_external_images
 
         img = _make_image("/src/shared.png")
         mat1 = _make_material([img])
@@ -108,7 +108,7 @@ class TestCollectExternalImages:
         assert result.count(img) == 1
 
     def test_empty_node_tree_returns_empty(self):
-        from melvil.core.textures import collect_external_images
+        from blammo.core.textures import collect_external_images
 
         mat = MagicMock()
         mat.node_tree = None
@@ -117,7 +117,7 @@ class TestCollectExternalImages:
         assert result == []
 
     def test_node_without_image_skipped(self):
-        from melvil.core.textures import collect_external_images
+        from blammo.core.textures import collect_external_images
 
         node = _make_tex_image_node(image=None)
         mat = MagicMock()
@@ -128,7 +128,7 @@ class TestCollectExternalImages:
 
     def test_node_group_datablock_returns_tex_image(self):
         """A NodeTree datablock (node group) with a TEX_IMAGE node is collected."""
-        from melvil.core.textures import collect_external_images
+        from blammo.core.textures import collect_external_images
 
         img = _make_image("/src/noise.png")
         node = _make_tex_image_node(img)
@@ -143,7 +143,7 @@ class TestCollectExternalImages:
 
     def test_node_group_nested_images_collected(self):
         """Images inside nested GROUP nodes are collected recursively."""
-        from melvil.core.textures import collect_external_images
+        from blammo.core.textures import collect_external_images
 
         img_inner = _make_image("/src/inner.png")
         inner_node = _make_tex_image_node(img_inner)
@@ -165,7 +165,7 @@ class TestCollectExternalImages:
 
     def test_node_group_nested_deduplication(self):
         """The same image referenced in multiple nested groups is returned once."""
-        from melvil.core.textures import collect_external_images
+        from blammo.core.textures import collect_external_images
 
         img = _make_image("/src/shared.png")
         node_a = _make_tex_image_node(img)
@@ -188,7 +188,7 @@ class TestCollectExternalImages:
 
     def test_node_group_cycle_does_not_recurse_infinitely(self):
         """A self-referencing node tree must not cause infinite recursion."""
-        from melvil.core.textures import collect_external_images
+        from blammo.core.textures import collect_external_images
 
         root_tree = MagicMock()
         group_node = MagicMock()
@@ -204,7 +204,7 @@ class TestCollectExternalImages:
 
     def test_material_group_node_images_collected(self):
         """Images inside GROUP nodes within a material's node tree are collected."""
-        from melvil.core.textures import collect_external_images
+        from blammo.core.textures import collect_external_images
 
         img = _make_image("/src/detail.png")
         inner_node = _make_tex_image_node(img)
@@ -230,7 +230,7 @@ class TestCollectExternalImages:
 
 class TestCopyTextures:
     def test_copies_image_to_textures_dir(self, tmp_path):
-        from melvil.core.textures import copy_textures
+        from blammo.core.textures import copy_textures
 
         # Create a fake source file so shutil.copy2 has something to copy
         src_file = tmp_path / "source" / "rock.png"
@@ -247,13 +247,13 @@ class TestCopyTextures:
         assert result[str(src_file)] == "//textures/rock.png"
 
     def test_returns_empty_for_no_images(self, tmp_path):
-        from melvil.core.textures import copy_textures
+        from blammo.core.textures import copy_textures
 
         result = copy_textures([], tmp_path / "textures")
         assert result == {}
 
     def test_does_not_overwrite_existing_file(self, tmp_path):
-        from melvil.core.textures import copy_textures
+        from blammo.core.textures import copy_textures
 
         src_file = tmp_path / "src" / "tile.png"
         src_file.parent.mkdir()
@@ -272,7 +272,7 @@ class TestCopyTextures:
         assert existing.read_bytes() == b"EXISTING"
 
     def test_skips_missing_source_file(self, tmp_path):
-        from melvil.core.textures import copy_textures
+        from blammo.core.textures import copy_textures
 
         img = _make_image(filepath="/nonexistent/missing.png")
         img.filepath_from_user = MagicMock(return_value="/nonexistent/missing.png")
@@ -283,7 +283,7 @@ class TestCopyTextures:
         assert result == {}
 
     def test_collision_gets_counter_suffix(self, tmp_path):
-        from melvil.core.textures import copy_textures
+        from blammo.core.textures import copy_textures
 
         # Two different source files with the same filename
         src1 = tmp_path / "a" / "tile.png"

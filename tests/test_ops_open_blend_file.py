@@ -6,27 +6,27 @@ from unittest.mock import MagicMock, patch
 
 
 # ---------------------------------------------------------------------------
-# MELVIL_OT_open_blend_file
+# BLAMMO_OT_open_blend_file
 # ---------------------------------------------------------------------------
 
 
 class TestOpenBlendFileMetadata:
     def test_bl_idname(self):
-        from melvil.ops.open_blend_file import MELVIL_OT_open_blend_file
+        from blammo.ops.open_blend_file import BLAMMO_OT_open_blend_file
 
-        assert MELVIL_OT_open_blend_file.bl_idname == "melvil.open_blend_file"
+        assert BLAMMO_OT_open_blend_file.bl_idname == "blammo.open_blend_file"
 
     def test_bl_label(self):
-        from melvil.ops.open_blend_file import MELVIL_OT_open_blend_file
+        from blammo.ops.open_blend_file import BLAMMO_OT_open_blend_file
 
-        assert "Blender" in MELVIL_OT_open_blend_file.bl_label
+        assert "Blender" in BLAMMO_OT_open_blend_file.bl_label
 
 
 class TestOpenBlendFileExecute:
     def _make_op(self, blend_path=""):
-        from melvil.ops.open_blend_file import MELVIL_OT_open_blend_file
+        from blammo.ops.open_blend_file import BLAMMO_OT_open_blend_file
 
-        op = MELVIL_OT_open_blend_file()
+        op = BLAMMO_OT_open_blend_file()
         op.blend_path = blend_path
         return op
 
@@ -48,7 +48,7 @@ class TestOpenBlendFileExecute:
         import bpy
         bpy.app.binary_path = "/usr/bin/blender"
 
-        with patch("melvil.ops.open_blend_file.subprocess.Popen") as mock_popen:
+        with patch("blammo.ops.open_blend_file.subprocess.Popen") as mock_popen:
             result = op.execute(MagicMock())
 
         assert result == {"FINISHED"}
@@ -62,29 +62,29 @@ class TestOpenBlendFileExecute:
         import bpy
         bpy.app.binary_path = "/usr/bin/blender"
 
-        with patch("melvil.ops.open_blend_file.subprocess.Popen", side_effect=OSError("not found")):
+        with patch("blammo.ops.open_blend_file.subprocess.Popen", side_effect=OSError("not found")):
             result = op.execute(MagicMock())
 
         assert result == {"CANCELLED"}
 
 
 # ---------------------------------------------------------------------------
-# MELVIL_OT_reveal_blend_file
+# BLAMMO_OT_reveal_blend_file
 # ---------------------------------------------------------------------------
 
 
 class TestRevealBlendFileMetadata:
     def test_bl_idname(self):
-        from melvil.ops.open_blend_file import MELVIL_OT_reveal_blend_file
+        from blammo.ops.open_blend_file import BLAMMO_OT_reveal_blend_file
 
-        assert MELVIL_OT_reveal_blend_file.bl_idname == "melvil.reveal_blend_file"
+        assert BLAMMO_OT_reveal_blend_file.bl_idname == "blammo.reveal_blend_file"
 
 
 class TestRevealBlendFileExecute:
     def _make_op(self, blend_path=""):
-        from melvil.ops.open_blend_file import MELVIL_OT_reveal_blend_file
+        from blammo.ops.open_blend_file import BLAMMO_OT_reveal_blend_file
 
-        op = MELVIL_OT_reveal_blend_file()
+        op = BLAMMO_OT_reveal_blend_file()
         op.blend_path = blend_path
         return op
 
@@ -97,8 +97,8 @@ class TestRevealBlendFileExecute:
         blend = tmp_path / "asset.blend"
         op = self._make_op(str(blend))
 
-        with patch("melvil.ops.open_blend_file.sys.platform", "darwin"), \
-             patch("melvil.ops.open_blend_file.subprocess.Popen") as mock_popen:
+        with patch("blammo.ops.open_blend_file.sys.platform", "darwin"), \
+             patch("blammo.ops.open_blend_file.subprocess.Popen") as mock_popen:
             op.execute(MagicMock())
 
         mock_popen.assert_called_once_with(["open", "-R", str(blend)])
@@ -107,8 +107,8 @@ class TestRevealBlendFileExecute:
         blend = tmp_path / "asset.blend"
         op = self._make_op(str(blend))
 
-        with patch("melvil.ops.open_blend_file.sys.platform", "win32"), \
-             patch("melvil.ops.open_blend_file.subprocess.Popen") as mock_popen:
+        with patch("blammo.ops.open_blend_file.sys.platform", "win32"), \
+             patch("blammo.ops.open_blend_file.subprocess.Popen") as mock_popen:
             op.execute(MagicMock())
 
         mock_popen.assert_called_once_with(["explorer", f"/select,{blend}"])
@@ -117,8 +117,8 @@ class TestRevealBlendFileExecute:
         blend = tmp_path / "asset.blend"
         op = self._make_op(str(blend))
 
-        with patch("melvil.ops.open_blend_file.sys.platform", "linux"), \
-             patch("melvil.ops.open_blend_file.subprocess.Popen") as mock_popen:
+        with patch("blammo.ops.open_blend_file.sys.platform", "linux"), \
+             patch("blammo.ops.open_blend_file.subprocess.Popen") as mock_popen:
             op.execute(MagicMock())
 
         mock_popen.assert_called_once_with(["xdg-open", str(tmp_path)])
@@ -127,8 +127,8 @@ class TestRevealBlendFileExecute:
         blend = tmp_path / "asset.blend"
         op = self._make_op(str(blend))
 
-        with patch("melvil.ops.open_blend_file.sys.platform", "darwin"), \
-             patch("melvil.ops.open_blend_file.subprocess.Popen"):
+        with patch("blammo.ops.open_blend_file.sys.platform", "darwin"), \
+             patch("blammo.ops.open_blend_file.subprocess.Popen"):
             result = op.execute(MagicMock())
 
         assert result == {"FINISHED"}
@@ -137,8 +137,8 @@ class TestRevealBlendFileExecute:
         blend = tmp_path / "asset.blend"
         op = self._make_op(str(blend))
 
-        with patch("melvil.ops.open_blend_file.sys.platform", "darwin"), \
-             patch("melvil.ops.open_blend_file.subprocess.Popen", side_effect=OSError("no open")):
+        with patch("blammo.ops.open_blend_file.sys.platform", "darwin"), \
+             patch("blammo.ops.open_blend_file.subprocess.Popen", side_effect=OSError("no open")):
             result = op.execute(MagicMock())
 
         assert result == {"CANCELLED"}

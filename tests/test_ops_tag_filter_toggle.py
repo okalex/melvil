@@ -1,4 +1,4 @@
-"""Tests for ops/tag_filter_toggle.py — MELVIL_OT_tag_filter_toggle."""
+"""Tests for ops/tag_filter_toggle.py — BLAMMO_OT_tag_filter_toggle."""
 
 from __future__ import annotations
 
@@ -6,8 +6,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from melvil.ops.tag_filter_toggle import (
-    MELVIL_OT_tag_filter_toggle,
+from blammo.ops.tag_filter_toggle import (
+    BLAMMO_OT_tag_filter_toggle,
     get_active_tag_filters,
     set_active_tag_filters,
 )
@@ -18,7 +18,7 @@ TAG_B = "bbbbbbbb-0000-4000-8000-000000000001"
 
 def _make_wm(active=""):
     wm = MagicMock()
-    wm.melvil_active_tag_filters = active
+    wm.blammo_active_tag_filters = active
     return wm
 
 
@@ -29,7 +29,7 @@ def _make_context(active=""):
 
 
 def _make_op(tag_id=""):
-    op = MELVIL_OT_tag_filter_toggle()
+    op = BLAMMO_OT_tag_filter_toggle()
     op.tag_id = tag_id
     return op
 
@@ -40,11 +40,11 @@ def _make_op(tag_id=""):
 
 
 def test_bl_idname():
-    assert MELVIL_OT_tag_filter_toggle.bl_idname == "melvil.tag_filter_toggle"
+    assert BLAMMO_OT_tag_filter_toggle.bl_idname == "blammo.tag_filter_toggle"
 
 
 def test_poll_always_true():
-    assert MELVIL_OT_tag_filter_toggle.poll(MagicMock()) is True
+    assert BLAMMO_OT_tag_filter_toggle.poll(MagicMock()) is True
 
 
 # ---------------------------------------------------------------------------
@@ -70,7 +70,7 @@ def test_get_active_tag_filters_multiple():
 def test_set_active_tag_filters():
     wm = _make_wm()
     set_active_tag_filters(wm, [TAG_A, TAG_B])
-    assert wm.melvil_active_tag_filters == f"{TAG_A},{TAG_B}"
+    assert wm.blammo_active_tag_filters == f"{TAG_A},{TAG_B}"
 
 
 # ---------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-"""MELVIL_OT_tag_delete_unused — delete all tags with zero usage, with confirmation."""
+"""BLAMMO_OT_tag_delete_unused — delete all tags with zero usage, with confirmation."""
 
 from __future__ import annotations
 
@@ -9,10 +9,10 @@ from ..db import open_db
 from ..db.tags import delete_tag, list_tags_with_usage
 
 
-class MELVIL_OT_tag_delete_unused(bpy.types.Operator):
+class BLAMMO_OT_tag_delete_unused(bpy.types.Operator):
     """Delete all tags that are not applied to any asset"""
 
-    bl_idname = "melvil.tag_delete_unused"
+    bl_idname = "blammo.tag_delete_unused"
     bl_label = "Delete Unused Tags"
     bl_options = {"REGISTER"}
 
@@ -31,11 +31,11 @@ class MELVIL_OT_tag_delete_unused(bpy.types.Operator):
             self.report({"ERROR"}, str(exc))
             return {"CANCELLED"}
         except Exception as exc:  # noqa: BLE001
-            self.report({"ERROR"}, f"Melvil: could not load tags — {exc}")
+            self.report({"ERROR"}, f"Blammo!: could not load tags — {exc}")
             return {"CANCELLED"}
 
         if self._unused_count == 0:
-            self.report({"INFO"}, "Melvil: no unused tags to delete.")
+            self.report({"INFO"}, "Blammo!: no unused tags to delete.")
             return {"CANCELLED"}
 
         return context.window_manager.invoke_props_dialog(self, width=340)
@@ -61,8 +61,8 @@ class MELVIL_OT_tag_delete_unused(bpy.types.Operator):
             self.report({"ERROR"}, str(exc))
             return {"CANCELLED"}
         except Exception as exc:  # noqa: BLE001
-            self.report({"ERROR"}, f"Melvil: could not delete unused tags — {exc}")
+            self.report({"ERROR"}, f"Blammo!: could not delete unused tags — {exc}")
             return {"CANCELLED"}
 
-        self.report({"INFO"}, f"Melvil: deleted {deleted} unused tag(s).")
+        self.report({"INFO"}, f"Blammo!: deleted {deleted} unused tag(s).")
         return {"FINISHED"}

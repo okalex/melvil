@@ -1,10 +1,10 @@
-"""Tests for ops/tag_filter_clear.py — MELVIL_OT_tag_filter_clear."""
+"""Tests for ops/tag_filter_clear.py — BLAMMO_OT_tag_filter_clear."""
 
 from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from melvil.ops.tag_filter_toggle import get_active_tag_filters, set_active_tag_filters
+from blammo.ops.tag_filter_toggle import get_active_tag_filters, set_active_tag_filters
 
 TAG_A = "aaaaaaaa-0000-4000-8000-000000000001"
 TAG_B = "bbbbbbbb-0000-4000-8000-000000000001"
@@ -12,14 +12,14 @@ TAG_B = "bbbbbbbb-0000-4000-8000-000000000001"
 
 def _make_context(active=""):
     ctx = MagicMock()
-    ctx.window_manager.melvil_active_tag_filters = active
+    ctx.window_manager.blammo_active_tag_filters = active
     return ctx
 
 
 def _make_op():
-    from melvil.ops.tag_filter_clear import MELVIL_OT_tag_filter_clear
+    from blammo.ops.tag_filter_clear import BLAMMO_OT_tag_filter_clear
 
-    return MELVIL_OT_tag_filter_clear()
+    return BLAMMO_OT_tag_filter_clear()
 
 
 # ---------------------------------------------------------------------------
@@ -28,15 +28,15 @@ def _make_op():
 
 
 def test_bl_idname():
-    from melvil.ops.tag_filter_clear import MELVIL_OT_tag_filter_clear
+    from blammo.ops.tag_filter_clear import BLAMMO_OT_tag_filter_clear
 
-    assert MELVIL_OT_tag_filter_clear.bl_idname == "melvil.tag_filter_clear"
+    assert BLAMMO_OT_tag_filter_clear.bl_idname == "blammo.tag_filter_clear"
 
 
 def test_bl_options_contains_internal():
-    from melvil.ops.tag_filter_clear import MELVIL_OT_tag_filter_clear
+    from blammo.ops.tag_filter_clear import BLAMMO_OT_tag_filter_clear
 
-    assert "INTERNAL" in MELVIL_OT_tag_filter_clear.bl_options
+    assert "INTERNAL" in BLAMMO_OT_tag_filter_clear.bl_options
 
 
 # ---------------------------------------------------------------------------
@@ -45,9 +45,9 @@ def test_bl_options_contains_internal():
 
 
 def test_poll_always_returns_true():
-    from melvil.ops.tag_filter_clear import MELVIL_OT_tag_filter_clear
+    from blammo.ops.tag_filter_clear import BLAMMO_OT_tag_filter_clear
 
-    assert MELVIL_OT_tag_filter_clear.poll(MagicMock()) is True
+    assert BLAMMO_OT_tag_filter_clear.poll(MagicMock()) is True
 
 
 # ---------------------------------------------------------------------------

@@ -1,13 +1,13 @@
-"""Tests for melvil.db.kits — CRUD helpers."""
+"""Tests for blammo.db.kits — CRUD helpers."""
 
 from __future__ import annotations
 
 import sqlite3
 import pytest
 
-from melvil.db.connection import migrate
-from melvil.db import kits as kits_db
-from melvil.db.kits import DEFAULT_KIT_ID
+from blammo.db.connection import migrate
+from blammo.db import kits as kits_db
+from blammo.db.kits import DEFAULT_KIT_ID
 
 
 @pytest.fixture

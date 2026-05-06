@@ -1,4 +1,4 @@
-"""MELVIL_OT_tag_filter_clear — clear all active tag filters in the browser."""
+"""BLAMMO_OT_tag_filter_clear — clear all active tag filters in the browser."""
 
 from __future__ import annotations
 
@@ -7,10 +7,10 @@ import bpy
 from .tag_filter_toggle import set_active_tag_filters
 
 
-class MELVIL_OT_tag_filter_clear(bpy.types.Operator):
-    """Clear all active tag filters in the Melvil browser"""
+class BLAMMO_OT_tag_filter_clear(bpy.types.Operator):
+    """Clear all active tag filters in the Blammo browser"""
 
-    bl_idname = "melvil.tag_filter_clear"
+    bl_idname = "blammo.tag_filter_clear"
     bl_label = "Clear Tag Filters"
     bl_options = {"REGISTER", "INTERNAL"}
 

@@ -1,4 +1,4 @@
-"""MELVIL_OT_tag_delete — delete a tag globally, with confirmation."""
+"""BLAMMO_OT_tag_delete — delete a tag globally, with confirmation."""
 
 from __future__ import annotations
 
@@ -10,10 +10,10 @@ from ..db import open_db
 from ..db.tags import delete_tag, get_tag_by_id, list_tags_with_usage
 
 
-class MELVIL_OT_tag_delete(bpy.types.Operator):
-    """Delete a tag globally from the Melvil library"""
+class BLAMMO_OT_tag_delete(bpy.types.Operator):
+    """Delete a tag globally from the Blammo library"""
 
-    bl_idname = "melvil.tag_delete"
+    bl_idname = "blammo.tag_delete"
     bl_label = "Delete Tag"
     bl_options = {"REGISTER"}
 
@@ -35,14 +35,14 @@ class MELVIL_OT_tag_delete(bpy.types.Operator):
     def invoke(self, context, event):
         tag_id = self.tag_id.strip()
         if not tag_id:
-            self.report({"ERROR"}, "Melvil: no tag ID provided.")
+            self.report({"ERROR"}, "Blammo!: no tag ID provided.")
             return {"CANCELLED"}
 
         try:
             with open_db(resolve_db_path()) as conn:
                 row = get_tag_by_id(conn, tag_id)
                 if row is None:
-                    self.report({"ERROR"}, "Melvil: tag not found.")
+                    self.report({"ERROR"}, "Blammo!: tag not found.")
                     return {"CANCELLED"}
                 self._tag_name = row["name"]
                 usage_rows = list_tags_with_usage(conn)
@@ -54,7 +54,7 @@ class MELVIL_OT_tag_delete(bpy.types.Operator):
             self.report({"ERROR"}, str(exc))
             return {"CANCELLED"}
         except Exception as exc:  # noqa: BLE001
-            self.report({"ERROR"}, f"Melvil: could not load tag — {exc}")
+            self.report({"ERROR"}, f"Blammo!: could not load tag — {exc}")
             return {"CANCELLED"}
 
         return context.window_manager.invoke_props_dialog(self, width=340)
@@ -72,7 +72,7 @@ class MELVIL_OT_tag_delete(bpy.types.Operator):
     def execute(self, context):
         tag_id = self.tag_id.strip()
         if not tag_id:
-            self.report({"ERROR"}, "Melvil: no tag ID provided.")
+            self.report({"ERROR"}, "Blammo!: no tag ID provided.")
             return {"CANCELLED"}
 
         try:
@@ -83,8 +83,8 @@ class MELVIL_OT_tag_delete(bpy.types.Operator):
             self.report({"ERROR"}, str(exc))
             return {"CANCELLED"}
         except Exception as exc:  # noqa: BLE001
-            self.report({"ERROR"}, f"Melvil: could not delete tag — {exc}")
+            self.report({"ERROR"}, f"Blammo!: could not delete tag — {exc}")
             return {"CANCELLED"}
 
-        self.report({"INFO"}, f"Melvil: tag '{self._tag_name}' deleted.")
+        self.report({"INFO"}, f"Blammo!: tag '{self._tag_name}' deleted.")
         return {"FINISHED"}

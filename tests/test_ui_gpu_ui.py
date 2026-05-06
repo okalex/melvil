@@ -17,13 +17,13 @@ import pytest
 
 class TestThemeColorsFallback:
     def test_returns_valid_instance(self):
-        from melvil.ui.gpu import ThemeColors
+        from blammo.ui.gpu import ThemeColors
 
         tc = ThemeColors.fallback()
         assert tc is not None
 
     def test_all_fields_are_4_element_float_tuples(self):
-        from melvil.ui.gpu import ThemeColors
+        from blammo.ui.gpu import ThemeColors
 
         tc = ThemeColors.fallback()
         for field_name in ThemeColors.__dataclass_fields__:
@@ -36,7 +36,7 @@ class TestThemeColorsFallback:
                 )
 
     def test_all_values_in_zero_one_range(self):
-        from melvil.ui.gpu import ThemeColors
+        from blammo.ui.gpu import ThemeColors
 
         tc = ThemeColors.fallback()
         for field_name in ThemeColors.__dataclass_fields__:
@@ -47,14 +47,14 @@ class TestThemeColorsFallback:
                 )
 
     def test_text_secondary_is_primary_at_lower_alpha(self):
-        from melvil.ui.gpu import ThemeColors
+        from blammo.ui.gpu import ThemeColors
 
         tc = ThemeColors.fallback()
         assert tc.text_secondary[:3] == tc.text_primary[:3]
         assert tc.text_secondary[3] < tc.text_primary[3]
 
     def test_text_disabled_is_primary_at_lower_alpha(self):
-        from melvil.ui.gpu import ThemeColors
+        from blammo.ui.gpu import ThemeColors
 
         tc = ThemeColors.fallback()
         assert tc.text_disabled[:3] == tc.text_primary[:3]
@@ -88,7 +88,7 @@ class TestThemeColorsFromBlender:
 
     def test_produces_correct_rgba_tuples(self):
         import bpy
-        from melvil.ui.gpu import ThemeColors
+        from blammo.ui.gpu import ThemeColors
 
         mock_ui = self._make_mock_ui()
         mock_theme = MagicMock()
@@ -112,7 +112,7 @@ class TestThemeColorsFromBlender:
 
     def test_all_fields_are_4_floats(self):
         import bpy
-        from melvil.ui.gpu import ThemeColors
+        from blammo.ui.gpu import ThemeColors
 
         mock_ui = self._make_mock_ui()
         mock_theme = MagicMock()
@@ -129,7 +129,7 @@ class TestThemeColorsFromBlender:
 
     def test_panel_header_bg_has_boosted_alpha(self):
         import bpy
-        from melvil.ui.gpu import ThemeColors
+        from blammo.ui.gpu import ThemeColors
 
         mock_ui = self._make_mock_ui()
         mock_theme = MagicMock()
@@ -151,7 +151,7 @@ class TestThemeColorsFromBlender:
 class TestGetUiScale:
     def test_returns_mocked_value(self):
         import bpy
-        from melvil.ui.gpu import get_ui_scale
+        from blammo.ui.gpu import get_ui_scale
 
         bpy.context.preferences.system.ui_scale = 1.5
         assert get_ui_scale() == 1.5
@@ -159,7 +159,7 @@ class TestGetUiScale:
 
     def test_returns_1_on_exception(self):
         import bpy
-        from melvil.ui.gpu import get_ui_scale
+        from blammo.ui.gpu import get_ui_scale
 
         original = bpy.context.preferences.system.ui_scale
         # Make the attribute access raise
@@ -174,17 +174,17 @@ class TestGetUiScale:
 
 class TestScaled:
     def test_multiplies_correctly(self):
-        from melvil.ui.gpu import scaled
+        from blammo.ui.gpu import scaled
 
         assert scaled(20, 1.5) == 30.0
 
     def test_identity_at_scale_1(self):
-        from melvil.ui.gpu import scaled
+        from blammo.ui.gpu import scaled
 
         assert scaled(42, 1.0) == 42.0
 
     def test_zero_px(self):
-        from melvil.ui.gpu import scaled
+        from blammo.ui.gpu import scaled
 
         assert scaled(0, 2.0) == 0.0
 
@@ -196,13 +196,13 @@ class TestScaled:
 
 class TestDrawRect:
     def test_calls_shader_and_batch(self):
-        from melvil.ui.gpu import draw_rect
+        from blammo.ui.gpu import draw_rect
 
         draw_rect(10, 20, 100, 50, (1.0, 0.0, 0.0, 1.0))
 
     def test_draws_with_given_color(self):
         import gpu
-        from melvil.ui.gpu import draw_rect, _get_uniform_shader
+        from blammo.ui.gpu import draw_rect, _get_uniform_shader
 
         shader_mock = _get_uniform_shader()
         shader_mock.uniform_float.reset_mock()
@@ -215,12 +215,12 @@ class TestDrawRect:
 
 class TestDrawRectOutline:
     def test_calls_shader_and_batch(self):
-        from melvil.ui.gpu import draw_rect_outline
+        from blammo.ui.gpu import draw_rect_outline
 
         draw_rect_outline(10, 20, 100, 50, (1.0, 1.0, 1.0, 1.0))
 
     def test_thickness_parameter_accepted(self):
-        from melvil.ui.gpu import draw_rect_outline
+        from blammo.ui.gpu import draw_rect_outline
 
         draw_rect_outline(0, 0, 50, 50, (1.0, 1.0, 1.0, 1.0), thickness=2)
 
@@ -228,7 +228,7 @@ class TestDrawRectOutline:
 class TestDrawRectRounded:
     def test_zero_radius_falls_back_to_plain_rect(self):
         import gpu
-        from melvil.ui.gpu import draw_rect_rounded, _get_uniform_shader
+        from blammo.ui.gpu import draw_rect_rounded, _get_uniform_shader
 
         shader_mock = _get_uniform_shader()
         shader_mock.uniform_float.reset_mock()
@@ -240,7 +240,7 @@ class TestDrawRectRounded:
 
     def test_positive_radius_generates_vertices(self):
         from gpu_extras.batch import batch_for_shader
-        from melvil.ui.gpu import draw_rect_rounded
+        from blammo.ui.gpu import draw_rect_rounded
 
         batch_for_shader.reset_mock()
         draw_rect_rounded(0, 0, 100, 50, 5, (1.0, 1.0, 1.0, 1.0), segments=4)
@@ -254,7 +254,7 @@ class TestDrawRectRounded:
 
     def test_radius_clamped_to_half_shortest_side(self):
         from gpu_extras.batch import batch_for_shader
-        from melvil.ui.gpu import draw_rect_rounded
+        from blammo.ui.gpu import draw_rect_rounded
 
         batch_for_shader.reset_mock()
         # Radius 100 on a 20×10 rect → clamped to 5.
@@ -264,7 +264,7 @@ class TestDrawRectRounded:
 
     def test_custom_segments(self):
         from gpu_extras.batch import batch_for_shader
-        from melvil.ui.gpu import draw_rect_rounded
+        from blammo.ui.gpu import draw_rect_rounded
 
         batch_for_shader.reset_mock()
         draw_rect_rounded(0, 0, 100, 50, 5, (1.0, 1.0, 1.0, 1.0), segments=8)
@@ -277,7 +277,7 @@ class TestDrawRectRounded:
 
 class TestDrawTexture:
     def test_calls_image_shader(self):
-        from melvil.ui.gpu import draw_texture, _get_image_shader
+        from blammo.ui.gpu import draw_texture, _get_image_shader
 
         shader_mock = _get_image_shader()
         shader_mock.uniform_sampler.reset_mock()
@@ -296,7 +296,7 @@ class TestDrawTexture:
 class TestDrawText:
     def test_calls_blf_functions(self):
         import blf
-        from melvil.ui.gpu import draw_text
+        from blammo.ui.gpu import draw_text
 
         blf.position.reset_mock()
         blf.size.reset_mock()
@@ -312,7 +312,7 @@ class TestDrawText:
 
     def test_returns_measured_width(self):
         import blf
-        from melvil.ui.gpu import draw_text
+        from blammo.ui.gpu import draw_text
 
         blf.dimensions = MagicMock(return_value=(72.5, 14.0))
         result = draw_text("test", 0, 0, 12, (1, 1, 1, 1))
@@ -322,7 +322,7 @@ class TestDrawText:
 class TestMeasureText:
     def test_calls_blf_dimensions(self):
         import blf
-        from melvil.ui.gpu import measure_text
+        from blammo.ui.gpu import measure_text
 
         blf.dimensions = MagicMock(return_value=(55.0, 12.0))
         blf.size.reset_mock()
@@ -342,7 +342,7 @@ class TestMeasureText:
 
 class TestShaderCaching:
     def test_uniform_shader_cached(self):
-        import melvil.ui.gpu.drawing as gpu_drawing
+        import blammo.ui.gpu.drawing as gpu_drawing
 
         gpu_drawing._uniform_shader = None  # reset
         s1 = gpu_drawing._get_uniform_shader()
@@ -350,7 +350,7 @@ class TestShaderCaching:
         assert s1 is s2
 
     def test_image_shader_cached(self):
-        import melvil.ui.gpu.drawing as gpu_drawing
+        import blammo.ui.gpu.drawing as gpu_drawing
 
         gpu_drawing._image_shader = None  # reset
         s1 = gpu_drawing._get_image_shader()
@@ -365,7 +365,7 @@ class TestShaderCaching:
 
 class TestColorWithAlpha:
     def test_replaces_alpha(self):
-        from melvil.ui.gpu import _color_with_alpha
+        from blammo.ui.gpu import _color_with_alpha
 
         result = _color_with_alpha((0.5, 0.6, 0.7, 1.0), 0.3)
         assert result == (0.5, 0.6, 0.7, 0.3)
@@ -378,31 +378,31 @@ class TestColorWithAlpha:
 
 class TestGetTheme:
     def setup_method(self):
-        import melvil.ui.gpu.theme as gpu_theme
+        import blammo.ui.gpu.theme as gpu_theme
 
         gpu_theme._theme = None  # ensure clean state
 
     def teardown_method(self):
-        import melvil.ui.gpu.theme as gpu_theme
+        import blammo.ui.gpu.theme as gpu_theme
 
         gpu_theme._theme = None
 
     def test_returns_theme_colors(self):
-        from melvil.ui.gpu import ThemeColors, get_theme
+        from blammo.ui.gpu import ThemeColors, get_theme
 
         result = get_theme()
         assert isinstance(result, ThemeColors)
 
     def test_caches_result(self):
-        from melvil.ui.gpu import get_theme
+        from blammo.ui.gpu import get_theme
 
         first = get_theme()
         second = get_theme()
         assert first is second
 
     def test_uses_from_blender_when_available(self):
-        import melvil.ui.gpu.theme as gpu_theme
-        from melvil.ui.gpu import ThemeColors
+        import blammo.ui.gpu.theme as gpu_theme
+        from blammo.ui.gpu import ThemeColors
 
         sentinel = ThemeColors.fallback()
         with patch.object(ThemeColors, "from_blender", return_value=sentinel) as mock_fb:
@@ -411,8 +411,8 @@ class TestGetTheme:
             assert result is sentinel
 
     def test_falls_back_on_exception(self):
-        import melvil.ui.gpu.theme as gpu_theme
-        from melvil.ui.gpu import ThemeColors
+        import blammo.ui.gpu.theme as gpu_theme
+        from blammo.ui.gpu import ThemeColors
 
         with patch.object(ThemeColors, "from_blender", side_effect=RuntimeError):
             result = gpu_theme.get_theme()
@@ -421,16 +421,16 @@ class TestGetTheme:
 
 class TestResetTheme:
     def test_clears_cached_theme(self):
-        import melvil.ui.gpu.theme as gpu_theme
-        from melvil.ui.gpu import ThemeColors
+        import blammo.ui.gpu.theme as gpu_theme
+        from blammo.ui.gpu import ThemeColors
 
         gpu_theme._theme = ThemeColors.fallback()
         gpu_theme.reset_theme()
         assert gpu_theme._theme is None
 
     def test_next_get_theme_reloads(self):
-        import melvil.ui.gpu.theme as gpu_theme
-        from melvil.ui.gpu import ThemeColors
+        import blammo.ui.gpu.theme as gpu_theme
+        from blammo.ui.gpu import ThemeColors
 
         first = gpu_theme.get_theme()
         gpu_theme.reset_theme()
@@ -449,16 +449,16 @@ class TestResetTheme:
 
 class TestHitResult:
     def test_fields(self):
-        from melvil.ui.gpu import HitResult
+        from blammo.ui.gpu import HitResult
 
         hr = HitResult(
             widget_type="operator",
-            id="melvil.test",
+            id="blammo.test",
             kwargs={"name": "a"},
             rect=(10.0, 20.0, 100.0, 50.0),
         )
         assert hr.widget_type == "operator"
-        assert hr.id == "melvil.test"
+        assert hr.id == "blammo.test"
         assert hr.kwargs == {"name": "a"}
         assert hr.rect == (10.0, 20.0, 100.0, 50.0)
 
@@ -470,7 +470,7 @@ class TestHitResult:
 
 def _make_panel(**kwargs):
     """Create a UiContext with sensible defaults and no draw handler."""
-    from melvil.ui.gpu import UiContext
+    from blammo.ui.gpu import UiContext
 
     defaults = {"width": 300, "anchor": (0, 200)}
     defaults.update(kwargs)
@@ -524,7 +524,7 @@ class TestUiContextAttachDetach:
 
 class TestUiContextFrameCycle:
     def test_begin_frame_returns_gpu_layout(self):
-        from melvil.ui.gpu import GpuLayout
+        from blammo.ui.gpu import GpuLayout
 
         panel = _make_panel()
         root = panel.begin_frame()
@@ -548,7 +548,7 @@ class TestUiContextFrameCycle:
         root.separator()  # adds SEPARATOR_HEIGHT
         panel.end_frame()
 
-        from melvil.ui.gpu import PANEL_PAD, SEPARATOR_HEIGHT
+        from blammo.ui.gpu import PANEL_PAD, SEPARATOR_HEIGHT
 
         expected_h = SEPARATOR_HEIGHT + 2 * PANEL_PAD
         x, y, w, h = panel._panel_rect
@@ -566,7 +566,7 @@ class TestUiContextHitTest:
         assert panel.hit_test(50, 50) is None
 
     def test_returns_matching_hit_result(self):
-        from melvil.ui.gpu import HitResult
+        from blammo.ui.gpu import HitResult
 
         panel = _make_panel()
         panel.begin_frame()
@@ -580,7 +580,7 @@ class TestUiContextHitTest:
         assert result.id == "test"
 
     def test_returns_none_outside_rect(self):
-        from melvil.ui.gpu import HitResult
+        from blammo.ui.gpu import HitResult
 
         panel = _make_panel()
         panel.begin_frame()
@@ -592,7 +592,7 @@ class TestUiContextHitTest:
         assert panel.hit_test(200, 200) is None
 
     def test_topmost_wins(self):
-        from melvil.ui.gpu import HitResult
+        from blammo.ui.gpu import HitResult
 
         panel = _make_panel()
         panel.begin_frame()
@@ -615,7 +615,7 @@ class TestUiContextIsInside:
         root.separator()
         panel.end_frame()
 
-        from melvil.ui.gpu import SEPARATOR_HEIGHT
+        from blammo.ui.gpu import SEPARATOR_HEIGHT
 
         # Panel rect: x=10, y=50-8, w=100, h=8
         assert panel.is_inside(50, 50 - SEPARATOR_HEIGHT + 1) is True
@@ -691,7 +691,7 @@ class TestGpuLayoutContainers:
         assert b._is_box is True
 
     def test_separator_appended(self):
-        from melvil.ui.gpu import GpuSeparator
+        from blammo.ui.gpu import GpuSeparator
 
         panel = _make_panel()
         root = panel.begin_frame()
@@ -700,7 +700,7 @@ class TestGpuLayoutContainers:
         assert isinstance(root._children[0], GpuSeparator)
 
     def test_separator_factor(self):
-        from melvil.ui.gpu import GpuSeparator
+        from blammo.ui.gpu import GpuSeparator
 
         panel = _make_panel()
         root = panel.begin_frame()
@@ -747,7 +747,7 @@ class TestGpuLayoutContainers:
 class TestLayoutPass:
     def test_column_with_3_separators(self):
         """Total height = 3 × SEPARATOR_HEIGHT × ui_scale."""
-        from melvil.ui.gpu import SEPARATOR_HEIGHT
+        from blammo.ui.gpu import SEPARATOR_HEIGHT
 
         panel = _make_panel()
         root = panel.begin_frame()
@@ -759,7 +759,7 @@ class TestLayoutPass:
         assert h == pytest.approx(3 * SEPARATOR_HEIGHT)
 
     def test_column_with_3_separators_scaled(self):
-        from melvil.ui.gpu import SEPARATOR_HEIGHT
+        from blammo.ui.gpu import SEPARATOR_HEIGHT
 
         panel = _make_panel()
         root = panel.begin_frame()
@@ -783,7 +783,7 @@ class TestLayoutPass:
         assert c1._rect is not None
         assert c2._rect is not None
 
-        from melvil.ui.gpu import PANEL_PAD, WIDGET_GAP
+        from blammo.ui.gpu import PANEL_PAD, WIDGET_GAP
 
         content_w = 200 - 2 * PANEL_PAD
         expected_each = (content_w - WIDGET_GAP) / 2
@@ -791,7 +791,7 @@ class TestLayoutPass:
         assert c2._rect[2] == pytest.approx(expected_each)
 
     def test_split_factor_03(self):
-        from melvil.ui.gpu import PANEL_PAD, WIDGET_GAP
+        from blammo.ui.gpu import PANEL_PAD, WIDGET_GAP
 
         panel = _make_panel(width=200, anchor=(0, 100))
         root = panel.begin_frame()
@@ -810,7 +810,7 @@ class TestLayoutPass:
         assert right._rect[2] == pytest.approx(usable * 0.7)
 
     def test_box_adds_padding(self):
-        from melvil.ui.gpu import BOX_PAD, PANEL_PAD, SEPARATOR_HEIGHT
+        from blammo.ui.gpu import BOX_PAD, PANEL_PAD, SEPARATOR_HEIGHT
 
         panel = _make_panel(width=200, anchor=(0, 200))
         root = panel.begin_frame()
@@ -827,7 +827,7 @@ class TestLayoutPass:
 
     def test_nested_row_in_column_in_split(self):
         """Nested containers produce correct coordinates."""
-        from melvil.ui.gpu import PANEL_PAD, SEPARATOR_HEIGHT, WIDGET_GAP
+        from blammo.ui.gpu import PANEL_PAD, SEPARATOR_HEIGHT, WIDGET_GAP
 
         panel = _make_panel(width=400, anchor=(0, 300))
         root = panel.begin_frame()
@@ -854,7 +854,7 @@ class TestLayoutPass:
         assert right_col._rect[2] == pytest.approx(usable * 0.5)
 
     def test_scale_y_doubles_height(self):
-        from melvil.ui.gpu import SEPARATOR_HEIGHT
+        from blammo.ui.gpu import SEPARATOR_HEIGHT
 
         panel = _make_panel()
         root = panel.begin_frame()
@@ -872,7 +872,7 @@ class TestLayoutPass:
 
     def test_column_widgets_gap(self):
         """Two non-separator children get WIDGET_GAP between them."""
-        from melvil.ui.gpu import SEPARATOR_HEIGHT, WIDGET_GAP
+        from blammo.ui.gpu import SEPARATOR_HEIGHT, WIDGET_GAP
 
         panel = _make_panel()
         root = panel.begin_frame()
@@ -884,7 +884,7 @@ class TestLayoutPass:
         assert h == pytest.approx(expected)
 
     def test_aligned_column_uses_small_gap(self):
-        from melvil.ui.gpu import SEPARATOR_HEIGHT, WIDGET_GAP_ALIGNED
+        from blammo.ui.gpu import SEPARATOR_HEIGHT, WIDGET_GAP_ALIGNED
 
         panel = _make_panel()
         root = panel.begin_frame()
@@ -904,7 +904,7 @@ class TestLayoutPass:
         bpy.context.region.width = 800
         bpy.context.region.height = 600
 
-        from melvil.ui.gpu import UiContext, SEPARATOR_HEIGHT
+        from blammo.ui.gpu import UiContext, SEPARATOR_HEIGHT
 
         panel = UiContext(width=200, anchor=None)
         root = panel.begin_frame()
@@ -993,7 +993,7 @@ class TestDrawPass:
 
 class TestGpuWidget:
     def test_label_fields(self):
-        from melvil.ui.gpu import GpuLabel
+        from blammo.ui.gpu import GpuLabel
 
         w = GpuLabel(text="Hello", icon="MESH_DATA")
         assert w.text == "Hello"
@@ -1003,14 +1003,14 @@ class TestGpuWidget:
         assert w.rect is None
 
     def test_separator_fields(self):
-        from melvil.ui.gpu import GpuSeparator
+        from blammo.ui.gpu import GpuSeparator
 
         w = GpuSeparator(factor=2.0)
         assert w.factor == 2.0
         assert w.is_separator is True
 
     def test_defaults(self):
-        from melvil.ui.gpu import GpuLabel
+        from blammo.ui.gpu import GpuLabel
 
         w = GpuLabel()
         assert w.text == ""
@@ -1026,7 +1026,7 @@ class TestGpuWidget:
 
 class TestGpuLayoutLabel:
     def test_label_appends_widget(self):
-        from melvil.ui.gpu import GpuLabel
+        from blammo.ui.gpu import GpuLabel
 
         panel = _make_panel()
         root = panel.begin_frame()
@@ -1038,7 +1038,7 @@ class TestGpuLayoutLabel:
         assert child.text == "Hello"
 
     def test_label_icon(self):
-        from melvil.ui.gpu import GpuLabel
+        from blammo.ui.gpu import GpuLabel
 
         panel = _make_panel()
         root = panel.begin_frame()
@@ -1074,7 +1074,7 @@ class TestGpuLayoutLabel:
         assert child.text == ""
 
     def test_label_height_matches_widget_height(self):
-        from melvil.ui.gpu import WIDGET_HEIGHT
+        from blammo.ui.gpu import WIDGET_HEIGHT
 
         panel = _make_panel()
         root = panel.begin_frame()
@@ -1084,7 +1084,7 @@ class TestGpuLayoutLabel:
         assert h == pytest.approx(WIDGET_HEIGHT)
 
     def test_label_height_scaled(self):
-        from melvil.ui.gpu import WIDGET_HEIGHT
+        from blammo.ui.gpu import WIDGET_HEIGHT
 
         panel = _make_panel()
         root = panel.begin_frame()
@@ -1094,7 +1094,7 @@ class TestGpuLayoutLabel:
         assert h == pytest.approx(WIDGET_HEIGHT * 2.0)
 
     def test_label_gets_rect_after_position(self):
-        from melvil.ui.gpu import PANEL_PAD
+        from blammo.ui.gpu import PANEL_PAD
 
         panel = _make_panel(width=200, anchor=(0, 200))
         root = panel.begin_frame()
@@ -1107,7 +1107,7 @@ class TestGpuLayoutLabel:
         assert w == pytest.approx(200 - 2 * PANEL_PAD)
 
     def test_multiple_labels_stacked(self):
-        from melvil.ui.gpu import WIDGET_HEIGHT, WIDGET_GAP
+        from blammo.ui.gpu import WIDGET_HEIGHT, WIDGET_GAP
 
         panel = _make_panel()
         root = panel.begin_frame()
@@ -1118,7 +1118,7 @@ class TestGpuLayoutLabel:
         assert h == pytest.approx(2 * WIDGET_HEIGHT + WIDGET_GAP)
 
     def test_label_separator_label(self):
-        from melvil.ui.gpu import WIDGET_HEIGHT, SEPARATOR_HEIGHT
+        from blammo.ui.gpu import WIDGET_HEIGHT, SEPARATOR_HEIGHT
 
         panel = _make_panel()
         root = panel.begin_frame()
@@ -1169,7 +1169,7 @@ class TestLabelDraw:
 
     def test_disabled_label_uses_disabled_color(self):
         import blf
-        from melvil.ui.gpu import get_theme
+        from blammo.ui.gpu import get_theme
 
         blf.color.reset_mock()
         blf.dimensions = MagicMock(return_value=(40.0, 12.0))
@@ -1186,7 +1186,7 @@ class TestLabelDraw:
 
     def test_alert_label_uses_alert_color(self):
         import blf
-        from melvil.ui.gpu import get_theme
+        from blammo.ui.gpu import get_theme
 
         blf.color.reset_mock()
         blf.dimensions = MagicMock(return_value=(40.0, 12.0))
@@ -1204,7 +1204,7 @@ class TestLabelDraw:
     def test_label_in_disabled_parent(self):
         """A label inside a disabled parent layout uses disabled color."""
         import blf
-        from melvil.ui.gpu import get_theme
+        from blammo.ui.gpu import get_theme
 
         blf.color.reset_mock()
         blf.dimensions = MagicMock(return_value=(40.0, 12.0))
@@ -1229,7 +1229,7 @@ class TestLabelDraw:
 class TestSeparatorGapLogic:
     def test_separator_between_labels_no_extra_gap(self):
         """Separator between two labels should not add WIDGET_GAP."""
-        from melvil.ui.gpu import WIDGET_HEIGHT, SEPARATOR_HEIGHT
+        from blammo.ui.gpu import WIDGET_HEIGHT, SEPARATOR_HEIGHT
 
         panel = _make_panel()
         root = panel.begin_frame()
@@ -1242,7 +1242,7 @@ class TestSeparatorGapLogic:
 
     def test_label_then_container_gets_gap(self):
         """A label followed by a column gets WIDGET_GAP between them."""
-        from melvil.ui.gpu import WIDGET_HEIGHT, SEPARATOR_HEIGHT, WIDGET_GAP
+        from blammo.ui.gpu import WIDGET_HEIGHT, SEPARATOR_HEIGHT, WIDGET_GAP
 
         panel = _make_panel()
         root = panel.begin_frame()
@@ -1255,7 +1255,7 @@ class TestSeparatorGapLogic:
 
     def test_label_in_row(self):
         """Labels placed in a row share width equally."""
-        from melvil.ui.gpu import WIDGET_HEIGHT, WIDGET_GAP, PANEL_PAD
+        from blammo.ui.gpu import WIDGET_HEIGHT, WIDGET_GAP, PANEL_PAD
 
         panel = _make_panel(width=200, anchor=(0, 200))
         root = panel.begin_frame()
@@ -1282,33 +1282,33 @@ class TestSeparatorGapLogic:
 
 class TestGpuOperatorProps:
     def test_set_and_get(self):
-        from melvil.ui.gpu import GpuOperatorProps
+        from blammo.ui.gpu import GpuOperatorProps
 
         op = GpuOperatorProps()
         op.asset_id = "abc"
         assert op.asset_id == "abc"
 
     def test_get_missing_returns_none(self):
-        from melvil.ui.gpu import GpuOperatorProps
+        from blammo.ui.gpu import GpuOperatorProps
 
         op = GpuOperatorProps()
         assert op.nonexistent is None
 
     def test_internal_attrs_use_normal_setattr(self):
-        from melvil.ui.gpu import GpuOperatorProps
+        from blammo.ui.gpu import GpuOperatorProps
 
         op = GpuOperatorProps()
         assert isinstance(op._props, dict)
 
     def test_internal_attrs_raise_on_missing(self):
-        from melvil.ui.gpu import GpuOperatorProps
+        from blammo.ui.gpu import GpuOperatorProps
 
         op = GpuOperatorProps()
         with pytest.raises(AttributeError):
             _ = op._nonexistent
 
     def test_multiple_props(self):
-        from melvil.ui.gpu import GpuOperatorProps
+        from blammo.ui.gpu import GpuOperatorProps
 
         op = GpuOperatorProps()
         op.asset_id = "abc"
@@ -1324,33 +1324,33 @@ class TestGpuOperatorProps:
 
 class TestGpuButton:
     def test_operator_appends_button(self):
-        from melvil.ui.gpu import GpuButton
+        from blammo.ui.gpu import GpuButton
 
         panel = _make_panel()
         root = panel.begin_frame()
-        root.operator("melvil.load_asset", text="Load")
+        root.operator("blammo.load_asset", text="Load")
 
         assert len(root._children) == 1
         child = root._children[0]
         assert isinstance(child, GpuButton)
         assert child.text == "Load"
-        assert child.operator_id == "melvil.load_asset"
+        assert child.operator_id == "blammo.load_asset"
 
     def test_operator_returns_props(self):
-        from melvil.ui.gpu import GpuOperatorProps
+        from blammo.ui.gpu import GpuOperatorProps
 
         panel = _make_panel()
         root = panel.begin_frame()
-        props = root.operator("melvil.test_op", text="Test")
+        props = root.operator("blammo.test_op", text="Test")
 
         assert isinstance(props, GpuOperatorProps)
 
     def test_operator_props_stored_on_button(self):
-        from melvil.ui.gpu import GpuButton
+        from blammo.ui.gpu import GpuButton
 
         panel = _make_panel()
         root = panel.begin_frame()
-        props = root.operator("melvil.test_op", text="")
+        props = root.operator("blammo.test_op", text="")
         props.asset_id = "abc"
 
         child = root._children[0]
@@ -1361,7 +1361,7 @@ class TestGpuButton:
         panel = _make_panel()
         root = panel.begin_frame()
         root.enabled = False
-        root.operator("melvil.test_op", text="Disabled")
+        root.operator("blammo.test_op", text="Disabled")
 
         child = root._children[0]
         assert child.enabled is False
@@ -1370,17 +1370,17 @@ class TestGpuButton:
         panel = _make_panel()
         root = panel.begin_frame()
         root.alert = True
-        root.operator("melvil.test_op", text="Alert!")
+        root.operator("blammo.test_op", text="Alert!")
 
         child = root._children[0]
         assert child.alert is True
 
     def test_button_emboss_default(self):
-        from melvil.ui.gpu import GpuButton
+        from blammo.ui.gpu import GpuButton
 
         panel = _make_panel()
         root = panel.begin_frame()
-        root.operator("melvil.test_op", text="", emboss=True)
+        root.operator("blammo.test_op", text="", emboss=True)
 
         child = root._children[0]
         assert child.emboss is True
@@ -1388,7 +1388,7 @@ class TestGpuButton:
     def test_button_no_emboss(self):
         panel = _make_panel()
         root = panel.begin_frame()
-        root.operator("melvil.test_op", text="", emboss=False)
+        root.operator("blammo.test_op", text="", emboss=False)
 
         child = root._children[0]
         assert child.emboss is False
@@ -1396,27 +1396,27 @@ class TestGpuButton:
     def test_button_depress(self):
         panel = _make_panel()
         root = panel.begin_frame()
-        root.operator("melvil.test_op", text="", depress=True)
+        root.operator("blammo.test_op", text="", depress=True)
 
         child = root._children[0]
         assert child.depress is True
 
     def test_button_height_matches_widget_height(self):
-        from melvil.ui.gpu import WIDGET_HEIGHT
+        from blammo.ui.gpu import WIDGET_HEIGHT
 
         panel = _make_panel()
         root = panel.begin_frame()
-        root.operator("melvil.test_op", text="Click")
+        root.operator("blammo.test_op", text="Click")
 
         h = root._measure_height(1.0)
         assert h == pytest.approx(WIDGET_HEIGHT)
 
     def test_button_gets_rect_after_position(self):
-        from melvil.ui.gpu import PANEL_PAD
+        from blammo.ui.gpu import PANEL_PAD
 
         panel = _make_panel(width=200, anchor=(0, 200))
         root = panel.begin_frame()
-        root.operator("melvil.test_op", text="Click")
+        root.operator("blammo.test_op", text="Click")
         panel.end_frame()
 
         child = root._children[0]
@@ -1427,7 +1427,7 @@ class TestGpuButton:
     def test_icon_stored(self):
         panel = _make_panel()
         root = panel.begin_frame()
-        root.operator("melvil.test_op", text="", icon="ADD")
+        root.operator("blammo.test_op", text="", icon="ADD")
 
         child = root._children[0]
         assert child.icon == "ADD"
@@ -1447,7 +1447,7 @@ class TestGpuButtonDraw:
 
         panel = _make_panel(width=200, anchor=(0, 200))
         root = panel.begin_frame()
-        root.operator("melvil.test_op", text="Click")
+        root.operator("blammo.test_op", text="Click")
         panel.end_frame()
 
         # At minimum, the panel background + button background were drawn.
@@ -1474,20 +1474,20 @@ class TestGpuButtonDraw:
         # Now with an unembossed button (not hovered).
         bf.reset_mock()
         root3 = panel.begin_frame()
-        root3.operator("melvil.test_op", text="Click", emboss=False)
+        root3.operator("blammo.test_op", text="Click", emboss=False)
         panel.end_frame()
         assert bf.call_count == baseline  # no extra draws
 
     def test_depress_button_uses_active_bg(self):
         """Depressed button draws with widget_bg_active color."""
         import gpu as _gpu
-        from melvil.ui.gpu import get_theme
+        from blammo.ui.gpu import get_theme
 
         shader = _gpu.shader.from_builtin.return_value
 
         panel = _make_panel(width=200, anchor=(0, 200))
         root = panel.begin_frame()
-        root.operator("melvil.test_op", text="Click", depress=True)
+        root.operator("blammo.test_op", text="Click", depress=True)
         panel.end_frame()
 
         theme = get_theme()
@@ -1506,7 +1506,7 @@ class TestGpuButtonDraw:
 
         panel = _make_panel(width=200, anchor=(0, 200))
         root = panel.begin_frame()
-        root.operator("melvil.test_op", text="Click Me")
+        root.operator("blammo.test_op", text="Click Me")
         panel.end_frame()
 
         drawn_texts = [c.args[1] for c in blf.draw.call_args_list]
@@ -1520,7 +1520,7 @@ class TestGpuButtonDraw:
 
         panel = _make_panel(width=200, anchor=(0, 200))
         root = panel.begin_frame()
-        root.operator("melvil.test_op", text="")
+        root.operator("blammo.test_op", text="")
         panel.end_frame()
 
         drawn_texts = [c.args[1] for c in blf.draw.call_args_list]
@@ -1529,7 +1529,7 @@ class TestGpuButtonDraw:
     def test_disabled_button_uses_disabled_color(self):
         """Disabled button uses text_disabled color."""
         import blf
-        from melvil.ui.gpu import get_theme
+        from blammo.ui.gpu import get_theme
 
         blf.color.reset_mock()
         blf.dimensions = MagicMock(return_value=(40.0, 12.0))
@@ -1537,7 +1537,7 @@ class TestGpuButtonDraw:
         panel = _make_panel(width=200, anchor=(0, 200))
         root = panel.begin_frame()
         root.enabled = False
-        root.operator("melvil.test_op", text="Disabled")
+        root.operator("blammo.test_op", text="Disabled")
         panel.end_frame()
 
         theme = get_theme()
@@ -1547,7 +1547,7 @@ class TestGpuButtonDraw:
     def test_alert_button_uses_alert_color(self):
         """Alert button uses alert text color."""
         import blf
-        from melvil.ui.gpu import get_theme
+        from blammo.ui.gpu import get_theme
 
         blf.color.reset_mock()
         blf.dimensions = MagicMock(return_value=(40.0, 12.0))
@@ -1555,7 +1555,7 @@ class TestGpuButtonDraw:
         panel = _make_panel(width=200, anchor=(0, 200))
         root = panel.begin_frame()
         root.alert = True
-        root.operator("melvil.test_op", text="Delete")
+        root.operator("blammo.test_op", text="Delete")
         panel.end_frame()
 
         theme = get_theme()
@@ -1572,18 +1572,18 @@ class TestGpuButtonHitRect:
     def test_enabled_button_registers_hit_rect(self):
         panel = _make_panel(width=200, anchor=(0, 200))
         root = panel.begin_frame()
-        root.operator("melvil.test_op", text="Click")
+        root.operator("blammo.test_op", text="Click")
         panel.end_frame()
 
         assert len(panel._hit_rects) == 1
         hr = panel._hit_rects[0]
         assert hr.widget_type == "operator"
-        assert hr.id == "melvil.test_op"
+        assert hr.id == "blammo.test_op"
 
     def test_hit_rect_stores_operator_kwargs(self):
         panel = _make_panel(width=200, anchor=(0, 200))
         root = panel.begin_frame()
-        op = root.operator("melvil.test_op", text="Click")
+        op = root.operator("blammo.test_op", text="Click")
         op.asset_id = "abc"
         op.count = 5
         panel.end_frame()
@@ -1595,7 +1595,7 @@ class TestGpuButtonHitRect:
         panel = _make_panel(width=200, anchor=(0, 200))
         root = panel.begin_frame()
         root.enabled = False
-        root.operator("melvil.test_op", text="Disabled")
+        root.operator("blammo.test_op", text="Disabled")
         panel.end_frame()
 
         assert len(panel._hit_rects) == 0
@@ -1606,7 +1606,7 @@ class TestGpuButtonHitRect:
         root = panel.begin_frame()
         col = root.column()
         col.enabled = False
-        col.operator("melvil.test_op", text="Disabled")
+        col.operator("blammo.test_op", text="Disabled")
         panel.end_frame()
 
         assert len(panel._hit_rects) == 0
@@ -1614,18 +1614,18 @@ class TestGpuButtonHitRect:
     def test_multiple_buttons_register_multiple_rects(self):
         panel = _make_panel(width=200, anchor=(0, 200))
         root = panel.begin_frame()
-        root.operator("melvil.op_a", text="A")
-        root.operator("melvil.op_b", text="B")
+        root.operator("blammo.op_a", text="A")
+        root.operator("blammo.op_b", text="B")
         panel.end_frame()
 
         assert len(panel._hit_rects) == 2
         ids = {hr.id for hr in panel._hit_rects}
-        assert ids == {"melvil.op_a", "melvil.op_b"}
+        assert ids == {"blammo.op_a", "blammo.op_b"}
 
     def test_hit_test_finds_button(self):
         panel = _make_panel(width=200, anchor=(0, 200))
         root = panel.begin_frame()
-        root.operator("melvil.test_op", text="Click")
+        root.operator("blammo.test_op", text="Click")
         panel.end_frame()
 
         hr = panel._hit_rects[0]
@@ -1633,7 +1633,7 @@ class TestGpuButtonHitRect:
         cy = hr.rect[1] + hr.rect[3] / 2
         result = panel.hit_test(int(cx), int(cy))
         assert result is not None
-        assert result.id == "melvil.test_op"
+        assert result.id == "blammo.test_op"
 
 
 # ---------------------------------------------------------------------------
@@ -1665,26 +1665,26 @@ class TestUiContextHover:
 
 class TestGpuButtonHover:
     def setup_method(self):
-        import melvil.ui.gpu.theme as gpu_theme
-        from melvil.ui.gpu import ThemeColors
+        import blammo.ui.gpu.theme as gpu_theme
+        from blammo.ui.gpu import ThemeColors
 
         gpu_theme._theme = ThemeColors.fallback()
 
     def teardown_method(self):
-        import melvil.ui.gpu.theme as gpu_theme
+        import blammo.ui.gpu.theme as gpu_theme
 
         gpu_theme._theme = None
 
     def test_hovered_embossed_uses_hover_bg(self):
         """Button with mouse over it uses button_bg_hover color."""
         import gpu as _gpu
-        from melvil.ui.gpu import get_theme
+        from blammo.ui.gpu import get_theme
 
         shader = _gpu.shader.from_builtin.return_value
 
         panel = _make_panel(width=200, anchor=(0, 200))
         root = panel.begin_frame()
-        root.operator("melvil.test_op", text="Click")
+        root.operator("blammo.test_op", text="Click")
         # Simulate frame cycle with mouse positioned over the button.
         panel.end_frame()
 
@@ -1697,7 +1697,7 @@ class TestGpuButtonHover:
         # Redraw with hover.
         shader.uniform_float.reset_mock()
         root2 = panel.begin_frame()
-        root2.operator("melvil.test_op", text="Click")
+        root2.operator("blammo.test_op", text="Click")
         panel.end_frame()
 
         theme = get_theme()
@@ -1710,7 +1710,7 @@ class TestGpuButtonHover:
     def test_unhovered_embossed_uses_default_bg(self):
         """Button without hover uses button_bg color (not active/depress)."""
         import gpu as _gpu
-        from melvil.ui.gpu import get_theme
+        from blammo.ui.gpu import get_theme
 
         shader = _gpu.shader.from_builtin.return_value
 
@@ -1720,7 +1720,7 @@ class TestGpuButtonHover:
 
         shader.uniform_float.reset_mock()
         root = panel.begin_frame()
-        root.operator("melvil.test_op", text="Click")
+        root.operator("blammo.test_op", text="Click")
         panel.end_frame()
 
         theme = get_theme()
@@ -1739,7 +1739,7 @@ class TestGpuButtonHover:
         panel = _make_panel(width=200, anchor=(0, 200))
         # First, find the button rect.
         root = panel.begin_frame()
-        root.operator("melvil.test_op", text="Hover", emboss=False)
+        root.operator("blammo.test_op", text="Hover", emboss=False)
         panel.end_frame()
         btn = root._children[0]
         cx = btn.rect[0] + btn.rect[2] / 2
@@ -1755,7 +1755,7 @@ class TestGpuButtonHover:
 
         bf.reset_mock()
         root3 = panel.begin_frame()
-        root3.operator("melvil.test_op", text="Hover", emboss=False)
+        root3.operator("blammo.test_op", text="Hover", emboss=False)
         panel.end_frame()
         assert bf.call_count > baseline
 
@@ -1767,28 +1767,28 @@ class TestGpuButtonHover:
 
 class TestResolveTextColor:
     def test_alert_takes_priority(self):
-        from melvil.ui.gpu import GpuLabel, get_theme
+        from blammo.ui.gpu import GpuLabel, get_theme
 
         w = GpuLabel(text="X", alert=True)
         theme = get_theme()
         assert w._resolve_text_color(True, theme.text_primary) == theme.alert
 
     def test_disabled_returns_text_disabled(self):
-        from melvil.ui.gpu import GpuLabel, get_theme
+        from blammo.ui.gpu import GpuLabel, get_theme
 
         w = GpuLabel(text="X", enabled=False)
         theme = get_theme()
         assert w._resolve_text_color(True, theme.text_primary) == theme.text_disabled
 
     def test_parent_disabled_returns_text_disabled(self):
-        from melvil.ui.gpu import GpuLabel, get_theme
+        from blammo.ui.gpu import GpuLabel, get_theme
 
         w = GpuLabel(text="X", enabled=True)
         theme = get_theme()
         assert w._resolve_text_color(False, theme.text_primary) == theme.text_disabled
 
     def test_enabled_returns_default(self):
-        from melvil.ui.gpu import GpuLabel, get_theme
+        from blammo.ui.gpu import GpuLabel, get_theme
 
         w = GpuLabel(text="X")
         theme = get_theme()
@@ -1798,7 +1798,7 @@ class TestResolveTextColor:
 class TestDrawTextContent:
     def test_left_aligned(self):
         import blf
-        from melvil.ui.gpu import GpuLabel, WIDGET_PAD_X
+        from blammo.ui.gpu import GpuLabel, WIDGET_PAD_X
 
         blf.draw.reset_mock()
         blf.position.reset_mock()
@@ -1814,7 +1814,7 @@ class TestDrawTextContent:
 
     def test_center_aligned(self):
         import blf
-        from melvil.ui.gpu import GpuLabel
+        from blammo.ui.gpu import GpuLabel
 
         blf.draw.reset_mock()
         blf.position.reset_mock()
@@ -1830,7 +1830,7 @@ class TestDrawTextContent:
 
     def test_no_draw_on_empty_text(self):
         import blf
-        from melvil.ui.gpu import GpuLabel
+        from blammo.ui.gpu import GpuLabel
 
         blf.draw.reset_mock()
 
@@ -1842,7 +1842,7 @@ class TestDrawTextContent:
 
     def test_no_draw_on_none_rect(self):
         import blf
-        from melvil.ui.gpu import GpuLabel
+        from blammo.ui.gpu import GpuLabel
 
         blf.draw.reset_mock()
 
@@ -1860,22 +1860,22 @@ class TestDrawTextContent:
 
 class TestPointInRect:
     def test_inside(self):
-        from melvil.ui.gpu import point_in_rect
+        from blammo.ui.gpu import point_in_rect
 
         assert point_in_rect((50, 50), (0, 0, 100, 100)) is True
 
     def test_outside(self):
-        from melvil.ui.gpu import point_in_rect
+        from blammo.ui.gpu import point_in_rect
 
         assert point_in_rect((150, 50), (0, 0, 100, 100)) is False
 
     def test_none_pos(self):
-        from melvil.ui.gpu import point_in_rect
+        from blammo.ui.gpu import point_in_rect
 
         assert point_in_rect(None, (0, 0, 100, 100)) is False
 
     def test_on_edge(self):
-        from melvil.ui.gpu import point_in_rect
+        from blammo.ui.gpu import point_in_rect
 
         assert point_in_rect((100, 100), (0, 0, 100, 100)) is True
 
@@ -1888,7 +1888,7 @@ class TestPointInRect:
 class TestDrawTextInRect:
     def test_center_aligned(self):
         import blf
-        from melvil.ui.gpu import draw_text_in_rect
+        from blammo.ui.gpu import draw_text_in_rect
 
         blf.draw.reset_mock()
         blf.position.reset_mock()
@@ -1903,7 +1903,7 @@ class TestDrawTextInRect:
 
     def test_left_aligned(self):
         import blf
-        from melvil.ui.gpu import draw_text_in_rect, WIDGET_PAD_X
+        from blammo.ui.gpu import draw_text_in_rect, WIDGET_PAD_X
 
         blf.draw.reset_mock()
         blf.position.reset_mock()
@@ -1916,7 +1916,7 @@ class TestDrawTextInRect:
 
     def test_empty_text_no_draw(self):
         import blf
-        from melvil.ui.gpu import draw_text_in_rect
+        from blammo.ui.gpu import draw_text_in_rect
 
         blf.draw.reset_mock()
         draw_text_in_rect("", (10.0, 20.0, 200.0, 20.0), 1.0, (1, 1, 1, 1))
@@ -1938,7 +1938,7 @@ _MOCK_ENUM_ITEMS = [
 
 class TestGpuEnumButtons:
     def test_construction(self):
-        from melvil.ui.gpu import GpuEnumButtons
+        from blammo.ui.gpu import GpuEnumButtons
 
         w = GpuEnumButtons(
             items=_MOCK_ENUM_ITEMS,
@@ -1950,7 +1950,7 @@ class TestGpuEnumButtons:
         assert w.property_name == "type_filter"
 
     def test_height_matches_item_count(self):
-        from melvil.ui.gpu import GpuEnumButtons, WIDGET_HEIGHT, WIDGET_GAP_ALIGNED
+        from blammo.ui.gpu import GpuEnumButtons, WIDGET_HEIGHT, WIDGET_GAP_ALIGNED
 
         w = GpuEnumButtons(items=_MOCK_ENUM_ITEMS)
         h = w.measure_height(1.0)
@@ -1958,19 +1958,19 @@ class TestGpuEnumButtons:
         assert h == pytest.approx(expected)
 
     def test_empty_items_zero_height(self):
-        from melvil.ui.gpu import GpuEnumButtons
+        from blammo.ui.gpu import GpuEnumButtons
 
         w = GpuEnumButtons(items=[])
         assert w.measure_height(1.0) == 0.0
 
     def test_single_item_no_gap(self):
-        from melvil.ui.gpu import GpuEnumButtons, WIDGET_HEIGHT
+        from blammo.ui.gpu import GpuEnumButtons, WIDGET_HEIGHT
 
         w = GpuEnumButtons(items=[("ONLY", "Only", "", "NONE")])
         assert w.measure_height(1.0) == pytest.approx(WIDGET_HEIGHT)
 
     def test_inherits_from_gpu_widget(self):
-        from melvil.ui.gpu import GpuEnumButtons, GpuWidget
+        from blammo.ui.gpu import GpuEnumButtons, GpuWidget
 
         assert issubclass(GpuEnumButtons, GpuWidget)
 
@@ -1984,7 +1984,7 @@ class TestGpuEnumButtonsDraw:
     def test_active_item_uses_active_bg(self):
         """Active item draws with widget_bg_active background color."""
         import gpu as _gpu
-        from melvil.ui.gpu import get_theme
+        from blammo.ui.gpu import get_theme
 
         shader = _gpu.shader.from_builtin.return_value
 
@@ -2005,7 +2005,7 @@ class TestGpuEnumButtonsDraw:
     def test_inactive_item_uses_button_bg(self):
         """Non-active items draw with button_bg background color."""
         import gpu as _gpu
-        from melvil.ui.gpu import get_theme
+        from blammo.ui.gpu import get_theme
 
         shader = _gpu.shader.from_builtin.return_value
 
@@ -2045,7 +2045,7 @@ class TestGpuEnumButtonsDraw:
     def test_active_item_uses_selection_text_color(self):
         """Active item text uses selection_text for contrast."""
         import blf
-        from melvil.ui.gpu import get_theme
+        from blammo.ui.gpu import get_theme
 
         blf.color.reset_mock()
         blf.dimensions = MagicMock(return_value=(40.0, 12.0))
@@ -2062,7 +2062,7 @@ class TestGpuEnumButtonsDraw:
     def test_disabled_uses_disabled_color(self):
         """Disabled enum buttons use text_disabled for all items."""
         import blf
-        from melvil.ui.gpu import get_theme, GpuEnumButtons
+        from blammo.ui.gpu import get_theme, GpuEnumButtons
 
         blf.color.reset_mock()
         blf.dimensions = MagicMock(return_value=(40.0, 12.0))
@@ -2087,7 +2087,7 @@ class TestGpuEnumButtonsDraw:
     def test_empty_items_no_draw(self):
         """Widget with no items draws nothing extra."""
         import blf
-        from melvil.ui.gpu import GpuEnumButtons
+        from blammo.ui.gpu import GpuEnumButtons
 
         panel = _make_panel(width=200, anchor=(0, 200))
         root = panel.begin_frame()
@@ -2141,7 +2141,7 @@ class TestGpuEnumButtonsHitRect:
         assert set(values) == {"ALL", "MATERIAL", "MESH", "NODE_GROUP"}
 
     def test_disabled_registers_no_hit_rects(self):
-        from melvil.ui.gpu import GpuEnumButtons
+        from blammo.ui.gpu import GpuEnumButtons
 
         panel = _make_panel(width=200, anchor=(0, 400))
         root = panel.begin_frame()
@@ -2183,13 +2183,13 @@ class TestGpuEnumButtonsHitRect:
 
 class TestGpuEnumButtonsHover:
     def setup_method(self):
-        from melvil.ui.gpu import reset_theme, ThemeColors
+        from blammo.ui.gpu import reset_theme, ThemeColors
 
         reset_theme()
         self._orig = ThemeColors.fallback
 
     def teardown_method(self):
-        from melvil.ui.gpu import reset_theme, ThemeColors
+        from blammo.ui.gpu import reset_theme, ThemeColors
 
         ThemeColors.fallback = self._orig
         reset_theme()
@@ -2197,7 +2197,7 @@ class TestGpuEnumButtonsHover:
     def test_hovered_inactive_uses_hover_bg(self):
         """Non-active enum button under hover uses button_bg_hover."""
         import gpu as _gpu
-        from melvil.ui.gpu import get_theme
+        from blammo.ui.gpu import get_theme
 
         theme = get_theme()
         shader = _gpu.shader.from_builtin.return_value
@@ -2315,7 +2315,7 @@ def _mock_string_rna(*, textedit_update=False, current_value=""):
 
 class TestGpuLayoutProp:
     def test_enum_expand_appends_enum_buttons(self):
-        from melvil.ui.gpu import GpuEnumButtons
+        from blammo.ui.gpu import GpuEnumButtons
 
         mock_data = _mock_enum_rna(_MOCK_ENUM_ITEMS, "ALL")
 
@@ -2342,7 +2342,7 @@ class TestGpuLayoutProp:
 
     def test_enum_no_expand_creates_dropdown(self):
         """Enum without expand=True creates a dropdown trigger."""
-        from melvil.ui.gpu import GpuDropdown
+        from blammo.ui.gpu import GpuDropdown
 
         mock_data = _mock_enum_rna(_MOCK_ENUM_ITEMS)
 
@@ -2358,7 +2358,7 @@ class TestGpuLayoutProp:
 
     def test_non_enum_falls_back_to_label(self):
         """Non-enum property type falls back to label stub."""
-        from melvil.ui.gpu import GpuLabel
+        from blammo.ui.gpu import GpuLabel
 
         # Use an INT property (not STRING — STRING is now a text field).
         prop_rna = MagicMock()
@@ -2386,7 +2386,7 @@ class TestGpuLayoutProp:
 
     def test_string_creates_text_field(self):
         """STRING property creates a GpuTextField."""
-        from melvil.ui.gpu import GpuTextField
+        from blammo.ui.gpu import GpuTextField
 
         mock_data = _mock_string_rna()
 
@@ -2402,7 +2402,7 @@ class TestGpuLayoutProp:
 
     def test_string_text_field_uses_text_param(self):
         """Text field uses the text parameter as prefix."""
-        from melvil.ui.gpu import GpuTextField
+        from blammo.ui.gpu import GpuTextField
 
         mock_data = _mock_string_rna()
 
@@ -2416,7 +2416,7 @@ class TestGpuLayoutProp:
 
     def test_string_text_field_uses_rna_name_when_no_text(self):
         """Text field defaults to the RNA property name as prefix."""
-        from melvil.ui.gpu import GpuTextField
+        from blammo.ui.gpu import GpuTextField
 
         mock_data = _mock_string_rna()
 
@@ -2429,7 +2429,7 @@ class TestGpuLayoutProp:
 
     def test_string_text_field_empty_text_no_prefix(self):
         """text='' means no prefix label on the text field."""
-        from melvil.ui.gpu import GpuTextField
+        from blammo.ui.gpu import GpuTextField
 
         mock_data = _mock_string_rna()
 
@@ -2443,7 +2443,7 @@ class TestGpuLayoutProp:
 
     def test_string_text_field_inherits_textedit_update(self):
         """TEXTEDIT_UPDATE option is propagated to the widget."""
-        from melvil.ui.gpu import GpuTextField
+        from blammo.ui.gpu import GpuTextField
 
         mock_data = _mock_string_rna(textedit_update=True)
 
@@ -2457,7 +2457,7 @@ class TestGpuLayoutProp:
 
     def test_explicit_textedit_update_kwarg(self):
         """Explicit textedit_update=True overrides auto-detection."""
-        from melvil.ui.gpu import GpuTextField
+        from blammo.ui.gpu import GpuTextField
 
         # Without TEXTEDIT_UPDATE in annotations → auto-detect returns False.
         mock_data = _mock_string_rna(textedit_update=False)
@@ -2472,7 +2472,7 @@ class TestGpuLayoutProp:
 
     def test_bl_rna_missing_falls_back_to_label(self):
         """If bl_rna access fails, falls back to label gracefully."""
-        from melvil.ui.gpu import GpuLabel
+        from blammo.ui.gpu import GpuLabel
 
         bl_rna = MagicMock()
         bl_rna.properties.__getitem__.side_effect = KeyError("no")
@@ -2492,7 +2492,7 @@ class TestGpuLayoutProp:
 
     def test_inherits_enabled_false(self):
         """Enum buttons inherit enabled=False from parent layout."""
-        from melvil.ui.gpu import GpuEnumButtons
+        from blammo.ui.gpu import GpuEnumButtons
 
         mock_data = _mock_enum_rna(_MOCK_ENUM_ITEMS)
 
@@ -2507,7 +2507,7 @@ class TestGpuLayoutProp:
 
     def test_inherits_alert(self):
         """Enum buttons inherit alert from parent layout."""
-        from melvil.ui.gpu import GpuEnumButtons
+        from blammo.ui.gpu import GpuEnumButtons
 
         mock_data = _mock_enum_rna(_MOCK_ENUM_ITEMS)
 
@@ -2538,7 +2538,7 @@ class TestGpuLayoutProp:
 
 def _make_enum_widget(**overrides):
     """Return a GpuEnumButtons with sensible defaults."""
-    from melvil.ui.gpu import GpuEnumButtons
+    from blammo.ui.gpu import GpuEnumButtons
 
     defaults = {
         "items": list(_MOCK_ENUM_ITEMS),
@@ -2556,7 +2556,7 @@ def _make_enum_widget(**overrides):
 
 def _make_text_field(**overrides):
     """Return a GpuTextField with sensible defaults."""
-    from melvil.ui.gpu import GpuTextField
+    from blammo.ui.gpu import GpuTextField
 
     mock = _mock_string_rna(current_value="hello")
     defaults = {
@@ -2599,7 +2599,7 @@ class TestGpuTextField:
 
     def test_measure_height(self):
         """measure_height returns scaled WIDGET_HEIGHT."""
-        from melvil.ui.gpu.constants import WIDGET_HEIGHT, scaled
+        from blammo.ui.gpu.constants import WIDGET_HEIGHT, scaled
 
         w = _make_text_field()
         assert w.measure_height(1.0) == scaled(WIDGET_HEIGHT, 1.0)
@@ -2970,7 +2970,7 @@ class TestTextFieldClipboard:
         panel._text_edit.selection_start = None
         panel._text_edit.cursor_pos = 1
         with patch(
-            "melvil.ui.gpu.text_edit.bpy.context.window_manager"
+            "blammo.ui.gpu.text_edit.bpy.context.window_manager"
         ) as mock_wm:
             mock_wm.clipboard = "XY"
             panel._text_edit.handle_keystroke(
@@ -2987,7 +2987,7 @@ class TestTextFieldClipboard:
         panel.activate_text_field("search_query", mock)
         panel._text_edit.selection_start = None
         with patch(
-            "melvil.ui.gpu.text_edit.bpy.context.window_manager"
+            "blammo.ui.gpu.text_edit.bpy.context.window_manager"
         ) as mock_wm:
             mock_wm.clipboard = "a\nb\r\nc"
             panel._text_edit.handle_keystroke(
@@ -3130,7 +3130,7 @@ class TestDrawTextureUvRect:
     def test_default_uv_full_texture(self):
         """Without uv_rect, UVs span (0,0)→(1,1)."""
         from gpu_extras.batch import batch_for_shader
-        from melvil.ui.gpu import draw_texture
+        from blammo.ui.gpu import draw_texture
 
         batch_for_shader.reset_mock()
         draw_texture(MagicMock(), 0, 0, 64, 64)
@@ -3142,7 +3142,7 @@ class TestDrawTextureUvRect:
     def test_custom_uv_rect(self):
         """uv_rect provides sub-region UV coordinates."""
         from gpu_extras.batch import batch_for_shader
-        from melvil.ui.gpu import draw_texture
+        from blammo.ui.gpu import draw_texture
 
         batch_for_shader.reset_mock()
         draw_texture(MagicMock(), 0, 0, 32, 32, uv_rect=(0.25, 0.5, 0.75, 1.0))
@@ -3161,21 +3161,21 @@ class TestIconProvider:
 
     def test_atlas_none_in_test_env(self):
         """Atlas returns None when Blender isn't running."""
-        from melvil.ui.gpu.icons import IconProvider
+        from blammo.ui.gpu.icons import IconProvider
 
         provider = IconProvider()
         assert provider.atlas is None
 
     def test_get_icon_uv_none_when_no_atlas(self):
         """get_icon_uv returns None when atlas is not loaded."""
-        from melvil.ui.gpu.icons import IconProvider
+        from blammo.ui.gpu.icons import IconProvider
 
         provider = IconProvider()
         assert provider.get_icon_uv("MESH_DATA") is None
 
     def test_get_icon_uv_none_for_unknown_icon(self):
         """get_icon_uv returns None for an unknown icon name."""
-        from melvil.ui.gpu.icons import IconProvider
+        from blammo.ui.gpu.icons import IconProvider
 
         provider = IconProvider()
         provider._loaded = True
@@ -3188,7 +3188,7 @@ class TestIconProvider:
 
     def test_get_icon_uv_correct_coords(self):
         """get_icon_uv returns correct UV coordinates for a known icon."""
-        from melvil.ui.gpu.icons import IconProvider, ICON_PX
+        from blammo.ui.gpu.icons import IconProvider, ICON_PX
 
         provider = IconProvider()
         provider._loaded = True
@@ -3216,7 +3216,7 @@ class TestIconProvider:
 
     def test_get_icon_uv_none_if_row_out_of_bounds(self):
         """get_icon_uv returns None if the icon index exceeds atlas rows."""
-        from melvil.ui.gpu.icons import IconProvider
+        from blammo.ui.gpu.icons import IconProvider
 
         provider = IconProvider()
         provider._loaded = True
@@ -3230,7 +3230,7 @@ class TestIconProvider:
 
     def test_lazy_load_called_once(self):
         """Accessing .atlas triggers _load() exactly once."""
-        from melvil.ui.gpu.icons import IconProvider
+        from blammo.ui.gpu.icons import IconProvider
 
         provider = IconProvider()
 
@@ -3244,7 +3244,7 @@ class TestIconProvider:
 
     def test_get_icon_uv_triggers_load(self):
         """get_icon_uv triggers _load if not yet loaded."""
-        from melvil.ui.gpu.icons import IconProvider
+        from blammo.ui.gpu.icons import IconProvider
 
         provider = IconProvider()
         with patch.object(provider, "_load") as mock_load:
@@ -3259,7 +3259,7 @@ class TestIconProvider:
 
 def _make_panel_with_icons(**overrides):
     """Create a panel with a mocked icon provider."""
-    from melvil.ui.gpu.icons import IconProvider
+    from blammo.ui.gpu.icons import IconProvider
 
     panel = _make_panel(**overrides)
     provider = IconProvider()
@@ -3284,7 +3284,7 @@ class TestDrawIcon:
 
     def test_returns_zero_for_none_icon(self):
         """draw_icon('NONE', ...) returns 0."""
-        from melvil.ui.gpu import draw_icon
+        from blammo.ui.gpu import draw_icon
 
         panel = _make_panel_with_icons()
         panel.begin_frame()
@@ -3293,7 +3293,7 @@ class TestDrawIcon:
 
     def test_returns_zero_when_no_atlas(self):
         """draw_icon returns 0 when the provider has no atlas."""
-        from melvil.ui.gpu import draw_icon
+        from blammo.ui.gpu import draw_icon
 
         panel = _make_panel()
         panel.begin_frame()
@@ -3302,8 +3302,8 @@ class TestDrawIcon:
 
     def test_returns_offset_when_icon_available(self):
         """draw_icon returns nonzero offset when icon atlas is loaded."""
-        from melvil.ui.gpu import draw_icon
-        from melvil.ui.gpu.constants import ICON_SIZE, WIDGET_PAD_X, scaled
+        from blammo.ui.gpu import draw_icon
+        from blammo.ui.gpu.constants import ICON_SIZE, WIDGET_PAD_X, scaled
 
         panel = _make_panel_with_icons()
         panel.begin_frame()
@@ -3313,7 +3313,7 @@ class TestDrawIcon:
 
     def test_returns_zero_for_unknown_icon(self):
         """draw_icon returns 0 for an icon not in the map."""
-        from melvil.ui.gpu import draw_icon
+        from blammo.ui.gpu import draw_icon
 
         panel = _make_panel_with_icons()
         panel.begin_frame()
@@ -3322,11 +3322,11 @@ class TestDrawIcon:
 
     def test_calls_draw_texture(self):
         """draw_icon calls draw_texture with atlas and UV coords."""
-        from melvil.ui.gpu import draw_icon
+        from blammo.ui.gpu import draw_icon
 
         panel = _make_panel_with_icons()
         panel.begin_frame()
-        with patch("melvil.ui.gpu.widget.draw_texture") as mock_draw:
+        with patch("blammo.ui.gpu.widget.draw_texture") as mock_draw:
             draw_icon("MESH_DATA", (10, 20, 200, 26), 1.0, panel)
             assert mock_draw.call_count == 1
             call_kw = mock_draw.call_args
@@ -3343,31 +3343,31 @@ class TestLabelIcon:
 
     def test_label_renders_icon(self):
         """Label with icon calls draw_texture when atlas is available."""
-        from melvil.ui.gpu import GpuLabel
+        from blammo.ui.gpu import GpuLabel
 
         panel = _make_panel_with_icons()
         panel.begin_frame()
         label = GpuLabel(text="Hello", icon="MESH_DATA")
         label.rect = (10, 20, 200, 20)
-        with patch("melvil.ui.gpu.widget.draw_texture") as mock_draw:
+        with patch("blammo.ui.gpu.widget.draw_texture") as mock_draw:
             label.draw(1.0, True, panel)
             assert mock_draw.call_count == 1
 
     def test_label_no_icon_no_texture_call(self):
         """Label without icon does not call draw_texture."""
-        from melvil.ui.gpu import GpuLabel
+        from blammo.ui.gpu import GpuLabel
 
         panel = _make_panel_with_icons()
         panel.begin_frame()
         label = GpuLabel(text="Hello", icon="NONE")
         label.rect = (10, 20, 200, 20)
-        with patch("melvil.ui.gpu.widget.draw_texture") as mock_draw:
+        with patch("blammo.ui.gpu.widget.draw_texture") as mock_draw:
             label.draw(1.0, True, panel)
             assert mock_draw.call_count == 0
 
     def test_label_without_atlas_no_crash(self):
         """Label with icon gracefully handles missing atlas."""
-        from melvil.ui.gpu import GpuLabel
+        from blammo.ui.gpu import GpuLabel
 
         panel = _make_panel()  # No icon provider atlas.
         panel.begin_frame()
@@ -3381,25 +3381,25 @@ class TestButtonIcon:
 
     def test_button_renders_icon(self):
         """Button with icon calls draw_texture when atlas is available."""
-        from melvil.ui.gpu import GpuButton
+        from blammo.ui.gpu import GpuButton
 
         panel = _make_panel_with_icons()
         panel.begin_frame()
-        btn = GpuButton(text="Add", icon="ADD", operator_id="melvil.test")
+        btn = GpuButton(text="Add", icon="ADD", operator_id="blammo.test")
         btn.rect = (10, 20, 200, 20)
-        with patch("melvil.ui.gpu.widget.draw_texture") as mock_draw:
+        with patch("blammo.ui.gpu.widget.draw_texture") as mock_draw:
             btn.draw(1.0, True, panel)
             assert mock_draw.call_count == 1
 
     def test_button_no_icon_no_texture_call(self):
         """Button without icon does not call draw_texture."""
-        from melvil.ui.gpu import GpuButton
+        from blammo.ui.gpu import GpuButton
 
         panel = _make_panel_with_icons()
         panel.begin_frame()
-        btn = GpuButton(text="Click", icon="NONE", operator_id="melvil.test")
+        btn = GpuButton(text="Click", icon="NONE", operator_id="blammo.test")
         btn.rect = (10, 20, 200, 20)
-        with patch("melvil.ui.gpu.widget.draw_texture") as mock_draw:
+        with patch("blammo.ui.gpu.widget.draw_texture") as mock_draw:
             btn.draw(1.0, True, panel)
             assert mock_draw.call_count == 0
 
@@ -3409,13 +3409,13 @@ class TestIconOnlyButton:
 
     def test_icon_only_button_calls_draw_icon_centered(self):
         """Button with icon and no text uses draw_icon_centered."""
-        from melvil.ui.gpu import GpuButton
+        from blammo.ui.gpu import GpuButton
 
         panel = _make_panel_with_icons()
         panel.begin_frame()
-        btn = GpuButton(text="", icon="ADD", operator_id="melvil.test")
+        btn = GpuButton(text="", icon="ADD", operator_id="blammo.test")
         btn.rect = (0, 0, 40, 20)
-        with patch("melvil.ui.gpu.button.draw_icon_centered") as mock_center:
+        with patch("blammo.ui.gpu.button.draw_icon_centered") as mock_center:
             btn.draw(1.0, True, panel)
             assert mock_center.call_count == 1
             # Verify the rect passed matches the button rect.
@@ -3425,24 +3425,24 @@ class TestIconOnlyButton:
 
     def test_button_with_text_uses_left_aligned_icon(self):
         """Button with text + icon uses _draw_text_content (left-aligned)."""
-        from melvil.ui.gpu import GpuButton
+        from blammo.ui.gpu import GpuButton
 
         panel = _make_panel_with_icons()
         panel.begin_frame()
-        btn = GpuButton(text="Add", icon="ADD", operator_id="melvil.test")
+        btn = GpuButton(text="Add", icon="ADD", operator_id="blammo.test")
         btn.rect = (0, 0, 200, 20)
-        with patch("melvil.ui.gpu.button.draw_icon_centered") as mock_center:
+        with patch("blammo.ui.gpu.button.draw_icon_centered") as mock_center:
             btn.draw(1.0, True, panel)
             mock_center.assert_not_called()
 
     def test_draw_icon_centered_centres_horizontally(self):
         """draw_icon_centered places icon at horizontal centre of rect."""
-        from melvil.ui.gpu import draw_icon_centered
-        from melvil.ui.gpu.constants import ICON_SIZE, scaled
+        from blammo.ui.gpu import draw_icon_centered
+        from blammo.ui.gpu.constants import ICON_SIZE, scaled
 
         panel = _make_panel_with_icons()
         panel.begin_frame()
-        with patch("melvil.ui.gpu.widget.draw_texture") as mock_draw:
+        with patch("blammo.ui.gpu.widget.draw_texture") as mock_draw:
             draw_icon_centered("ADD", (0, 0, 40, 20), 1.0, panel)
             assert mock_draw.call_count == 1
             icon_size = scaled(ICON_SIZE, 1.0)
@@ -3454,29 +3454,29 @@ class TestIconOnlyButton:
 
     def test_disabled_icon_only_button_draws_overlay(self):
         """Disabled icon-only button draws a disabled overlay."""
-        from melvil.ui.gpu import GpuButton
+        from blammo.ui.gpu import GpuButton
 
         panel = _make_panel_with_icons()
         panel.begin_frame()
         btn = GpuButton(
-            text="", icon="ADD", operator_id="melvil.test", enabled=False,
+            text="", icon="ADD", operator_id="blammo.test", enabled=False,
         )
         btn.rect = (0, 0, 40, 20)
-        with patch("melvil.ui.gpu.button.draw_disabled_overlay") as mock_ov:
+        with patch("blammo.ui.gpu.button.draw_disabled_overlay") as mock_ov:
             btn.draw(1.0, True, panel)
             mock_ov.assert_called_once_with((0, 0, 40, 20))
 
     def test_enabled_icon_only_button_no_overlay(self):
         """Enabled icon-only button does not draw a disabled overlay."""
-        from melvil.ui.gpu import GpuButton
+        from blammo.ui.gpu import GpuButton
 
         panel = _make_panel_with_icons()
         panel.begin_frame()
         btn = GpuButton(
-            text="", icon="ADD", operator_id="melvil.test", enabled=True,
+            text="", icon="ADD", operator_id="blammo.test", enabled=True,
         )
         btn.rect = (0, 0, 40, 20)
-        with patch("melvil.ui.gpu.button.draw_disabled_overlay") as mock_ov:
+        with patch("blammo.ui.gpu.button.draw_disabled_overlay") as mock_ov:
             btn.draw(1.0, True, panel)
             mock_ov.assert_not_called()
 
@@ -3486,7 +3486,7 @@ class TestEnumButtonsIcon:
 
     def test_enum_item_renders_icon(self):
         """Enum button with item icon calls draw_icon per item."""
-        from melvil.ui.gpu import GpuEnumButtons
+        from blammo.ui.gpu import GpuEnumButtons
 
         panel = _make_panel_with_icons()
         panel.begin_frame()
@@ -3500,13 +3500,13 @@ class TestEnumButtonsIcon:
             property_name="test",
         )
         widget.rect = (10, 20, 200, 50)
-        with patch("melvil.ui.gpu.enum_buttons.draw_icon", return_value=0.0) as mock_draw:
+        with patch("blammo.ui.gpu.enum_buttons.draw_icon", return_value=0.0) as mock_draw:
             widget.draw(1.0, True, panel)
             assert mock_draw.call_count == 2
 
     def test_enum_item_none_icon_no_draw(self):
         """Enum button items with NONE icon skip draw_texture."""
-        from melvil.ui.gpu import GpuEnumButtons
+        from blammo.ui.gpu import GpuEnumButtons
 
         panel = _make_panel_with_icons()
         panel.begin_frame()
@@ -3520,7 +3520,7 @@ class TestEnumButtonsIcon:
             property_name="test",
         )
         widget.rect = (10, 20, 200, 50)
-        with patch("melvil.ui.gpu.enum_buttons.draw_icon", return_value=0.0) as mock_draw:
+        with patch("blammo.ui.gpu.enum_buttons.draw_icon", return_value=0.0) as mock_draw:
             widget.draw(1.0, True, panel)
             # draw_icon is still called but returns 0 for "NONE".
             for c in mock_draw.call_args_list:
@@ -3537,8 +3537,8 @@ class TestGpuTemplateIcon:
 
     def test_measure_height(self):
         """Height is ICON_SIZE * scale * s."""
-        from melvil.ui.gpu import GpuTemplateIcon
-        from melvil.ui.gpu.constants import ICON_SIZE, scaled
+        from blammo.ui.gpu import GpuTemplateIcon
+        from blammo.ui.gpu.constants import ICON_SIZE, scaled
 
         w = GpuTemplateIcon(icon_value=42, scale=5.0)
         assert w.measure_height(1.0) == scaled(ICON_SIZE, 1.0) * 5.0
@@ -3546,19 +3546,19 @@ class TestGpuTemplateIcon:
 
     def test_no_draw_when_icon_value_zero(self):
         """icon_value=0 produces no draw calls."""
-        from melvil.ui.gpu import GpuTemplateIcon
+        from blammo.ui.gpu import GpuTemplateIcon
 
         panel = _make_panel()
         panel.begin_frame()
         w = GpuTemplateIcon(icon_value=0, scale=5.0)
         w.rect = (10, 20, 200, 80)
-        with patch("melvil.ui.gpu.template_icon.draw_texture") as mock_draw:
+        with patch("blammo.ui.gpu.template_icon.draw_texture") as mock_draw:
             w.draw(1.0, True, panel)
             assert mock_draw.call_count == 0
 
     def test_draws_preview_texture(self):
         """Draws the preview texture when registered on the panel."""
-        from melvil.ui.gpu import GpuTemplateIcon
+        from blammo.ui.gpu import GpuTemplateIcon
 
         panel = _make_panel()
         panel.begin_frame()
@@ -3568,7 +3568,7 @@ class TestGpuTemplateIcon:
 
         w = GpuTemplateIcon(icon_value=42, scale=5.0)
         w.rect = (10, 20, 200, 80)
-        with patch("melvil.ui.gpu.template_icon.draw_texture") as mock_draw:
+        with patch("blammo.ui.gpu.template_icon.draw_texture") as mock_draw:
             w.draw(1.0, True, panel)
             assert mock_draw.call_count == 1
             call_args = mock_draw.call_args[0]
@@ -3576,19 +3576,19 @@ class TestGpuTemplateIcon:
 
     def test_no_draw_when_preview_not_registered(self):
         """No draw when icon_value is not in the preview registry."""
-        from melvil.ui.gpu import GpuTemplateIcon
+        from blammo.ui.gpu import GpuTemplateIcon
 
         panel = _make_panel()
         panel.begin_frame()
         w = GpuTemplateIcon(icon_value=99, scale=5.0)
         w.rect = (10, 20, 200, 80)
-        with patch("melvil.ui.gpu.template_icon.draw_texture") as mock_draw:
+        with patch("blammo.ui.gpu.template_icon.draw_texture") as mock_draw:
             w.draw(1.0, True, panel)
             assert mock_draw.call_count == 0
 
     def test_layout_template_icon(self):
         """layout.template_icon() appends a GpuTemplateIcon widget."""
-        from melvil.ui.gpu import GpuTemplateIcon
+        from blammo.ui.gpu import GpuTemplateIcon
 
         panel = _make_panel()
         root = panel.begin_frame()
@@ -3642,7 +3642,7 @@ class TestPanelPreviewRegistry:
 
 class TestScrollState:
     def test_default_values(self):
-        from melvil.ui.gpu import ScrollState
+        from blammo.ui.gpu import ScrollState
 
         ss = ScrollState()
         assert ss.offset == 0
@@ -3650,7 +3650,7 @@ class TestScrollState:
         assert ss.total_items == 0
 
     def test_mutable(self):
-        from melvil.ui.gpu import ScrollState
+        from blammo.ui.gpu import ScrollState
 
         ss = ScrollState()
         ss.offset = 3
@@ -3692,7 +3692,7 @@ def _make_dataptr(collection, active_index=-1):
 
 class TestGpuGridListMeasureHeight:
     def test_basic_measurement(self):
-        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT, WIDGET_GAP, LIST_BORDER_PAD
+        from blammo.ui.gpu import GpuGridList, WIDGET_HEIGHT, WIDGET_GAP, LIST_BORDER_PAD
 
         gl = GpuGridList(rows_visible=5, cell_height=WIDGET_HEIGHT)
         h = gl.measure_height(1.0)
@@ -3700,7 +3700,7 @@ class TestGpuGridListMeasureHeight:
         assert h == pytest.approx(expected)
 
     def test_scaled_measurement(self):
-        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT, WIDGET_GAP, LIST_BORDER_PAD
+        from blammo.ui.gpu import GpuGridList, WIDGET_HEIGHT, WIDGET_GAP, LIST_BORDER_PAD
 
         gl = GpuGridList(rows_visible=3, cell_height=WIDGET_HEIGHT)
         h = gl.measure_height(2.0)
@@ -3708,7 +3708,7 @@ class TestGpuGridListMeasureHeight:
         assert h == pytest.approx(expected)
 
     def test_single_row(self):
-        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT, LIST_BORDER_PAD
+        from blammo.ui.gpu import GpuGridList, WIDGET_HEIGHT, LIST_BORDER_PAD
 
         gl = GpuGridList(rows_visible=1, cell_height=WIDGET_HEIGHT)
         h = gl.measure_height(1.0)
@@ -3717,7 +3717,7 @@ class TestGpuGridListMeasureHeight:
 
 class TestGpuGridListDraw:
     def _make_grid_list(self, n_items, rows=5, cols=1, active=-1):
-        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+        from blammo.ui.gpu import GpuGridList, WIDGET_HEIGHT
 
         coll, items = _make_collection(n_items)
         dataptr, active_dp = _make_dataptr(coll, active)
@@ -3745,7 +3745,7 @@ class TestGpuGridListDraw:
         h = gl.measure_height(1.0)
         gl.rect = (0, 0, 300, h)
 
-        with patch("melvil.ui.gpu.grid_list.gpu"):
+        with patch("blammo.ui.gpu.grid_list.gpu"):
             gl.draw(1.0, True, panel)
 
         # Should register 5 hit rects (rows_visible = 5).
@@ -3759,7 +3759,7 @@ class TestGpuGridListDraw:
         h = gl.measure_height(1.0)
         gl.rect = (0, 0, 300, h)
 
-        with patch("melvil.ui.gpu.grid_list.gpu"):
+        with patch("blammo.ui.gpu.grid_list.gpu"):
             gl.draw(1.0, True, panel)
 
         list_rows = [hr for hr in panel._hit_rects if hr.widget_type == "list_row"]
@@ -3775,7 +3775,7 @@ class TestGpuGridListDraw:
         h = gl.measure_height(1.0)
         gl.rect = (0, 0, 300, h)
 
-        with patch("melvil.ui.gpu.grid_list.gpu"):
+        with patch("blammo.ui.gpu.grid_list.gpu"):
             gl.draw(1.0, True, panel)
 
         list_rows = [hr for hr in panel._hit_rects if hr.widget_type == "list_row"]
@@ -3789,14 +3789,14 @@ class TestGpuGridListDraw:
         h = gl.measure_height(1.0)
         gl.rect = (0, 0, 300, h)
 
-        with patch("melvil.ui.gpu.grid_list.gpu"):
+        with patch("blammo.ui.gpu.grid_list.gpu"):
             gl.draw(1.0, True, panel)
 
         list_rows = [hr for hr in panel._hit_rects if hr.widget_type == "list_row"]
         assert len(list_rows) == 3
 
     def test_draw_calls_draw_fn_per_visible_item(self):
-        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+        from blammo.ui.gpu import GpuGridList, WIDGET_HEIGHT
 
         coll, items = _make_collection(10)
         dataptr, active_dp = _make_dataptr(coll, 2)
@@ -3820,7 +3820,7 @@ class TestGpuGridListDraw:
         panel._list_selections["cb_test"] = 2
         gl.rect = (0, 0, 300, gl.measure_height(1.0))
 
-        with patch("melvil.ui.gpu.grid_list.gpu"):
+        with patch("blammo.ui.gpu.grid_list.gpu"):
             gl.draw(1.0, True, panel)
 
         assert len(draw_calls) == 3
@@ -3829,7 +3829,7 @@ class TestGpuGridListDraw:
         assert draw_calls[2] == ("item_2", 2, True)
 
     def test_draw_no_draw_fn_does_nothing(self):
-        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+        from blammo.ui.gpu import GpuGridList, WIDGET_HEIGHT
 
         coll, _ = _make_collection(5)
         dataptr, active_dp = _make_dataptr(coll)
@@ -3852,8 +3852,8 @@ class TestGpuGridListDraw:
         assert len(panel._hit_rects) == 0
 
     def test_draw_active_row_uses_selection_bg(self):
-        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
-        from melvil.ui.gpu.theme import get_theme
+        from blammo.ui.gpu import GpuGridList, WIDGET_HEIGHT
+        from blammo.ui.gpu.theme import get_theme
 
         coll, items = _make_collection(5)
         dataptr, active_dp = _make_dataptr(coll, active_index=1)
@@ -3877,7 +3877,7 @@ class TestGpuGridListDraw:
         gl.rect = (0, 0, 300, gl.measure_height(1.0))
 
         sel_bg = get_theme().selection_bg
-        with patch("melvil.ui.gpu.grid_list.draw_rect_rounded") as mock_rr:
+        with patch("blammo.ui.gpu.grid_list.draw_rect_rounded") as mock_rr:
             gl.draw(1.0, True, panel)
             found = any(
                 len(c.args) >= 6 and c.args[5] == sel_bg
@@ -3887,7 +3887,7 @@ class TestGpuGridListDraw:
 
     def test_draw_grid_mode_multi_column(self):
         """Grid mode with cols=2 registers correct hit rect indices."""
-        from melvil.ui.gpu import GpuGridList
+        from blammo.ui.gpu import GpuGridList
 
         coll, items = _make_collection(6)
         dataptr, active_dp = _make_dataptr(coll)
@@ -3910,7 +3910,7 @@ class TestGpuGridListDraw:
         panel.begin_frame()
         gl.rect = (0, 0, 300, gl.measure_height(1.0))
 
-        with patch("melvil.ui.gpu.grid_list.gpu"):
+        with patch("blammo.ui.gpu.grid_list.gpu"):
             gl.draw(1.0, True, panel)
 
         list_rows = [hr for hr in panel._hit_rects if hr.widget_type == "list_row"]
@@ -3925,14 +3925,14 @@ class TestGpuGridListDraw:
         panel.begin_frame()
         gl.rect = (0, 0, 300, gl.measure_height(1.0))
 
-        with patch("melvil.ui.gpu.grid_list.gpu"):
+        with patch("blammo.ui.gpu.grid_list.gpu"):
             gl.draw(1.0, True, panel)
 
         list_rows = [hr for hr in panel._hit_rects if hr.widget_type == "list_row"]
         assert all(hr.kwargs["allow_deselect"] is False for hr in list_rows)
 
     def test_hit_rects_carry_allow_deselect_true_when_set(self):
-        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+        from blammo.ui.gpu import GpuGridList, WIDGET_HEIGHT
 
         coll, items = _make_collection(3)
         dataptr, active_dp = _make_dataptr(coll)
@@ -3955,7 +3955,7 @@ class TestGpuGridListDraw:
         panel.begin_frame()
         gl.rect = (0, 0, 300, gl.measure_height(1.0))
 
-        with patch("melvil.ui.gpu.grid_list.gpu"):
+        with patch("blammo.ui.gpu.grid_list.gpu"):
             gl.draw(1.0, True, panel)
 
         list_rows = [hr for hr in panel._hit_rects if hr.widget_type == "list_row"]
@@ -3964,8 +3964,8 @@ class TestGpuGridListDraw:
 
 class TestGpuGridListHover:
     def test_hovered_row_uses_hover_bg(self):
-        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT, LIST_BORDER_PAD
-        from melvil.ui.gpu.theme import get_theme
+        from blammo.ui.gpu import GpuGridList, WIDGET_HEIGHT, LIST_BORDER_PAD
+        from blammo.ui.gpu.theme import get_theme
 
         coll, items = _make_collection(5)
         dataptr, active_dp = _make_dataptr(coll, active_index=-1)
@@ -3992,7 +3992,7 @@ class TestGpuGridListHover:
         panel._mouse_pos = (5.0, h - LIST_BORDER_PAD - 2.0)
 
         hover_bg = get_theme().list_item_bg
-        with patch("melvil.ui.gpu.grid_list.draw_rect_rounded") as mock_rr:
+        with patch("blammo.ui.gpu.grid_list.draw_rect_rounded") as mock_rr:
             gl.draw(1.0, True, panel)
             found = any(
                 len(c.args) >= 6 and c.args[5] == hover_bg
@@ -4002,7 +4002,7 @@ class TestGpuGridListHover:
 
     def test_active_row_draws_only_one_background(self):
         """Active row draws exactly one background rect — no double highlight."""
-        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT, LIST_BORDER_PAD
+        from blammo.ui.gpu import GpuGridList, WIDGET_HEIGHT, LIST_BORDER_PAD
 
         coll, items = _make_collection(5)
         dataptr, active_dp = _make_dataptr(coll, active_index=0)
@@ -4029,7 +4029,7 @@ class TestGpuGridListHover:
         # Hover over the active row.
         panel._mouse_pos = (5.0, h - LIST_BORDER_PAD - 2.0)
 
-        with patch("melvil.ui.gpu.grid_list.draw_rect_rounded") as mock_rr:
+        with patch("blammo.ui.gpu.grid_list.draw_rect_rounded") as mock_rr:
             gl.draw(1.0, True, panel)
             # Only one background rect should be drawn for the first row
             # (selection bg), not two (selection + hover).
@@ -4041,8 +4041,8 @@ class TestGpuGridListHover:
             assert len(bg_calls_for_row) == 1
 
     def test_no_hover_when_mouse_outside(self):
-        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
-        from melvil.ui.gpu.theme import get_theme
+        from blammo.ui.gpu import GpuGridList, WIDGET_HEIGHT
+        from blammo.ui.gpu.theme import get_theme
 
         coll, items = _make_collection(3)
         dataptr, active_dp = _make_dataptr(coll, active_index=-1)
@@ -4069,7 +4069,7 @@ class TestGpuGridListHover:
         panel._mouse_pos = (-999.0, -999.0)
 
         hover_bg = get_theme().list_item_bg
-        with patch("melvil.ui.gpu.grid_list.draw_rect_rounded") as mock_rr:
+        with patch("blammo.ui.gpu.grid_list.draw_rect_rounded") as mock_rr:
             gl.draw(1.0, True, panel)
             hover_calls = [
                 c for c in mock_rr.call_args_list
@@ -4080,8 +4080,8 @@ class TestGpuGridListHover:
 
 class TestGpuGridListScrollbar:
     def test_scrollbar_drawn_when_items_exceed_rows(self):
-        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
-        from melvil.ui.gpu.theme import get_theme
+        from blammo.ui.gpu import GpuGridList, WIDGET_HEIGHT
+        from blammo.ui.gpu.theme import get_theme
 
         coll, _ = _make_collection(10)
         dataptr, active_dp = _make_dataptr(coll)
@@ -4104,7 +4104,7 @@ class TestGpuGridListScrollbar:
         gl.rect = (0, 0, 300, gl.measure_height(1.0))
 
         theme = get_theme()
-        with patch("melvil.ui.gpu.grid_list.draw_rect_rounded") as mock_rr:
+        with patch("blammo.ui.gpu.grid_list.draw_rect_rounded") as mock_rr:
             gl.draw(1.0, True, panel)
             sb_calls = [
                 c for c in mock_rr.call_args_list
@@ -4114,7 +4114,7 @@ class TestGpuGridListScrollbar:
             assert len(sb_calls) >= 2
 
     def test_no_scrollbar_when_items_fit(self):
-        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+        from blammo.ui.gpu import GpuGridList, WIDGET_HEIGHT
 
         coll, _ = _make_collection(3)
         dataptr, active_dp = _make_dataptr(coll)
@@ -4136,10 +4136,10 @@ class TestGpuGridListScrollbar:
         panel.begin_frame()
         gl.rect = (0, 0, 300, gl.measure_height(1.0))
 
-        from melvil.ui.gpu.theme import get_theme
+        from blammo.ui.gpu.theme import get_theme
 
         theme = get_theme()
-        with patch("melvil.ui.gpu.grid_list.draw_rect_rounded") as mock_rr:
+        with patch("blammo.ui.gpu.grid_list.draw_rect_rounded") as mock_rr:
             gl.draw(1.0, True, panel)
             sb_calls = [
                 c for c in mock_rr.call_args_list
@@ -4150,17 +4150,17 @@ class TestGpuGridListScrollbar:
 
     def test_scrollbar_handle_proportional_height(self):
         """Handle height is proportional to visible/total ratio."""
-        from melvil.ui.gpu import GpuGridList, ScrollState, WIDGET_HEIGHT
+        from blammo.ui.gpu import GpuGridList, ScrollState, WIDGET_HEIGHT
 
         gl = GpuGridList(list_id="prop_test", rows_visible=5, cols=1)
         scroll = ScrollState(offset=0, max_visible=5, total_items=10)
         # 5/10 = 0.5 → handle should be ~50% of track height
         track_h = 200.0
         # Call _draw_scrollbar directly to check.
-        from melvil.ui.gpu.theme import get_theme
+        from blammo.ui.gpu.theme import get_theme
 
         theme = get_theme()
-        with patch("melvil.ui.gpu.grid_list.draw_rect_rounded") as mock_rr:
+        with patch("blammo.ui.gpu.grid_list.draw_rect_rounded") as mock_rr:
             gl._draw_scrollbar(0, 0, 8, track_h, scroll, 1.0, theme)
             # Second call is the handle.
             assert mock_rr.call_count == 2
@@ -4176,7 +4176,7 @@ class TestGpuGridListScrollbar:
 
 class TestGpuGridListHandleEvent:
     def _make_list_with_scroll(self, n_items=10, rows=5, offset=0):
-        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+        from blammo.ui.gpu import GpuGridList, WIDGET_HEIGHT
 
         coll, items = _make_collection(n_items)
         dataptr, active_dp = _make_dataptr(coll)
@@ -4243,7 +4243,7 @@ class TestListDrawerRegistry:
         assert panel._list_drawers["MY_UL_list"] is fn
 
     def test_template_list_calls_registered_callback(self):
-        from melvil.ui.gpu import GpuGridList
+        from blammo.ui.gpu import GpuGridList
 
         panel = _make_panel()
         calls = []
@@ -4269,7 +4269,7 @@ class TestListDrawerRegistry:
         assert isinstance(root._children[0], GpuGridList)
 
         # Run a frame to trigger draw.
-        with patch("melvil.ui.gpu.grid_list.gpu"):
+        with patch("blammo.ui.gpu.grid_list.gpu"):
             panel.end_frame()
 
         assert len(calls) == 3
@@ -4279,7 +4279,7 @@ class TestListDrawerRegistry:
 
     def test_unregistered_listtype_appends_grid_list_with_none_fn(self):
         """Unregistered listtype creates a GpuGridList with draw_fn=None."""
-        from melvil.ui.gpu import GpuGridList
+        from blammo.ui.gpu import GpuGridList
 
         panel = _make_panel()
         coll, _ = _make_collection(5)
@@ -4297,7 +4297,7 @@ class TestListDrawerRegistry:
         assert child.draw_fn is None
 
     def test_template_list_passes_allow_deselect(self):
-        from melvil.ui.gpu import GpuGridList
+        from blammo.ui.gpu import GpuGridList
 
         panel = _make_panel()
         panel.register_list_drawer("MY_UL_list", lambda *a: None)
@@ -4324,7 +4324,7 @@ class TestListDrawerRegistry:
 
 class TestScissorClipping:
     def test_scissor_enabled_during_draw(self):
-        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+        from blammo.ui.gpu import GpuGridList, WIDGET_HEIGHT
 
         coll, _ = _make_collection(10)
         dataptr, active_dp = _make_dataptr(coll)
@@ -4347,7 +4347,7 @@ class TestScissorClipping:
         gl.rect = (10, 20, 300, gl.measure_height(1.0))
 
         mock_gpu = MagicMock()
-        with patch("melvil.ui.gpu.grid_list.gpu", mock_gpu):
+        with patch("blammo.ui.gpu.grid_list.gpu", mock_gpu):
             gl.draw(1.0, True, panel)
 
         # Scissor test should have been enabled then disabled.
@@ -4357,7 +4357,7 @@ class TestScissorClipping:
         assert calls[-1] == call(False)
 
     def test_scissor_rect_matches_content_area(self):
-        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT, SCROLLBAR_WIDTH, LIST_BORDER_PAD
+        from blammo.ui.gpu import GpuGridList, WIDGET_HEIGHT, SCROLLBAR_WIDTH, LIST_BORDER_PAD
 
         coll, _ = _make_collection(10)
         dataptr, active_dp = _make_dataptr(coll)
@@ -4381,7 +4381,7 @@ class TestScissorClipping:
         gl.rect = (10, 20, 300, h)
 
         mock_gpu = MagicMock()
-        with patch("melvil.ui.gpu.grid_list.gpu", mock_gpu):
+        with patch("blammo.ui.gpu.grid_list.gpu", mock_gpu):
             gl.draw(1.0, True, panel)
 
         # Scissor rect should be the inner content area (inside border padding,
@@ -4406,7 +4406,7 @@ class TestScissorClipping:
 class TestEventBubbling:
     def test_dispatch_to_grid_list(self):
         """Scroll event dispatched to GpuGridList under cursor is consumed."""
-        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+        from blammo.ui.gpu import GpuGridList, WIDGET_HEIGHT
 
         coll, _ = _make_collection(10)
         dataptr, active_dp = _make_dataptr(coll)
@@ -4425,7 +4425,7 @@ class TestEventBubbling:
             rows=5,
         )
 
-        with patch("melvil.ui.gpu.grid_list.gpu"):
+        with patch("blammo.ui.gpu.grid_list.gpu"):
             panel.end_frame()
 
         # Grid list should have a rect after layout.
@@ -4502,7 +4502,7 @@ class TestEventBubbling:
 
 class TestWidgetHandleEvent:
     def test_default_returns_false(self):
-        from melvil.ui.gpu.widget import GpuWidget
+        from blammo.ui.gpu.widget import GpuWidget
 
         class ConcreteWidget(GpuWidget):
             def measure_height(self, s):
@@ -4523,7 +4523,7 @@ class TestWidgetHandleEvent:
 
 class TestLayoutHandleEvent:
     def test_default_returns_false(self):
-        from melvil.ui.gpu import GpuLayout
+        from blammo.ui.gpu import GpuLayout
 
         panel = _make_panel()
         layout = GpuLayout(panel)
@@ -4537,7 +4537,7 @@ class TestLayoutHandleEvent:
 
 class TestPanelScrollState:
     def test_get_creates_new_state(self):
-        from melvil.ui.gpu import ScrollState
+        from blammo.ui.gpu import ScrollState
 
         panel = _make_panel()
         ss = panel.get_scroll_state("my_list")
@@ -4577,7 +4577,7 @@ class TestPanelScrollState:
 class TestGpuIconButton:
     def test_icon_button_registers_hit_rect(self):
         """icon_button inside a list row registers an icon_button HitResult."""
-        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+        from blammo.ui.gpu import GpuGridList, WIDGET_HEIGHT
 
         coll, items = _make_collection(3)
         dataptr, active_dp = _make_dataptr(coll)
@@ -4604,7 +4604,7 @@ class TestGpuIconButton:
         h = gl.measure_height(1.0)
         gl.rect = (0, 0, 300, h)
 
-        with patch("melvil.ui.gpu.grid_list.gpu"):
+        with patch("blammo.ui.gpu.grid_list.gpu"):
             gl.draw(1.0, True, panel)
 
         icon_hits = [
@@ -4618,7 +4618,7 @@ class TestGpuIconButton:
     def test_icon_button_hidden_when_row_not_hovered_or_selected(self):
         """icon_button with show_only_on_hover does not register when row
         is neither hovered nor selected."""
-        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+        from blammo.ui.gpu import GpuGridList, WIDGET_HEIGHT
 
         coll, items = _make_collection(3)
         dataptr, active_dp = _make_dataptr(coll)
@@ -4645,7 +4645,7 @@ class TestGpuIconButton:
         h = gl.measure_height(1.0)
         gl.rect = (0, 0, 300, h)
 
-        with patch("melvil.ui.gpu.grid_list.gpu"):
+        with patch("blammo.ui.gpu.grid_list.gpu"):
             gl.draw(1.0, True, panel)
 
         icon_hits = [
@@ -4655,7 +4655,7 @@ class TestGpuIconButton:
 
     def test_icon_button_shown_on_hover(self):
         """icon_button visible when row is hovered."""
-        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT, LIST_BORDER_PAD
+        from blammo.ui.gpu import GpuGridList, WIDGET_HEIGHT, LIST_BORDER_PAD
 
         coll, items = _make_collection(3)
         dataptr, active_dp = _make_dataptr(coll)
@@ -4682,7 +4682,7 @@ class TestGpuIconButton:
         # Hover over the first row (inside padding).
         panel._mouse_pos = (5.0, h - LIST_BORDER_PAD - 2.0)
 
-        with patch("melvil.ui.gpu.grid_list.gpu"):
+        with patch("blammo.ui.gpu.grid_list.gpu"):
             gl.draw(1.0, True, panel)
 
         icon_hits = [
@@ -4693,7 +4693,7 @@ class TestGpuIconButton:
 
     def test_icon_button_hit_wins_over_list_row(self):
         """hit_test returns icon_button when mouse is over both icon and row."""
-        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+        from blammo.ui.gpu import GpuGridList, WIDGET_HEIGHT
 
         coll, items = _make_collection(3)
         dataptr, active_dp = _make_dataptr(coll)
@@ -4719,7 +4719,7 @@ class TestGpuIconButton:
         h = gl.measure_height(1.0)
         gl.rect = (0, 0, 300, h)
 
-        with patch("melvil.ui.gpu.grid_list.gpu"):
+        with patch("blammo.ui.gpu.grid_list.gpu"):
             gl.draw(1.0, True, panel)
 
         # Find the icon_button hit rect and test at its centre.
@@ -4753,7 +4753,7 @@ class TestGpuIconButton:
     def test_icon_button_always_visible_when_show_only_on_hover_false(self):
         """icon_button with show_only_on_hover=False registers even when
         row is not hovered or selected."""
-        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+        from blammo.ui.gpu import GpuGridList, WIDGET_HEIGHT
 
         coll, items = _make_collection(3)
         dataptr, active_dp = _make_dataptr(coll)
@@ -4782,7 +4782,7 @@ class TestGpuIconButton:
         h = gl.measure_height(1.0)
         gl.rect = (0, 0, 300, h)
 
-        with patch("melvil.ui.gpu.grid_list.gpu"):
+        with patch("blammo.ui.gpu.grid_list.gpu"):
             gl.draw(1.0, True, panel)
 
         icon_hits = [
@@ -4793,7 +4793,7 @@ class TestGpuIconButton:
 
     def test_ghost_style_skips_hover_background(self):
         """icon_button with style='GHOST' does not draw hover background."""
-        from melvil.ui.gpu import GpuGridList, WIDGET_HEIGHT
+        from blammo.ui.gpu import GpuGridList, WIDGET_HEIGHT
 
         coll, items = _make_collection(3)
         dataptr, active_dp = _make_dataptr(coll)
@@ -4822,7 +4822,7 @@ class TestGpuIconButton:
         h = gl.measure_height(1.0)
         gl.rect = (0, 0, 300, h)
 
-        with patch("melvil.ui.gpu.grid_list.gpu"):
+        with patch("blammo.ui.gpu.grid_list.gpu"):
             gl.draw(1.0, True, panel)
 
         # Place mouse over the icon_button hit rect.
@@ -4838,8 +4838,8 @@ class TestGpuIconButton:
         panel.begin_frame()
         panel._list_selections["ib_ghost"] = 0
         panel._mouse_pos = (ix + iw / 2, iy + ih / 2)
-        with patch("melvil.ui.gpu.grid_list.gpu"), \
-             patch("melvil.ui.gpu.icon_button.draw_rect_rounded") as mock_rr:
+        with patch("blammo.ui.gpu.grid_list.gpu"), \
+             patch("blammo.ui.gpu.icon_button.draw_rect_rounded") as mock_rr:
             gl.draw(1.0, True, panel)
         mock_rr.assert_not_called()
 
@@ -4858,7 +4858,7 @@ _MOCK_DROPDOWN_ITEMS = [
 
 class TestGpuDropdown:
     def test_construction(self):
-        from melvil.ui.gpu import GpuDropdown
+        from blammo.ui.gpu import GpuDropdown
 
         d = GpuDropdown(
             text="Color",
@@ -4871,24 +4871,24 @@ class TestGpuDropdown:
         assert d.mode == "prop"
 
     def test_inherits_gpu_widget(self):
-        from melvil.ui.gpu import GpuDropdown, GpuWidget
+        from blammo.ui.gpu import GpuDropdown, GpuWidget
 
         assert issubclass(GpuDropdown, GpuWidget)
 
     def test_height_matches_widget_height(self):
-        from melvil.ui.gpu import GpuDropdown, WIDGET_HEIGHT
+        from blammo.ui.gpu import GpuDropdown, WIDGET_HEIGHT
 
         d = GpuDropdown(items=_MOCK_DROPDOWN_ITEMS)
         assert d.measure_height(1.0) == pytest.approx(WIDGET_HEIGHT)
 
     def test_display_text_from_text_field(self):
-        from melvil.ui.gpu import GpuDropdown
+        from blammo.ui.gpu import GpuDropdown
 
         d = GpuDropdown(text="Choose Color", items=_MOCK_DROPDOWN_ITEMS)
         assert d._display_text() == "Choose Color"
 
     def test_display_text_from_prop_value(self):
-        from melvil.ui.gpu import GpuDropdown
+        from blammo.ui.gpu import GpuDropdown
 
         data = MagicMock()
         data.color = "GREEN"
@@ -4901,7 +4901,7 @@ class TestGpuDropdown:
         assert d._display_text() == "Green"
 
     def test_display_text_unknown_value(self):
-        from melvil.ui.gpu import GpuDropdown
+        from blammo.ui.gpu import GpuDropdown
 
         data = MagicMock()
         data.color = "YELLOW"
@@ -4922,7 +4922,7 @@ class TestGpuDropdown:
 
 class TestGpuDropdownDraw:
     def test_draw_registers_hit_rect(self):
-        from melvil.ui.gpu import GpuDropdown
+        from blammo.ui.gpu import GpuDropdown
 
         panel = _make_panel(width=200, anchor=(0, 200))
         root = panel.begin_frame()
@@ -4939,7 +4939,7 @@ class TestGpuDropdownDraw:
         assert hits[0].id == "test.dd"
 
     def test_draw_hit_rect_carries_items(self):
-        from melvil.ui.gpu import GpuDropdown
+        from blammo.ui.gpu import GpuDropdown
 
         panel = _make_panel(width=200, anchor=(0, 200))
         root = panel.begin_frame()
@@ -4947,7 +4947,7 @@ class TestGpuDropdownDraw:
             dropdown_id="test.dd",
             items=_MOCK_DROPDOWN_ITEMS,
             mode="operator",
-            operator_id="melvil.set_color",
+            operator_id="blammo.set_color",
         )
         root._children.append(d)
         panel.end_frame()
@@ -4955,10 +4955,10 @@ class TestGpuDropdownDraw:
         hit = [hr for hr in panel._hit_rects if hr.widget_type == "dropdown"][0]
         assert hit.kwargs["items"] == _MOCK_DROPDOWN_ITEMS
         assert hit.kwargs["mode"] == "operator"
-        assert hit.kwargs["operator_id"] == "melvil.set_color"
+        assert hit.kwargs["operator_id"] == "blammo.set_color"
 
     def test_disabled_no_hit_rect(self):
-        from melvil.ui.gpu import GpuDropdown
+        from blammo.ui.gpu import GpuDropdown
 
         panel = _make_panel(width=200, anchor=(0, 200))
         root = panel.begin_frame()
@@ -4976,7 +4976,7 @@ class TestGpuDropdownDraw:
     def test_button_text_drawn(self):
         """Trigger button text is drawn via blf."""
         import blf
-        from melvil.ui.gpu import GpuDropdown
+        from blammo.ui.gpu import GpuDropdown
 
         blf.draw.reset_mock()
         blf.dimensions = MagicMock(return_value=(40.0, 12.0))
@@ -5002,7 +5002,7 @@ class TestGpuDropdownDraw:
 
 class TestDropdownState:
     def test_compute_rect_below_anchor(self):
-        from melvil.ui.gpu import DropdownState
+        from blammo.ui.gpu import DropdownState
 
         state = DropdownState(
             items=_MOCK_DROPDOWN_ITEMS,
@@ -5015,7 +5015,7 @@ class TestDropdownState:
         assert rect[1] + rect[3] == pytest.approx(200.0)  # top edge == anchor bottom
 
     def test_item_rects_populated_after_draw(self):
-        from melvil.ui.gpu import DropdownState
+        from blammo.ui.gpu import DropdownState
 
         state = DropdownState(
             items=_MOCK_DROPDOWN_ITEMS,
@@ -5030,7 +5030,7 @@ class TestDropdownState:
         assert len(state.item_rects) == 3
 
     def test_hit_test_returns_correct_index(self):
-        from melvil.ui.gpu import DropdownState
+        from blammo.ui.gpu import DropdownState
 
         state = DropdownState(
             items=_MOCK_DROPDOWN_ITEMS,
@@ -5051,7 +5051,7 @@ class TestDropdownState:
         assert state.hit_test(lx + lw / 2, ly + lh / 2) == 2
 
     def test_hit_test_outside_returns_negative(self):
-        from melvil.ui.gpu import DropdownState
+        from blammo.ui.gpu import DropdownState
 
         state = DropdownState(
             items=_MOCK_DROPDOWN_ITEMS,
@@ -5066,7 +5066,7 @@ class TestDropdownState:
         assert state.hit_test(-100, -100) == -1
 
     def test_is_inside(self):
-        from melvil.ui.gpu import DropdownState
+        from blammo.ui.gpu import DropdownState
 
         state = DropdownState(
             items=_MOCK_DROPDOWN_ITEMS,
@@ -5081,7 +5081,7 @@ class TestDropdownState:
         assert state.is_inside(-100, -100) is False
 
     def test_is_inside_none_rect(self):
-        from melvil.ui.gpu import DropdownState
+        from blammo.ui.gpu import DropdownState
 
         state = DropdownState(
             items=_MOCK_DROPDOWN_ITEMS,
@@ -5092,7 +5092,7 @@ class TestDropdownState:
 
     def test_apply_selection_prop_mode(self):
         """apply_selection sets the property on data in prop mode."""
-        from melvil.ui.gpu import DropdownState
+        from blammo.ui.gpu import DropdownState
 
         data = MagicMock()
         state = DropdownState(
@@ -5107,7 +5107,7 @@ class TestDropdownState:
 
     def test_apply_selection_out_of_range_ignored(self):
         """apply_selection silently ignores out-of-range indices."""
-        from melvil.ui.gpu import DropdownState
+        from blammo.ui.gpu import DropdownState
 
         data = MagicMock(spec=[])
         state = DropdownState(
@@ -5123,19 +5123,19 @@ class TestDropdownState:
 
     def test_apply_selection_operator_mode(self):
         """apply_selection invokes the operator in operator mode."""
-        from melvil.ui.gpu import DropdownState
+        from blammo.ui.gpu import DropdownState
 
         state = DropdownState(
             items=_MOCK_DROPDOWN_ITEMS,
             anchor_rect=(0.0, 200.0, 200.0, 30.0),
             mode="operator",
-            operator_id="melvil.load_asset",
+            operator_id="blammo.load_asset",
             operator_props={"extra": "val"},
             property_name="color",
         )
         mock_ns = MagicMock()
         with patch("bpy.ops", create=True) as mock_ops:
-            mock_ops.melvil = mock_ns
+            mock_ops.blammo = mock_ns
             state.apply_selection(0)
         mock_ns.load_asset.assert_called_once_with(
             "INVOKE_DEFAULT", extra="val", color="RED",
@@ -5143,8 +5143,8 @@ class TestDropdownState:
 
     def test_from_hit_prop_mode(self):
         """from_hit creates a correctly populated state from a HitResult."""
-        from melvil.ui.gpu import DropdownState
-        from melvil.ui.gpu.ui_context import HitResult
+        from blammo.ui.gpu import DropdownState
+        from blammo.ui.gpu.ui_context import HitResult
 
         hit = HitResult(
             widget_type="dropdown",
@@ -5168,8 +5168,8 @@ class TestDropdownState:
 
     def test_from_hit_defaults(self):
         """from_hit handles minimal kwargs with sensible defaults."""
-        from melvil.ui.gpu import DropdownState
-        from melvil.ui.gpu.ui_context import HitResult
+        from blammo.ui.gpu import DropdownState
+        from blammo.ui.gpu.ui_context import HitResult
 
         hit = HitResult(
             widget_type="dropdown",
@@ -5194,7 +5194,7 @@ class TestPanelDropdown:
         assert panel.active_dropdown is None
 
     def test_open_and_close(self):
-        from melvil.ui.gpu import DropdownState
+        from blammo.ui.gpu import DropdownState
 
         panel = _make_panel()
         state = DropdownState(
@@ -5208,7 +5208,7 @@ class TestPanelDropdown:
         assert panel.active_dropdown is None
 
     def test_detach_clears_dropdown(self):
-        from melvil.ui.gpu import DropdownState
+        from blammo.ui.gpu import DropdownState
 
         panel = _make_panel()
         state = DropdownState(
@@ -5221,7 +5221,7 @@ class TestPanelDropdown:
 
     def test_overlay_drawn_in_end_frame(self):
         """Dropdown overlay draw is called during end_frame."""
-        from melvil.ui.gpu import DropdownState
+        from blammo.ui.gpu import DropdownState
 
         panel = _make_panel(width=200, anchor=(0, 200))
         root = panel.begin_frame()
@@ -5246,7 +5246,7 @@ class TestPanelDropdown:
 
 class TestPropExpandFalse:
     def test_enum_expand_false_creates_dropdown(self):
-        from melvil.ui.gpu import GpuDropdown
+        from blammo.ui.gpu import GpuDropdown
 
         mock_data = _mock_enum_rna(_MOCK_ENUM_ITEMS, current_value="ALL")
 
@@ -5268,18 +5268,18 @@ class TestPropExpandFalse:
 
 class TestOperatorMenuEnum:
     def test_appends_dropdown(self):
-        from melvil.ui.gpu import GpuDropdown
+        from blammo.ui.gpu import GpuDropdown
 
         panel = _make_panel(width=200, anchor=(0, 200))
         root = panel.begin_frame()
         root.operator_menu_enum(
-            "melvil.set_kit", "kit", text="Assign Kit", icon="ADD",
+            "blammo.set_kit", "kit", text="Assign Kit", icon="ADD",
         )
 
         children = [c for c in root._children if isinstance(c, GpuDropdown)]
         assert len(children) == 1
         assert children[0].mode == "operator"
-        assert children[0].operator_id == "melvil.set_kit"
+        assert children[0].operator_id == "blammo.set_kit"
         assert children[0].text == "Assign Kit"
         assert children[0].icon == "ADD"
 
@@ -5291,7 +5291,7 @@ class TestOperatorMenuEnum:
 
 class TestEventResult:
     def test_defaults(self):
-        from melvil.ui.gpu import EventResult
+        from blammo.ui.gpu import EventResult
 
         r = EventResult()
         assert r.consumed is False
@@ -5299,14 +5299,14 @@ class TestEventResult:
         assert r.redraw is False
 
     def test_consumed(self):
-        from melvil.ui.gpu import EventResult
+        from blammo.ui.gpu import EventResult
 
         r = EventResult(consumed=True)
         assert r.consumed is True
         assert r.cancelled is False
 
     def test_cancelled(self):
-        from melvil.ui.gpu import EventResult
+        from blammo.ui.gpu import EventResult
 
         r = EventResult(cancelled=True, redraw=True)
         assert r.cancelled is True
@@ -5320,7 +5320,7 @@ class TestEventResult:
 
 class TestHandleEventDropdown:
     def _make_panel_with_dropdown(self):
-        from melvil.ui.gpu.dropdown import DropdownState
+        from blammo.ui.gpu.dropdown import DropdownState
 
         panel = _make_panel()
         dd = MagicMock(spec=DropdownState)
@@ -5518,7 +5518,7 @@ class TestHandleEventNormal:
         assert result.cancelled is True
 
     def test_lmb_text_field_activates(self):
-        from melvil.ui.gpu import HitResult
+        from blammo.ui.gpu import HitResult
 
         panel = _make_panel()
         data = MagicMock()
@@ -5540,13 +5540,13 @@ class TestHandleEventNormal:
         assert result.redraw is True
 
     def test_lmb_operator_invokes(self):
-        from melvil.ui.gpu import HitResult
+        from blammo.ui.gpu import HitResult
 
         panel = _make_panel()
         panel._panel_rect = (0, 0, 300, 200)
         panel._hit_rects.append(HitResult(
             widget_type="operator",
-            id="melvil.save",
+            id="blammo.save",
             kwargs={},
             rect=(10, 10, 100, 20),
         ))
@@ -5559,7 +5559,7 @@ class TestHandleEventNormal:
         assert result.consumed is True
 
     def test_lmb_dropdown_opens(self):
-        from melvil.ui.gpu import HitResult
+        from blammo.ui.gpu import HitResult
 
         panel = _make_panel()
         panel._panel_rect = (0, 0, 300, 200)
@@ -5583,7 +5583,7 @@ class TestHandleEventNormal:
         assert result.redraw is True
 
     def test_lmb_prop_sets_value(self):
-        from melvil.ui.gpu import HitResult
+        from blammo.ui.gpu import HitResult
 
         panel = _make_panel()
         data = MagicMock()
@@ -5603,7 +5603,7 @@ class TestHandleEventNormal:
         assert result.consumed is True
 
     def test_lmb_list_row_sets_index(self):
-        from melvil.ui.gpu import HitResult
+        from blammo.ui.gpu import HitResult
 
         panel = _make_panel()
         data = MagicMock()
@@ -5630,7 +5630,7 @@ class TestHandleEventNormal:
         assert result.redraw is True
 
     def test_lmb_list_row_deselect_toggle(self):
-        from melvil.ui.gpu import HitResult
+        from blammo.ui.gpu import HitResult
 
         panel = _make_panel()
         data = MagicMock()
@@ -5664,7 +5664,7 @@ class TestHandleEventNormal:
 
 class TestRegisterWidgetHandler:
     def test_custom_handler_called(self):
-        from melvil.ui.gpu import HitResult, EventResult
+        from blammo.ui.gpu import HitResult, EventResult
 
         panel = _make_panel()
         panel._panel_rect = (0, 0, 300, 200)
@@ -5687,7 +5687,7 @@ class TestRegisterWidgetHandler:
         assert result.redraw is True
 
     def test_unregistered_widget_type_consumed(self):
-        from melvil.ui.gpu import HitResult
+        from blammo.ui.gpu import HitResult
 
         panel = _make_panel()
         panel._panel_rect = (0, 0, 300, 200)

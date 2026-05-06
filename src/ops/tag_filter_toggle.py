@@ -1,7 +1,7 @@
-"""MELVIL_OT_tag_filter_toggle — toggle a tag's active state in the browser filter.
+"""BLAMMO_OT_tag_filter_toggle — toggle a tag's active state in the browser filter.
 
 Active tag filters are stored as a comma-separated list of tag UUIDs on
-``bpy.types.WindowManager.melvil_active_tag_filters``.  This property is
+``bpy.types.WindowManager.blammo_active_tag_filters``.  This property is
 non-persistent (registered dynamically, not saved in the .blend file).
 
 When one or more tags are active the browser shows only assets that have
@@ -16,19 +16,19 @@ from bpy.props import StringProperty
 
 def get_active_tag_filters(wm) -> list[str]:
     """Return the list of currently active tag filter UUIDs."""
-    raw = getattr(wm, "melvil_active_tag_filters", "")
+    raw = getattr(wm, "blammo_active_tag_filters", "")
     return [t for t in raw.split(",") if t]
 
 
 def set_active_tag_filters(wm, filters: list[str]) -> None:
     """Persist *filters* (list of UUIDs) back onto the window manager."""
-    wm.melvil_active_tag_filters = ",".join(filters)
+    wm.blammo_active_tag_filters = ",".join(filters)
 
 
-class MELVIL_OT_tag_filter_toggle(bpy.types.Operator):
-    """Toggle a tag as an active filter in the Melvil browser"""
+class BLAMMO_OT_tag_filter_toggle(bpy.types.Operator):
+    """Toggle a tag as an active filter in the Blammo browser"""
 
-    bl_idname = "melvil.tag_filter_toggle"
+    bl_idname = "blammo.tag_filter_toggle"
     bl_label = "Toggle Tag Filter"
     bl_options = {"REGISTER"}
 
@@ -46,7 +46,7 @@ class MELVIL_OT_tag_filter_toggle(bpy.types.Operator):
     def execute(self, context):
         tag_id = self.tag_id.strip()
         if not tag_id:
-            self.report({"ERROR"}, "Melvil: no tag ID provided.")
+            self.report({"ERROR"}, "Blammo!: no tag ID provided.")
             return {"CANCELLED"}
 
         wm = context.window_manager

@@ -10,7 +10,7 @@ import pytest
 @pytest.fixture(autouse=True)
 def reset_collection():
     """Ensure _collection is reset to None before and after each test."""
-    import melvil.ui.previews_collection as pc
+    import blammo.ui.previews_collection as pc
 
     pc._collection = None
     yield
@@ -23,7 +23,7 @@ def reset_collection():
 
 
 def test_register_creates_collection():
-    import melvil.ui.previews_collection as pc
+    import blammo.ui.previews_collection as pc
 
     mock_col = MagicMock()
     mock_bpy = MagicMock()
@@ -38,7 +38,7 @@ def test_register_creates_collection():
 
 def test_register_replaces_existing_collection():
     """Calling register() again overwrites the previous collection reference."""
-    import melvil.ui.previews_collection as pc
+    import blammo.ui.previews_collection as pc
 
     first_col = MagicMock()
     second_col = MagicMock()
@@ -58,7 +58,7 @@ def test_register_replaces_existing_collection():
 
 
 def test_unregister_removes_collection():
-    import melvil.ui.previews_collection as pc
+    import blammo.ui.previews_collection as pc
 
     mock_col = MagicMock()
     pc._collection = mock_col
@@ -73,7 +73,7 @@ def test_unregister_removes_collection():
 
 def test_unregister_when_collection_is_none():
     """unregister() should be a no-op when _collection is already None."""
-    import melvil.ui.previews_collection as pc
+    import blammo.ui.previews_collection as pc
 
     mock_bpy = MagicMock()
 
@@ -89,7 +89,7 @@ def test_unregister_when_collection_is_none():
 
 
 def test_get_icon_id_returns_none_when_collection_is_none(tmp_path):
-    import melvil.ui.previews_collection as pc
+    import blammo.ui.previews_collection as pc
 
     preview = tmp_path / "abc.png"
     preview.write_bytes(b"")
@@ -100,7 +100,7 @@ def test_get_icon_id_returns_none_when_collection_is_none(tmp_path):
 
 
 def test_get_icon_id_returns_none_when_path_is_none():
-    import melvil.ui.previews_collection as pc
+    import blammo.ui.previews_collection as pc
 
     pc._collection = MagicMock()
 
@@ -110,7 +110,7 @@ def test_get_icon_id_returns_none_when_path_is_none():
 
 
 def test_get_icon_id_returns_none_when_file_missing():
-    import melvil.ui.previews_collection as pc
+    import blammo.ui.previews_collection as pc
 
     pc._collection = MagicMock()
 
@@ -120,7 +120,7 @@ def test_get_icon_id_returns_none_when_file_missing():
 
 
 def test_get_icon_id_loads_on_first_access(tmp_path):
-    import melvil.ui.previews_collection as pc
+    import blammo.ui.previews_collection as pc
 
     preview = tmp_path / "abc.png"
     preview.write_bytes(b"")
@@ -137,7 +137,7 @@ def test_get_icon_id_loads_on_first_access(tmp_path):
 
 
 def test_get_icon_id_uses_cache_on_second_access(tmp_path):
-    import melvil.ui.previews_collection as pc
+    import blammo.ui.previews_collection as pc
 
     preview = tmp_path / "abc.png"
     preview.write_bytes(b"")
@@ -154,7 +154,7 @@ def test_get_icon_id_uses_cache_on_second_access(tmp_path):
 
 
 def test_get_icon_id_returns_icon_id_integer(tmp_path):
-    import melvil.ui.previews_collection as pc
+    import blammo.ui.previews_collection as pc
 
     preview = tmp_path / "xyz.png"
     preview.write_bytes(b"")
@@ -177,7 +177,7 @@ def test_get_icon_id_returns_icon_id_integer(tmp_path):
 
 
 def test_get_placeholder_icon_id_returns_none_when_collection_is_none():
-    import melvil.ui.previews_collection as pc
+    import blammo.ui.previews_collection as pc
 
     result = pc.get_placeholder_icon_id("MESH")
 
@@ -185,7 +185,7 @@ def test_get_placeholder_icon_id_returns_none_when_collection_is_none():
 
 
 def test_get_placeholder_icon_id_returns_none_for_unknown_type():
-    import melvil.ui.previews_collection as pc
+    import blammo.ui.previews_collection as pc
 
     pc._collection = MagicMock()
 
@@ -195,18 +195,18 @@ def test_get_placeholder_icon_id_returns_none_for_unknown_type():
 
 
 def test_get_placeholder_icon_id_returns_none_when_file_missing():
-    import melvil.ui.previews_collection as pc
+    import blammo.ui.previews_collection as pc
 
     pc._collection = MagicMock()
 
-    with patch("melvil.ui.previews_collection._RESOURCES_DIR", __import__("pathlib").Path("/nonexistent")):
+    with patch("blammo.ui.previews_collection._RESOURCES_DIR", __import__("pathlib").Path("/nonexistent")):
         result = pc.get_placeholder_icon_id("MESH")
 
     assert result is None
 
 
 def test_get_placeholder_icon_id_loads_from_resources(tmp_path):
-    import melvil.ui.previews_collection as pc
+    import blammo.ui.previews_collection as pc
 
     img = tmp_path / "placeholder_mesh.png"
     img.write_bytes(b"")
@@ -216,7 +216,7 @@ def test_get_placeholder_icon_id_loads_from_resources(tmp_path):
     mock_col.__getitem__ = MagicMock(return_value=MagicMock(icon_id=77))
     pc._collection = mock_col
 
-    with patch("melvil.ui.previews_collection._RESOURCES_DIR", tmp_path):
+    with patch("blammo.ui.previews_collection._RESOURCES_DIR", tmp_path):
         result = pc.get_placeholder_icon_id("MESH")
 
     mock_col.load.assert_called_once_with("PLACEHOLDER_MESH", str(img), "IMAGE")
@@ -224,7 +224,7 @@ def test_get_placeholder_icon_id_loads_from_resources(tmp_path):
 
 
 def test_get_placeholder_icon_id_uses_cache(tmp_path):
-    import melvil.ui.previews_collection as pc
+    import blammo.ui.previews_collection as pc
 
     img = tmp_path / "placeholder_material.png"
     img.write_bytes(b"")
@@ -234,7 +234,7 @@ def test_get_placeholder_icon_id_uses_cache(tmp_path):
     mock_col.__getitem__ = MagicMock(return_value=MagicMock(icon_id=88))
     pc._collection = mock_col
 
-    with patch("melvil.ui.previews_collection._RESOURCES_DIR", tmp_path):
+    with patch("blammo.ui.previews_collection._RESOURCES_DIR", tmp_path):
         result = pc.get_placeholder_icon_id("MATERIAL")
 
     mock_col.load.assert_not_called()
@@ -243,7 +243,7 @@ def test_get_placeholder_icon_id_uses_cache(tmp_path):
 
 def test_get_placeholder_icon_id_covers_all_asset_types(tmp_path):
     """All three known asset types must resolve to a placeholder file."""
-    import melvil.ui.previews_collection as pc
+    import blammo.ui.previews_collection as pc
 
     for asset_type in ("MATERIAL", "MESH", "NODE_GROUP"):
         filename = pc._PLACEHOLDER_FILENAMES[asset_type]
@@ -254,7 +254,7 @@ def test_get_placeholder_icon_id_covers_all_asset_types(tmp_path):
     mock_col.__getitem__ = MagicMock(return_value=MagicMock(icon_id=1))
     pc._collection = mock_col
 
-    with patch("melvil.ui.previews_collection._RESOURCES_DIR", tmp_path):
+    with patch("blammo.ui.previews_collection._RESOURCES_DIR", tmp_path):
         for asset_type in ("MATERIAL", "MESH", "NODE_GROUP"):
             assert pc.get_placeholder_icon_id(asset_type) is not None
 

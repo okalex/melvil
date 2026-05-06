@@ -1,4 +1,4 @@
-"""Tests for ops/add_node_group.py — MELVIL_OT_add_node_group."""
+"""Tests for ops/add_node_group.py — BLAMMO_OT_add_node_group."""
 
 from __future__ import annotations
 
@@ -68,24 +68,24 @@ def _mock_open_db(ng_mock):
 
 class TestPoll:
     def test_poll_true_in_node_editor_with_node_tree(self):
-        from melvil.ops.add_node_group import MELVIL_OT_add_node_group
-        assert MELVIL_OT_add_node_group.poll(_make_context()) is True
+        from blammo.ops.add_node_group import BLAMMO_OT_add_node_group
+        assert BLAMMO_OT_add_node_group.poll(_make_context()) is True
 
     def test_poll_false_outside_node_editor(self):
-        from melvil.ops.add_node_group import MELVIL_OT_add_node_group
-        assert MELVIL_OT_add_node_group.poll(_make_context(area_type="VIEW_3D")) is False
+        from blammo.ops.add_node_group import BLAMMO_OT_add_node_group
+        assert BLAMMO_OT_add_node_group.poll(_make_context(area_type="VIEW_3D")) is False
 
     def test_poll_false_when_no_node_tree(self):
-        from melvil.ops.add_node_group import MELVIL_OT_add_node_group
+        from blammo.ops.add_node_group import BLAMMO_OT_add_node_group
         ctx = _make_context()
         ctx.space_data.node_tree = None
-        assert MELVIL_OT_add_node_group.poll(ctx) is False
+        assert BLAMMO_OT_add_node_group.poll(ctx) is False
 
     def test_poll_false_when_no_space_data(self):
-        from melvil.ops.add_node_group import MELVIL_OT_add_node_group
+        from blammo.ops.add_node_group import BLAMMO_OT_add_node_group
         ctx = _make_context()
         ctx.space_data = None
-        assert MELVIL_OT_add_node_group.poll(ctx) is False
+        assert BLAMMO_OT_add_node_group.poll(ctx) is False
 
 
 # ---------------------------------------------------------------------------
@@ -95,8 +95,8 @@ class TestPoll:
 
 class TestInvoke:
     def _make_op(self, asset_id: str = "aaaaaaaa-0000-4000-8000-000000000001"):
-        from melvil.ops.add_node_group import MELVIL_OT_add_node_group
-        op = MELVIL_OT_add_node_group()
+        from blammo.ops.add_node_group import BLAMMO_OT_add_node_group
+        op = BLAMMO_OT_add_node_group()
         op.asset_id = asset_id
         return op
 
@@ -112,10 +112,10 @@ class TestInvoke:
         ctx = _make_context()
         op = self._make_op()
 
-        with patch("melvil.ops.add_node_group.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.add_node_group.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.add_node_group.open_db") as mock_db, \
-             patch("melvil.ops.add_node_group.AssetReader") as MockReader:
+        with patch("blammo.ops.add_node_group.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.add_node_group.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.add_node_group.open_db") as mock_db, \
+             patch("blammo.ops.add_node_group.AssetReader") as MockReader:
             mock_db.return_value.__enter__ = lambda s: MagicMock()
             mock_db.return_value.__exit__ = MagicMock(return_value=False)
             MockReader.return_value.read.return_value = ng
@@ -131,10 +131,10 @@ class TestInvoke:
         ctx = _make_context(tree_type="SHADER")
         op = self._make_op()
 
-        with patch("melvil.ops.add_node_group.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.add_node_group.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.add_node_group.open_db") as mock_db, \
-             patch("melvil.ops.add_node_group.AssetReader") as MockReader:
+        with patch("blammo.ops.add_node_group.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.add_node_group.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.add_node_group.open_db") as mock_db, \
+             patch("blammo.ops.add_node_group.AssetReader") as MockReader:
             mock_db.return_value.__enter__ = lambda s: MagicMock()
             mock_db.return_value.__exit__ = MagicMock(return_value=False)
             MockReader.return_value.read.return_value = ng
@@ -150,10 +150,10 @@ class TestInvoke:
         ctx = _make_context(tree_type="GEOMETRY")
         op = self._make_op()
 
-        with patch("melvil.ops.add_node_group.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.add_node_group.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.add_node_group.open_db") as mock_db, \
-             patch("melvil.ops.add_node_group.AssetReader") as MockReader:
+        with patch("blammo.ops.add_node_group.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.add_node_group.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.add_node_group.open_db") as mock_db, \
+             patch("blammo.ops.add_node_group.AssetReader") as MockReader:
             mock_db.return_value.__enter__ = lambda s: MagicMock()
             mock_db.return_value.__exit__ = MagicMock(return_value=False)
             MockReader.return_value.read.return_value = ng
@@ -171,10 +171,10 @@ class TestInvoke:
         ctx.space_data.node_tree.nodes.new.return_value = group_node
         op = self._make_op()
 
-        with patch("melvil.ops.add_node_group.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.add_node_group.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.add_node_group.open_db") as mock_db, \
-             patch("melvil.ops.add_node_group.AssetReader") as MockReader:
+        with patch("blammo.ops.add_node_group.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.add_node_group.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.add_node_group.open_db") as mock_db, \
+             patch("blammo.ops.add_node_group.AssetReader") as MockReader:
             mock_db.return_value.__enter__ = lambda s: MagicMock()
             mock_db.return_value.__exit__ = MagicMock(return_value=False)
             MockReader.return_value.read.return_value = ng
@@ -200,10 +200,10 @@ class TestInvoke:
         ctx.space_data.node_tree.nodes.new.return_value = group_node
         op = self._make_op()
 
-        with patch("melvil.ops.add_node_group.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.add_node_group.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.add_node_group.open_db") as mock_db, \
-             patch("melvil.ops.add_node_group.AssetReader") as MockReader:
+        with patch("blammo.ops.add_node_group.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.add_node_group.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.add_node_group.open_db") as mock_db, \
+             patch("blammo.ops.add_node_group.AssetReader") as MockReader:
             mock_db.return_value.__enter__ = lambda s: MagicMock()
             mock_db.return_value.__exit__ = MagicMock(return_value=False)
             MockReader.return_value.read.return_value = ng
@@ -229,10 +229,10 @@ class TestInvoke:
         ctx.space_data.node_tree.nodes.new.return_value = group_node
         op = self._make_op()
 
-        with patch("melvil.ops.add_node_group.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.add_node_group.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.add_node_group.open_db") as mock_db, \
-             patch("melvil.ops.add_node_group.AssetReader") as MockReader:
+        with patch("blammo.ops.add_node_group.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.add_node_group.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.add_node_group.open_db") as mock_db, \
+             patch("blammo.ops.add_node_group.AssetReader") as MockReader:
             mock_db.return_value.__enter__ = lambda s: MagicMock()
             mock_db.return_value.__exit__ = MagicMock(return_value=False)
             MockReader.return_value.read.return_value = ng
@@ -251,10 +251,10 @@ class TestInvoke:
         ctx = _make_context(nodes=[existing_a, existing_b])
         op = self._make_op()
 
-        with patch("melvil.ops.add_node_group.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.add_node_group.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.add_node_group.open_db") as mock_db, \
-             patch("melvil.ops.add_node_group.AssetReader") as MockReader:
+        with patch("blammo.ops.add_node_group.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.add_node_group.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.add_node_group.open_db") as mock_db, \
+             patch("blammo.ops.add_node_group.AssetReader") as MockReader:
             mock_db.return_value.__enter__ = lambda s: MagicMock()
             mock_db.return_value.__exit__ = MagicMock(return_value=False)
             MockReader.return_value.read.return_value = ng
@@ -271,10 +271,10 @@ class TestInvoke:
         ctx = _make_context()
         op = self._make_op()
 
-        with patch("melvil.ops.add_node_group.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.add_node_group.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.add_node_group.open_db") as mock_db, \
-             patch("melvil.ops.add_node_group.AssetReader") as MockReader:
+        with patch("blammo.ops.add_node_group.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.add_node_group.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.add_node_group.open_db") as mock_db, \
+             patch("blammo.ops.add_node_group.AssetReader") as MockReader:
             mock_db.return_value.__enter__ = lambda s: MagicMock()
             mock_db.return_value.__exit__ = MagicMock(return_value=False)
             MockReader.return_value.read.return_value = ng
@@ -286,25 +286,25 @@ class TestInvoke:
         bpy.ops.node.translate_attach.assert_called_once_with("INVOKE_DEFAULT")
 
     def test_returns_cancelled_when_library_not_configured(self):
-        from melvil.core.library import LibraryNotConfiguredError
+        from blammo.core.library import LibraryNotConfiguredError
         op = self._make_op()
         ctx = _make_context()
 
-        with patch("melvil.ops.add_node_group.resolve_library_root",
+        with patch("blammo.ops.add_node_group.resolve_library_root",
                    side_effect=LibraryNotConfiguredError("not set")):
             result = op.invoke(ctx, _make_event())
 
         assert result == {"CANCELLED"}
 
     def test_returns_cancelled_when_asset_not_found(self):
-        from melvil.core.asset_reader import AssetNotFoundError
+        from blammo.core.asset_reader import AssetNotFoundError
         op = self._make_op()
         ctx = _make_context()
 
-        with patch("melvil.ops.add_node_group.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.add_node_group.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.add_node_group.open_db") as mock_db, \
-             patch("melvil.ops.add_node_group.AssetReader") as MockReader:
+        with patch("blammo.ops.add_node_group.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.add_node_group.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.add_node_group.open_db") as mock_db, \
+             patch("blammo.ops.add_node_group.AssetReader") as MockReader:
             mock_db.return_value.__enter__ = lambda s: MagicMock()
             mock_db.return_value.__exit__ = MagicMock(return_value=False)
             MockReader.return_value.read.side_effect = AssetNotFoundError("gone")
@@ -319,10 +319,10 @@ class TestInvoke:
         ctx = _make_context(tree_type="TEXTURE")  # not in _TREE_TYPE_TO_GROUP_NODE
         op = self._make_op()
 
-        with patch("melvil.ops.add_node_group.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.add_node_group.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.add_node_group.open_db") as mock_db, \
-             patch("melvil.ops.add_node_group.AssetReader") as MockReader:
+        with patch("blammo.ops.add_node_group.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.add_node_group.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.add_node_group.open_db") as mock_db, \
+             patch("blammo.ops.add_node_group.AssetReader") as MockReader:
             mock_db.return_value.__enter__ = lambda s: MagicMock()
             mock_db.return_value.__exit__ = MagicMock(return_value=False)
             MockReader.return_value.read.return_value = ng
@@ -338,10 +338,10 @@ class TestInvoke:
         ctx = _make_context(tree_type="SHADER")
         op = self._make_op()
 
-        with patch("melvil.ops.add_node_group.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.add_node_group.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.add_node_group.open_db") as mock_db, \
-             patch("melvil.ops.add_node_group.AssetReader") as MockReader:
+        with patch("blammo.ops.add_node_group.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.add_node_group.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.add_node_group.open_db") as mock_db, \
+             patch("blammo.ops.add_node_group.AssetReader") as MockReader:
             mock_db.return_value.__enter__ = lambda s: MagicMock()
             mock_db.return_value.__exit__ = MagicMock(return_value=False)
             MockReader.return_value.read.return_value = ng
@@ -355,10 +355,10 @@ class TestInvoke:
         ctx = _make_context()
         op = self._make_op()
 
-        with patch("melvil.ops.add_node_group.resolve_library_root", return_value="/lib"), \
-             patch("melvil.ops.add_node_group.resolve_db_path", return_value=":memory:"), \
-             patch("melvil.ops.add_node_group.open_db") as mock_db, \
-             patch("melvil.ops.add_node_group.AssetReader") as MockReader:
+        with patch("blammo.ops.add_node_group.resolve_library_root", return_value="/lib"), \
+             patch("blammo.ops.add_node_group.resolve_db_path", return_value=":memory:"), \
+             patch("blammo.ops.add_node_group.open_db") as mock_db, \
+             patch("blammo.ops.add_node_group.AssetReader") as MockReader:
             mock_db.return_value.__enter__ = lambda s: MagicMock()
             mock_db.return_value.__exit__ = MagicMock(return_value=False)
             MockReader.return_value.read.return_value = None

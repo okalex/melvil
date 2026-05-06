@@ -1,4 +1,4 @@
-"""Tests for ops/asset_edit_tags.py — MELVIL_OT_asset_edit_tags."""
+"""Tests for ops/asset_edit_tags.py — BLAMMO_OT_asset_edit_tags."""
 
 from __future__ import annotations
 
@@ -8,9 +8,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from melvil.db.connection import migrate
-from melvil.db import assets as assets_db
-from melvil.db import tags as tags_db
+from blammo.db.connection import migrate
+from blammo.db import assets as assets_db
+from blammo.db import tags as tags_db
 
 
 @pytest.fixture
@@ -44,9 +44,9 @@ def _mock_open_db(conn):
 
 
 def _make_op(asset_id="", asset_name="", tags=""):
-    from melvil.ops.asset_edit_tags import MELVIL_OT_asset_edit_tags
+    from blammo.ops.asset_edit_tags import BLAMMO_OT_asset_edit_tags
 
-    op = MELVIL_OT_asset_edit_tags()
+    op = BLAMMO_OT_asset_edit_tags()
     op.asset_id = asset_id
     op.asset_name = asset_name
     op.tags = tags
@@ -60,15 +60,15 @@ def _make_op(asset_id="", asset_name="", tags=""):
 
 
 def test_bl_idname():
-    from melvil.ops.asset_edit_tags import MELVIL_OT_asset_edit_tags
+    from blammo.ops.asset_edit_tags import BLAMMO_OT_asset_edit_tags
 
-    assert MELVIL_OT_asset_edit_tags.bl_idname == "melvil.asset_edit_tags"
+    assert BLAMMO_OT_asset_edit_tags.bl_idname == "blammo.asset_edit_tags"
 
 
 def test_bl_options_contains_internal():
-    from melvil.ops.asset_edit_tags import MELVIL_OT_asset_edit_tags
+    from blammo.ops.asset_edit_tags import BLAMMO_OT_asset_edit_tags
 
-    assert "INTERNAL" in MELVIL_OT_asset_edit_tags.bl_options
+    assert "INTERNAL" in BLAMMO_OT_asset_edit_tags.bl_options
 
 
 # ---------------------------------------------------------------------------
@@ -77,9 +77,9 @@ def test_bl_options_contains_internal():
 
 
 def test_poll_always_true():
-    from melvil.ops.asset_edit_tags import MELVIL_OT_asset_edit_tags
+    from blammo.ops.asset_edit_tags import BLAMMO_OT_asset_edit_tags
 
-    assert MELVIL_OT_asset_edit_tags.poll(MagicMock()) is True
+    assert BLAMMO_OT_asset_edit_tags.poll(MagicMock()) is True
 
 
 # ---------------------------------------------------------------------------
@@ -95,8 +95,8 @@ def test_invoke_pre_populates_tags_from_db(conn, asset_id):
     op = _make_op(asset_id=asset_id)
     ctx = MagicMock()
 
-    with patch("melvil.ops.asset_edit_tags.resolve_db_path", return_value=":memory:"), \
-         patch("melvil.ops.asset_edit_tags.open_db", _mock_open_db(conn)):
+    with patch("blammo.ops.asset_edit_tags.resolve_db_path", return_value=":memory:"), \
+         patch("blammo.ops.asset_edit_tags.open_db", _mock_open_db(conn)):
         op.invoke(ctx, MagicMock())
 
     # Tags are comma-separated; both names must appear
@@ -108,8 +108,8 @@ def test_invoke_empty_tags_when_asset_untagged(conn, asset_id):
     op = _make_op(asset_id=asset_id)
     ctx = MagicMock()
 
-    with patch("melvil.ops.asset_edit_tags.resolve_db_path", return_value=":memory:"), \
-         patch("melvil.ops.asset_edit_tags.open_db", _mock_open_db(conn)):
+    with patch("blammo.ops.asset_edit_tags.resolve_db_path", return_value=":memory:"), \
+         patch("blammo.ops.asset_edit_tags.open_db", _mock_open_db(conn)):
         op.invoke(ctx, MagicMock())
 
     assert op.tags == ""
@@ -122,10 +122,10 @@ def test_invoke_cancelled_when_no_asset_id():
 
 
 def test_invoke_cancelled_on_library_not_configured():
-    from melvil.core.library import LibraryNotConfiguredError
+    from blammo.core.library import LibraryNotConfiguredError
 
     op = _make_op(asset_id="some-id")
-    with patch("melvil.ops.asset_edit_tags.resolve_db_path",
+    with patch("blammo.ops.asset_edit_tags.resolve_db_path",
                side_effect=LibraryNotConfiguredError("not set")):
         result = op.invoke(MagicMock(), MagicMock())
 
@@ -169,8 +169,8 @@ def test_draw_omits_label_when_no_asset_name():
 def test_execute_applies_tags_to_asset(conn, asset_id):
     op = _make_op(asset_id=asset_id, tags="metal, pbr")
 
-    with patch("melvil.ops.asset_edit_tags.resolve_db_path", return_value=":memory:"), \
-         patch("melvil.ops.asset_edit_tags.open_db", _mock_open_db(conn)):
+    with patch("blammo.ops.asset_edit_tags.resolve_db_path", return_value=":memory:"), \
+         patch("blammo.ops.asset_edit_tags.open_db", _mock_open_db(conn)):
         result = op.execute(MagicMock())
 
     assert result == {"FINISHED"}
@@ -184,8 +184,8 @@ def test_execute_replaces_existing_tags(conn, asset_id):
     conn.commit()
 
     op = _make_op(asset_id=asset_id, tags="new-tag")
-    with patch("melvil.ops.asset_edit_tags.resolve_db_path", return_value=":memory:"), \
-         patch("melvil.ops.asset_edit_tags.open_db", _mock_open_db(conn)):
+    with patch("blammo.ops.asset_edit_tags.resolve_db_path", return_value=":memory:"), \
+         patch("blammo.ops.asset_edit_tags.open_db", _mock_open_db(conn)):
         op.execute(MagicMock())
 
     names = tags_db.get_asset_tags(conn, asset_id)
@@ -198,8 +198,8 @@ def test_execute_removes_all_tags_when_field_empty(conn, asset_id):
     conn.commit()
 
     op = _make_op(asset_id=asset_id, tags="")
-    with patch("melvil.ops.asset_edit_tags.resolve_db_path", return_value=":memory:"), \
-         patch("melvil.ops.asset_edit_tags.open_db", _mock_open_db(conn)):
+    with patch("blammo.ops.asset_edit_tags.resolve_db_path", return_value=":memory:"), \
+         patch("blammo.ops.asset_edit_tags.open_db", _mock_open_db(conn)):
         op.execute(MagicMock())
 
     names = tags_db.get_asset_tags(conn, asset_id)
@@ -208,8 +208,8 @@ def test_execute_removes_all_tags_when_field_empty(conn, asset_id):
 
 def test_execute_normalizes_tag_names(conn, asset_id):
     op = _make_op(asset_id=asset_id, tags="  Metal , PBR Material  ")
-    with patch("melvil.ops.asset_edit_tags.resolve_db_path", return_value=":memory:"), \
-         patch("melvil.ops.asset_edit_tags.open_db", _mock_open_db(conn)):
+    with patch("blammo.ops.asset_edit_tags.resolve_db_path", return_value=":memory:"), \
+         patch("blammo.ops.asset_edit_tags.open_db", _mock_open_db(conn)):
         op.execute(MagicMock())
 
     names = tags_db.get_asset_tags(conn, asset_id)
@@ -224,10 +224,10 @@ def test_execute_cancelled_when_no_asset_id():
 
 
 def test_execute_cancelled_on_library_not_configured():
-    from melvil.core.library import LibraryNotConfiguredError
+    from blammo.core.library import LibraryNotConfiguredError
 
     op = _make_op(asset_id="some-id", tags="metal")
-    with patch("melvil.ops.asset_edit_tags.resolve_db_path",
+    with patch("blammo.ops.asset_edit_tags.resolve_db_path",
                side_effect=LibraryNotConfiguredError("not set")):
         result = op.execute(MagicMock())
 

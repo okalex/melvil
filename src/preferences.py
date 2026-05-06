@@ -10,7 +10,7 @@ def _on_library_root_update(self, context):
     sync_blender_asset_library()
 
 
-class MelvilPreferences(AddonPreferences):
+class BlammoPreferences(AddonPreferences):
     bl_idname = __package__
 
     library_root: StringProperty(
@@ -25,7 +25,7 @@ class MelvilPreferences(AddonPreferences):
         name="Database Path",
         description=(
             "Path to the SQLite database file. "
-            "Leave empty to use <library_root>/melvil.db"
+            "Leave empty to use <library_root>/blammo.db"
         ),
         subtype="FILE_PATH",
         default="",
@@ -58,7 +58,7 @@ class MelvilPreferences(AddonPreferences):
             layout.label(text=f"Default DB: {_default_db_path()}", icon="INFO")
 
 
-_classes = (MelvilPreferences,)
+_classes = (BlammoPreferences,)
 
 
 def register():

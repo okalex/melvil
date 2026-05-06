@@ -1,4 +1,4 @@
-"""MELVIL_OT_tag_add — apply one or more tags to an asset."""
+"""BLAMMO_OT_tag_add — apply one or more tags to an asset."""
 
 from __future__ import annotations
 
@@ -10,10 +10,10 @@ from ..db import open_db
 from ..db.tags import add_asset_tag, normalize_tag
 
 
-class MELVIL_OT_tag_add(bpy.types.Operator):
-    """Apply one or more tags to a Melvil asset"""
+class BLAMMO_OT_tag_add(bpy.types.Operator):
+    """Apply one or more tags to a Blammo asset"""
 
-    bl_idname = "melvil.tag_add"
+    bl_idname = "blammo.tag_add"
     bl_label = "Add Tags"
     bl_options = {"REGISTER"}
 
@@ -44,7 +44,7 @@ class MELVIL_OT_tag_add(bpy.types.Operator):
     def execute(self, context):
         asset_id = self.asset_id.strip()
         if not asset_id:
-            self.report({"ERROR"}, "Melvil: no asset ID provided.")
+            self.report({"ERROR"}, "Blammo!: no asset ID provided.")
             return {"CANCELLED"}
 
         raw_names = [t for t in (n.strip() for n in self.tags.split(",")) if t]
@@ -52,7 +52,7 @@ class MELVIL_OT_tag_add(bpy.types.Operator):
         names = [n for n in names if n]
 
         if not names:
-            self.report({"WARNING"}, "Melvil: no valid tag names provided.")
+            self.report({"WARNING"}, "Blammo!: no valid tag names provided.")
             return {"CANCELLED"}
 
         try:
@@ -64,8 +64,8 @@ class MELVIL_OT_tag_add(bpy.types.Operator):
             self.report({"ERROR"}, str(exc))
             return {"CANCELLED"}
         except Exception as exc:  # noqa: BLE001
-            self.report({"ERROR"}, f"Melvil: could not add tags — {exc}")
+            self.report({"ERROR"}, f"Blammo!: could not add tags — {exc}")
             return {"CANCELLED"}
 
-        self.report({"INFO"}, f"Melvil: added {len(names)} tag(s) to asset.")
+        self.report({"INFO"}, f"Blammo!: added {len(names)} tag(s) to asset.")
         return {"FINISHED"}

@@ -1,9 +1,9 @@
 """
-Melvil submenu for the Node Editor Add menu (Shift-A in any node editor).
+Blammo submenu for the Node Editor Add menu (Shift-A in any node editor).
 
-``MELVIL_MT_node_add_submenu`` appears as a "Melvil ▶" entry in
+``BLAMMO_MT_node_add_submenu`` appears as a "Blammo! ▶" entry in
 ``NODE_MT_add``.  Its ``draw()`` method queries the database at draw-time
-and renders one ``melvil.add_node_group`` operator button per saved
+and renders one ``blammo.add_node_group`` operator button per saved
 ``NODE_GROUP`` asset.
 
 Blender indexes operator *display text* for menu search, so assets are
@@ -13,10 +13,10 @@ extra work.
 
 from .menus_factory import create_asset_submenu
 
-MELVIL_MT_node_add_submenu, _draw_node_add_entry, register, unregister = create_asset_submenu(
-    bl_idname="MELVIL_MT_node_add_submenu",
+BLAMMO_MT_node_add_submenu, _draw_node_add_entry, register, unregister = create_asset_submenu(
+    bl_idname="BLAMMO_MT_node_add_submenu",
     asset_type="NODE_GROUP",
-    operator_id="melvil.add_node_group",
+    operator_id="blammo.add_node_group",
     icon="NODETREE",
     empty_label="No node group assets saved yet",
     host_menu="NODE_MT_add",

@@ -1,4 +1,4 @@
-"""MELVIL_OT_tag_create — create a new tag independently of any asset."""
+"""BLAMMO_OT_tag_create — create a new tag independently of any asset."""
 
 from __future__ import annotations
 
@@ -10,10 +10,10 @@ from ..db import open_db
 from ..db.tags import get_or_create_tag, normalize_tag
 
 
-class MELVIL_OT_tag_create(bpy.types.Operator):
+class BLAMMO_OT_tag_create(bpy.types.Operator):
     """Create one or more new tags in the library"""
 
-    bl_idname = "melvil.tag_create"
+    bl_idname = "blammo.tag_create"
     bl_label = "New Tag"
     bl_options = {"REGISTER"}
 
@@ -40,7 +40,7 @@ class MELVIL_OT_tag_create(bpy.types.Operator):
         normalized = [n for n in normalized if n]
 
         if not normalized:
-            self.report({"ERROR"}, "Melvil: tag name cannot be empty.")
+            self.report({"ERROR"}, "Blammo!: tag name cannot be empty.")
             return {"CANCELLED"}
 
         try:
@@ -52,8 +52,8 @@ class MELVIL_OT_tag_create(bpy.types.Operator):
             self.report({"ERROR"}, str(exc))
             return {"CANCELLED"}
         except Exception as exc:  # noqa: BLE001
-            self.report({"ERROR"}, f"Melvil: could not create tag — {exc}")
+            self.report({"ERROR"}, f"Blammo!: could not create tag — {exc}")
             return {"CANCELLED"}
 
-        self.report({"INFO"}, f"Melvil: created {len(normalized)} tag(s).")
+        self.report({"INFO"}, f"Blammo!: created {len(normalized)} tag(s).")
         return {"FINISHED"}

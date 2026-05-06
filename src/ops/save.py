@@ -1,5 +1,5 @@
 """
-MELVIL_OT_save_asset — save the active object, material, or node group to
+BLAMMO_OT_save_asset — save the active object, material, or node group to
 the library.
 
 The operator presents a dialog for the user to confirm the asset name.
@@ -31,7 +31,7 @@ from ..db import open_db
 from ..db.assets import get_asset, update_asset
 from ..db.kits import DEFAULT_KIT_ID, list_kits
 from ..db.tags import add_asset_tag, normalize_tag
-from ..preferences import MelvilPreferences
+from ..preferences import BlammoPreferences
 
 # Module-level cache keeps kit enum strings alive (Blender C GC requirement).
 _save_kit_enum_cache: list[tuple] = [(DEFAULT_KIT_ID, "General", "")]
@@ -57,11 +57,11 @@ def _get_save_kit_items(self, context):
     return _save_kit_enum_cache
 
 
-class MELVIL_OT_save_asset(bpy.types.Operator):
-    """Save the active object or material to the Melvil library"""
+class BLAMMO_OT_save_asset(bpy.types.Operator):
+    """Save the active object or material to the Blammo library"""
 
-    bl_idname = "melvil.save_asset"
-    bl_label = "Save as Melvil Asset"
+    bl_idname = "blammo.save_asset"
+    bl_label = "Save as Blammo! Asset"
     bl_options = {"REGISTER"}
 
     # Set automatically in invoke() based on context; hidden from the dialog.
@@ -160,10 +160,10 @@ class MELVIL_OT_save_asset(bpy.types.Operator):
 
         # Resolve the default kit from scene state.
         scene = getattr(context, "scene", None)
-        active_kit_id = getattr(scene, "melvil_active_kit_id", None)
+        active_kit_id = getattr(scene, "blammo_active_kit_id", None)
         if not isinstance(active_kit_id, str):
             active_kit_id = "ALL_KITS"
-        mru_kit_id = getattr(scene, "melvil_mru_kit_id", None)
+        mru_kit_id = getattr(scene, "blammo_mru_kit_id", None)
         if not isinstance(mru_kit_id, str):
             mru_kit_id = ""
 
@@ -201,18 +201,18 @@ class MELVIL_OT_save_asset(bpy.types.Operator):
         # ------------------------------------------------------------------
         if self.save_type == "MESH":
             if obj is None or obj.type != "MESH":
-                self.report({"ERROR"}, "Melvil: no active mesh object to save.")
+                self.report({"ERROR"}, "Blammo!: no active mesh object to save.")
                 return {"CANCELLED"}
             if not self.mesh_name.strip():
-                self.report({"ERROR"}, "Melvil: mesh name cannot be empty.")
+                self.report({"ERROR"}, "Blammo!: mesh name cannot be empty.")
                 return {"CANCELLED"}
 
         elif self.save_type == "MATERIAL":
             if mat is None:
-                self.report({"ERROR"}, "Melvil: no active material on the selected object.")
+                self.report({"ERROR"}, "Blammo!: no active material on the selected object.")
                 return {"CANCELLED"}
             if not self.material_name.strip():
-                self.report({"ERROR"}, "Melvil: material name cannot be empty.")
+                self.report({"ERROR"}, "Blammo!: material name cannot be empty.")
                 return {"CANCELLED"}
 
         elif self.save_type == "NODE_GROUP":
@@ -222,10 +222,10 @@ class MELVIL_OT_save_asset(bpy.types.Operator):
                 else None
             )
             if node_tree is None:
-                self.report({"ERROR"}, "Melvil: no active node group to save.")
+                self.report({"ERROR"}, "Blammo!: no active node group to save.")
                 return {"CANCELLED"}
             if not self.node_group_name.strip():
-                self.report({"ERROR"}, "Melvil: node group name cannot be empty.")
+                self.report({"ERROR"}, "Blammo!: node group name cannot be empty.")
                 return {"CANCELLED"}
 
         # ------------------------------------------------------------------
@@ -251,14 +251,14 @@ class MELVIL_OT_save_asset(bpy.types.Operator):
                     asset_id = writer.write(obj, self.mesh_name.strip(), "MESH", kit_id=kit_id)
                     self.report(
                         {"INFO"},
-                        f"Melvil: mesh '{self.mesh_name.strip()}' saved (id: {asset_id[:8]}…)",
+                        f"Blammo!: mesh '{self.mesh_name.strip()}' saved (id: {asset_id[:8]}…)",
                     )
 
                 elif self.save_type == "MATERIAL":
                     asset_id = writer.write(mat, self.material_name.strip(), "MATERIAL", kit_id=kit_id)
                     self.report(
                         {"INFO"},
-                        f"Melvil: material '{self.material_name.strip()}' saved (id: {asset_id[:8]}…)",
+                        f"Blammo!: material '{self.material_name.strip()}' saved (id: {asset_id[:8]}…)",
                     )
 
                 elif self.save_type == "NODE_GROUP":
@@ -266,7 +266,7 @@ class MELVIL_OT_save_asset(bpy.types.Operator):
                     asset_id = writer.write(node_tree, self.node_group_name.strip(), "NODE_GROUP", kit_id=kit_id)
                     self.report(
                         {"INFO"},
-                        f"Melvil: node group '{self.node_group_name.strip()}' saved (id: {asset_id[:8]}…)",
+                        f"Blammo!: node group '{self.node_group_name.strip()}' saved (id: {asset_id[:8]}…)",
                     )
 
                 # Apply any tags specified in the dialog.
@@ -283,7 +283,7 @@ class MELVIL_OT_save_asset(bpy.types.Operator):
                 # Generate a preview image for MESH and MATERIAL assets.
                 # Node groups are skipped for now (out of scope).
                 # Skipped entirely when the user has disabled auto-generation.
-                _prefs = context.preferences.addons.get(MelvilPreferences.bl_idname)
+                _prefs = context.preferences.addons.get(BlammoPreferences.bl_idname)
                 _auto_preview = _prefs.preferences.auto_generate_previews if _prefs else True
                 if _auto_preview and self.save_type in ("MESH", "MATERIAL"):
                     previews_dir = Path(library_root) / "previews"
@@ -319,34 +319,34 @@ class MELVIL_OT_save_asset(bpy.types.Operator):
                     else:
                         self.report(
                             {"WARNING"},
-                            "Melvil: preview generation failed, asset saved without preview.",
+                            "Blammo!: preview generation failed, asset saved without preview.",
                         )
 
         except Exception as exc:  # noqa: BLE001
-            self.report({"ERROR"}, f"Melvil: save failed — {exc}")
+            self.report({"ERROR"}, f"Blammo!: save failed — {exc}")
             return {"CANCELLED"}
 
         # Update MRU kit on successful save.
         scene = getattr(context, "scene", None)
         if scene is not None:
             try:
-                scene.melvil_mru_kit_id = kit_id
+                scene.blammo_mru_kit_id = kit_id
             except Exception:  # noqa: BLE001
                 pass
 
         return {"FINISHED"}
 
 
-class MELVIL_OT_save_nodes_as_asset(bpy.types.Operator):
-    """Save the selected node group as a Melvil asset.
+class BLAMMO_OT_save_nodes_as_asset(bpy.types.Operator):
+    """Save the selected node group as a Blammo asset.
 
     Enabled only when exactly one GROUP-type node is selected.  Selecting
     multiple nodes or a non-group node disables the operator (shown grayed
     out in the context menu).
     """
 
-    bl_idname = "melvil.save_nodes_as_asset"
-    bl_label = "Save as Melvil Asset"
+    bl_idname = "blammo.save_nodes_as_asset"
+    bl_label = "Save as Blammo! Asset"
     bl_options = {"REGISTER", "UNDO"}
 
     @classmethod
@@ -365,4 +365,4 @@ class MELVIL_OT_save_nodes_as_asset(bpy.types.Operator):
         )
 
     def invoke(self, context, event):
-        return bpy.ops.melvil.save_asset("INVOKE_DEFAULT")
+        return bpy.ops.blammo.save_asset("INVOKE_DEFAULT")

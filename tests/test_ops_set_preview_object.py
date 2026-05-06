@@ -1,4 +1,4 @@
-"""Tests for ops/set_preview_object.py — MELVIL_OT_set_preview_object."""
+"""Tests for ops/set_preview_object.py — BLAMMO_OT_set_preview_object."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 
 import bpy
 
-from melvil.preferences import MelvilPreferences
+from blammo.preferences import BlammoPreferences
 
 
 # ---------------------------------------------------------------------------
@@ -29,16 +29,16 @@ def _make_context(preview_object: str = "BUILTIN_UV_SPHERE") -> MagicMock:
 
 class TestMetadata:
     def test_bl_idname(self):
-        from melvil.ops.set_preview_object import MELVIL_OT_set_preview_object
-        assert MELVIL_OT_set_preview_object.bl_idname == "melvil.set_preview_object"
+        from blammo.ops.set_preview_object import BLAMMO_OT_set_preview_object
+        assert BLAMMO_OT_set_preview_object.bl_idname == "blammo.set_preview_object"
 
     def test_bl_label(self):
-        from melvil.ops.set_preview_object import MELVIL_OT_set_preview_object
-        assert MELVIL_OT_set_preview_object.bl_label == "Material Preview Object"
+        from blammo.ops.set_preview_object import BLAMMO_OT_set_preview_object
+        assert BLAMMO_OT_set_preview_object.bl_label == "Material Preview Object"
 
     def test_inherits_operator(self):
-        from melvil.ops.set_preview_object import MELVIL_OT_set_preview_object
-        assert issubclass(MELVIL_OT_set_preview_object, bpy.types.Operator)
+        from blammo.ops.set_preview_object import BLAMMO_OT_set_preview_object
+        assert issubclass(BLAMMO_OT_set_preview_object, bpy.types.Operator)
 
 
 # ---------------------------------------------------------------------------
@@ -48,8 +48,8 @@ class TestMetadata:
 
 class TestExecute:
     def _make_op(self, object_id: str = "BUILTIN_UV_SPHERE"):
-        from melvil.ops.set_preview_object import MELVIL_OT_set_preview_object
-        op = MELVIL_OT_set_preview_object()
+        from blammo.ops.set_preview_object import BLAMMO_OT_set_preview_object
+        op = BLAMMO_OT_set_preview_object()
         op.object_id = object_id
         return op
 
@@ -65,7 +65,7 @@ class TestExecute:
         op.execute(ctx)
         ctx.preferences.addons.get.return_value.preferences.material_preview_object = "BUILTIN_CUBE"
         assert (
-            ctx.preferences.addons.get(MelvilPreferences.bl_idname).preferences.material_preview_object
+            ctx.preferences.addons.get(BlammoPreferences.bl_idname).preferences.material_preview_object
             == "BUILTIN_CUBE"
         )
 
@@ -75,7 +75,7 @@ class TestExecute:
         op.execute(ctx)
         ctx.preferences.addons.get.return_value.preferences.material_preview_object = "BUILTIN_UV_SPHERE"
         assert (
-            ctx.preferences.addons.get(MelvilPreferences.bl_idname).preferences.material_preview_object
+            ctx.preferences.addons.get(BlammoPreferences.bl_idname).preferences.material_preview_object
             == "BUILTIN_UV_SPHERE"
         )
 
@@ -95,7 +95,7 @@ class TestExecute:
 
 class TestGetItems:
     def test_includes_all_builtin_items(self):
-        from melvil.ops.set_preview_object import _get_items, _BUILTIN_ITEMS
+        from blammo.ops.set_preview_object import _get_items, _BUILTIN_ITEMS
 
         items = _get_items(None, None)
         builtin_ids = {item[0] for item in _BUILTIN_ITEMS}
@@ -103,7 +103,7 @@ class TestGetItems:
         assert builtin_ids.issubset(item_ids)
 
     def test_uv_sphere_is_first_item(self):
-        from melvil.ops.set_preview_object import _get_items
+        from blammo.ops.set_preview_object import _get_items
 
         items = _get_items(None, None)
         assert items[0][0] == "BUILTIN_UV_SPHERE"

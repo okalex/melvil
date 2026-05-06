@@ -1,10 +1,10 @@
 """
-Melvil N-panel — 3D Viewport sidebar (N key → Melvil tab).
+Blammo N-panel — 3D Viewport sidebar (N key → Blammo tab).
 
 Layout
 ------
-- "Save as Asset" button (calls ``melvil.save_asset`` with dialog)
-- "Browse Library" button (calls ``melvil.open_browser``)
+- "Save as Asset" button (calls ``blammo.save_asset`` with dialog)
+- "Browse Library" button (calls ``blammo.open_browser``)
 - Active Kit section — dropdown to filter add-menu items by kit
 """
 
@@ -16,7 +16,7 @@ from ..core.library import resolve_db_path
 from ..db import open_db
 from ..db.assets import get_asset
 from ..db.kits import get_kit
-from ..preferences import MelvilPreferences
+from ..preferences import BlammoPreferences
 
 _BUILTIN_PREVIEW_LABELS: dict[str, str] = {
     "BUILTIN_CUBE": "Cube",
@@ -38,14 +38,14 @@ def _resolve_preview_object_label(mat_prev_id: str) -> str:
         return "Unknown Asset"
 
 
-class MELVIL_PT_main(bpy.types.Panel):
-    """Melvil asset library panel"""
+class BLAMMO_PT_main(bpy.types.Panel):
+    """Blammo asset library panel"""
 
-    bl_idname = "MELVIL_PT_main"
-    bl_label = "Melvil Assets"
+    bl_idname = "BLAMMO_PT_main"
+    bl_label = "Blammo! Assets"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "Melvil"
+    bl_category = "Blammo!"
 
     @classmethod
     def poll(cls, context):
@@ -54,13 +54,13 @@ class MELVIL_PT_main(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
 
-        layout.operator("melvil.open_browser", text="Browse Library", icon="ASSET_MANAGER")
+        layout.operator("blammo.open_browser", text="Browse Library", icon="ASSET_MANAGER")
 
         layout.separator()
 
         # label reflects the current selection stored on the scene.
         scene = getattr(context, "scene", None)
-        active_kit_id = getattr(scene, "melvil_active_kit_id", None)
+        active_kit_id = getattr(scene, "blammo_active_kit_id", None)
         if not isinstance(active_kit_id, str) or active_kit_id == "ALL_KITS":
             kit_label = "All Kits"
         else:
@@ -73,7 +73,7 @@ class MELVIL_PT_main(bpy.types.Panel):
 
         layout.label(text="Active Kit")
         layout.operator_menu_enum(
-            "melvil.set_active_kit",
+            "blammo.set_active_kit",
             "kit_id",
             text=kit_label,
             icon="BOOKMARKS",
@@ -82,7 +82,7 @@ class MELVIL_PT_main(bpy.types.Panel):
         layout.separator()
 
         # Auto-generate previews toggle — reads from addon preferences.
-        prefs = context.preferences.addons.get(MelvilPreferences.bl_idname)
+        prefs = context.preferences.addons.get(BlammoPreferences.bl_idname)
         if prefs is not None:
             layout.label(text="Preview Generation")
             layout.prop(prefs.preferences, "auto_generate_previews")
@@ -91,7 +91,7 @@ class MELVIL_PT_main(bpy.types.Panel):
             preview_obj_id = prefs.preferences.material_preview_object
             preview_obj_label = _resolve_preview_object_label(preview_obj_id)
             layout.operator_menu_enum(
-                "melvil.set_preview_object",
+                "blammo.set_preview_object",
                 "object_id",
                 text=preview_obj_label,
             )
